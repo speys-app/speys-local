@@ -27,12 +27,18 @@ nav .bad{margin-left:auto;width:7px;height:7px;flex:none;border-radius:50%;backg
 .empty{margin:0;padding:0 8px;font-size:12px;color:var(--muted)}
 code{font:12px ui-monospace,Menlo,Consolas,monospace}
 .alt{margin-top:auto}
+.update{margin-bottom:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--on);font-size:12px}
+.update[hidden]{display:none}
+.update p{margin:0 0 7px}
+.update div{display:flex;gap:6px}
+.update button{padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.update button:first-child{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:600}
 main{flex:1;min-width:0;display:flex}
 iframe{flex:1;width:100%;height:100%;border:0;background:var(--bg)}
 iframe[hidden]{display:none}
 .message{margin:auto;max-width:440px;padding:24px;text-align:center;color:var(--muted)}
 .message b{display:block;margin-bottom:6px;color:var(--text);font-size:16px}
-@media (max-width:720px){aside{width:58px;padding:12px 8px}.brand{justify-content:center;padding:0}.brand div,h2,.empty,nav .name{display:none}nav a{justify-content:center}}
+@media (max-width:720px){aside{width:58px;padding:12px 8px}.brand{justify-content:center;padding:0}.brand div,h2,.empty,.update,nav .name{display:none}nav a{justify-content:center}}
 </style>
 </head>
 <body>
@@ -42,7 +48,10 @@ iframe[hidden]{display:none}
   <section><h2 id="official-title"></h2><nav id="official"></nav></section>
   <section id="store-section"><h2 id="store-title"></h2><nav id="store"></nav></section>
   <section><h2 id="custom-title"></h2><nav id="custom"></nav></section>
-  <section class="alt"><nav id="system"></nav></section>
+  <section class="alt">
+    <div class="update" id="update" hidden><p id="update-text"></p><div><button type="button" id="update-see"></button><button type="button" id="update-later"></button></div></div>
+    <nav id="system"></nav>
+  </section>
 </aside>
 <main id="main"></main>
 <script src="/kit.js"></script>
@@ -194,6 +203,23 @@ function failedToLoad(id, frame) {
   }
 }
 
+// —— a new update asks; "Later" holds until a newer one arrives
+let updateShown = null, updateLater = null;
+try { updateLater = localStorage.getItem("dashboard.updateLater"); } catch { /* private window */ }
+document.getElementById("update-see").textContent = t("See updates");
+document.getElementById("update-later").textContent = t("Later");
+document.getElementById("update-see").addEventListener("click", () => window.openApplet("settings"));
+document.getElementById("update-later").addEventListener("click", () => {
+  updateLater = updateShown?.latest;
+  try { localStorage.setItem("dashboard.updateLater", updateLater); } catch { /* private window */ }
+  drawUpdate(updateShown);
+});
+function drawUpdate(update) {
+  updateShown = update;
+  document.getElementById("update").hidden = !update || update.latest === updateLater;
+  if (update) document.getElementById("update-text").textContent = t("{n} new updates.", { n: update.count });
+}
+
 let seen = null;
 async function watchVersion() {
   if (document.hidden) return;
@@ -203,6 +229,7 @@ async function watchVersion() {
   } catch {
     return; // the server may be restarting
   }
+  drawUpdate(v.update);
   // The server answers again: an error page would otherwise stay, and it also reads as busy below
   for (const [id, frame] of frames) {
     if (failedToLoad(id, frame)) frame.src = frame.src;
