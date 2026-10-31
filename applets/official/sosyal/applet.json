@@ -8,7 +8,7 @@
     {
       "key": "root",
       "label": "Content folder",
-      "hint": "Folder that contains takvim.json; videos are under <project>/renders/",
+      "hint": "Optional: a folder with your takvim.json; videos are under <project>/renders/. If empty, the calendar stays in data/",
       "type": "path"
     }
   ]

@@ -43,7 +43,7 @@ async function loadSocial() { social = await getJson("./api/sosyal"); }
 async function writeSocial(body) {
   const r = await fetch("./api/sosyal", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ ...body, surum: social.surum }) });
   if (r.status === 409) notify(t("The calendar changed in the meantime, reloaded."));
-  else if (!r.ok) notify(t("Could not save."));
+  else if (!r.ok) notify((await r.json().catch(() => ({}))).error || t("Could not save."));
   await loadSocial(); render();
 }
 const writeNumber = (n) => (n == null ? "—" : Number(n).toLocaleString(LOCALE));
@@ -67,8 +67,38 @@ function phoneCard(v, account) {
       ${views != null ? `<span class="izl">▶ ${writeNumber(views)}</span>` : ""}
     </button>`;
 }
+/** A small form in a popup; `fields` are [name, label, attributes]. A select's attributes are its options' HTML. */
+function formPopup(title, fields, onSave, submitLabel = t("Save")) {
+  const popup = openPopup({ title, onClose: () => { isEditing = false; } });
+  isEditing = true;
+  popup.setBody(`<form class="sos-form">${fields.map(([name, label, attrs = "", options]) => `<label>${esc(label)}${options
+    ? `<select name="${name}">${options}</select>`
+    : `<input name="${name}" ${attrs}>`}</label>`).join("")}<div class="dugmeler"><button type="submit" class="ana">${esc(submitLabel)}</button></div></form>`);
+  const form = popup.element.querySelector("form");
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    popup.close();
+    onSave(Object.fromEntries(new FormData(form)));
+  });
+  form.querySelector("input")?.focus();
+}
+const addAccount = () => formPopup(t("Add account"), [["ad", t("Name"), "required"], ["kullanici", t("Handle"), 'placeholder="@name"']], (f) => writeSocial({ op: "hesap_ekle", ...f }), t("Add"));
+const addVideo = () => formPopup(t("Add video"), [
+  ["baslik", t("Title"), "required"],
+  ["hesap", t("Account"), "", social.hesaplar.map((a) => `<option value="${esc(a.id)}"${a.id === state.account ? " selected" : ""}>${esc(a.ad)}</option>`).join("")],
+  ["tarih", t("Date"), 'type="date"'],
+], (f) => writeSocial({ op: "video_ekle", ...f }), t("Add"));
+const editVideo = (v) => formPopup(t("Edit video"), [
+  ["baslik", t("Title"), `required value="${esc(v.baslik)}"`],
+  ["aciklama", t("Caption"), `value="${esc(v.aciklama || "")}"`],
+  ["baglanti", t("Link"), `value="${esc(v.baglanti || "")}"`],
+  ["not", t("Note"), `value="${esc(v.not || "")}"`],
+], (f) => writeSocial({ op: "video_duzenle", id: v.id, ...f }));
 function renderSocial() {
   if (!social) { loadSocial().then(render); return `<p class="bos">${esc(t("Loading…"))}</p>`; }
+  if (!social.hesaplar.length) return `<section class="kart" style="max-width:520px;margin:12vh auto"><h2>${esc(t("Plan your content"))}</h2>
+    <p class="soluk">${esc(t("Add an account, then plan its videos here: steps, captions, where you shared them and their numbers."))}</p>
+    <button type="button" class="yz-dugme" data-is="sos-hesap-ekle">${esc(t("Add account"))}</button></section>`;
   const accountById = (id) => social.hesaplar.find((a) => a.id === id);
   const accounts = social.hesaplar.filter((a) => !state.account || a.id === state.account);
   const videos = social.videolar.filter((v) => !state.account || v.hesap === state.account);
@@ -121,14 +151,15 @@ function renderSocial() {
     <div class="tarihsiz">${undated.map((v) => `<div class="gun">${phoneCard(v, accountById(v.hesap))}<div class="bas">${esc(v.baslik)}</div></div>`).join("")}</div>` : "";
 
   const queueAccount = social.hesaplar[0]; // the queue belongs to the first account in takvim.json
-  const queue = (!state.account || state.account === queueAccount?.id) ? `<section class="kart kuyruk"><h2>${esc(t("Ready queue · {name}", { name: queueAccount?.ad || "" }))}</h2><ul>${social.kuyruk.map((k) =>
+  const queue = social.kuyruk.length && (!state.account || state.account === queueAccount?.id) ? `<section class="kart kuyruk"><h2>${esc(t("Ready queue · {name}", { name: queueAccount?.ad || "" }))}</h2><ul>${social.kuyruk.map((k) =>
     `<li><img src="./sosyal/dosya/marka/afisler/${esc(k.tmdb)}.jpg" alt="" onerror="this.style.visibility='hidden'"><div>${esc(k.dizi)}<br><small>${esc(t("{linked}/{total} memes linked to an episode", { linked: k.bolumlu, total: k.toplam }))}</small></div><span class="rozet${k.durum === "hazır" ? " hazir" : ""}">${esc(QUEUE_STATUS[k.durum] ?? k.durum)}</span></li>`).join("")}</ul></section>` : "";
   const background = `<section class="kart arka"><h2>${esc(t("Background tasks"))}</h2><ul>${social.arka_plan.map((a, i) =>
-    `<li class="${a.bitti ? "bitti" : ""}" data-is="sos-arka" data-sira="${i}">${checkboxHtml(a.bitti, "md").replace('data-is="isaretle"', "")}<span>${esc(a.is)}</span></li>`).join("")}</ul></section>`;
+    `<li class="${a.bitti ? "bitti" : ""}" data-is="sos-arka" data-sira="${i}">${checkboxHtml(a.bitti, "md").replace('data-is="isaretle"', "")}<span>${esc(a.is)}</span><button type="button" class="sos-sil" data-is="sos-arka-sil" data-sira="${i}" aria-label="${esc(t("Delete"))}">×</button></li>`).join("")}</ul>
+    <button type="button" class="sos-ekle" data-is="sos-arka-ekle">+ ${esc(t("Add task"))}</button></section>`;
 
   const selected = social.videolar.find((v) => v.id === state.selected);
   return `<div class="sos${selected ? " panel-acik" : ""}">
-    <div class="sos-hesaplar">${chips}</div>
+    <div class="sos-hesaplar">${chips}<button type="button" class="tumu" data-is="sos-hesap-ekle">+ ${esc(t("Add account"))}</button>${state.account && !videos.length ? `<button type="button" class="tumu" data-is="sos-hesap-sil" data-hesap="${esc(state.account)}">${esc(t("Delete this account"))}</button>` : ""}<button type="button" class="tumu" data-is="sos-video-ekle">+ ${esc(t("Add video"))}</button></div>
     <div class="hafta-bas"><button type="button" class="yuvarlak" data-is="sos-hafta" data-yon="-1" aria-label="${esc(t("Previous week"))}">‹</button>
       <h2>${monthDay(days[0])} – ${monthDay(days.at(-1))}${state.week === 0 ? ` · ${esc(t("this week"))}` : ""}</h2>
       <button type="button" class="yuvarlak" data-is="sos-hafta" data-yon="1" aria-label="${esc(t("Next week"))}">›</button></div>
@@ -157,6 +188,7 @@ function detailPanel(v, account) {
     ${v.video ? `<div class="vid-dugme"><button type="button" data-is="sos-video" data-ne="kopyala">${esc(t("Copy file"))}</button><button type="button" data-is="sos-video" data-ne="goster">${esc(t("Show in Finder"))}</button><a href="./sosyal/dosya/${esc(v.video)}" download="${esc(v.video.split("/").pop())}">${esc(t("Download"))}</a></div>` : ""}
     ${v.storyboard ? `<div class="vid-dugme"><a href="./sosyal/dosya/${esc(v.storyboard)}" target="_blank" rel="noopener">${esc(t("Storyboard"))} ↗</a></div>` : ""}
     <h3>${esc(v.baslik)}</h3>
+    <div class="vid-dugme"><button type="button" data-is="sos-video-duzenle">${esc(t("Edit video"))}</button><button type="button" data-is="sos-video-sil">${esc(t("Delete video"))}</button></div>
     <div class="alt">${v.video ? esc(v.video.split("/").pop()) : esc(t("No video yet"))}${v.paylasildi_tarih ? ` · ${esc(t("shared {date}", { date: v.paylasildi_tarih }))}` : ""}</div>
     <div class="adimlar">${STEPS.filter(([k]) => k !== "paylasildi").map(([k, label]) => `<button type="button" class="${v.adimlar?.[k] ? "on" : ""}" data-is="sos-adim" data-adim="${k}">${v.adimlar?.[k] ? "✓ " : ""}${esc(label)}</button>`).join("")}</div>
     <div class="adimlar platform"><span>${esc(t("Shared"))}</span>${PLATFORMS.map(([k, name]) => { const sharedOn = v.platformlar?.[k];
@@ -179,6 +211,18 @@ document.addEventListener("click", async (e) => {
   if (!social) return;
   const el = e.target.closest("[data-is]"), action = el?.dataset.is, v = social.videolar.find((x) => x.id === state.selected);
   switch (action) {
+    case "sos-hesap-ekle": return addAccount();
+    case "sos-video-ekle": return addVideo();
+    case "sos-video-duzenle": return v && editVideo(v);
+    case "sos-video-sil":
+      if (!v || !confirm(t('Delete "{text}"?', { text: v.baslik }))) return;
+      state.selected = null;
+      return writeSocial({ op: "video_sil", id: v.id });
+    case "sos-hesap-sil":
+      state.account = ""; localStorage.setItem("panel.sosHesap", "");
+      return writeSocial({ op: "hesap_sil", hesap: el.dataset.hesap });
+    case "sos-arka-ekle": return formPopup(t("Add task"), [["is", t("Name"), "required"]], (f) => writeSocial({ op: "arka_ekle", ...f }), t("Add"));
+    case "sos-arka-sil": e.stopPropagation(); return writeSocial({ op: "arka_sil", sira: +el.dataset.sira });
     case "sos-hesap": state.account = el.dataset.hesap; localStorage.setItem("panel.sosHesap", state.account); return render();
     case "sos-hafta": state.week += +el.dataset.yon; return render();
     case "sos-sec": state.selected = state.selected === el.dataset.id ? null : el.dataset.id; state.editing = false; return render();
