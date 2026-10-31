@@ -445,3 +445,13 @@ input.crm-baslik{width:100%;border:1px solid var(--cizgi);background:var(--yuzey
 .crm-gorusmeler li p{margin:3px 0 0;color:var(--metin);line-height:1.5}
 .crm-gsil{position:absolute;right:0;top:6px;border:0;background:none;color:var(--soluk);opacity:0}.crm-gorusmeler li:hover .crm-gsil{opacity:1}
 .crm-gorusme-form{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}.crm-gorusme-form textarea,.crm-gorusme-form .crm-dugmeler{grid-column:1/-1}.crm-gorusme-form .crm-dugmeler{margin-top:0}
+
+/* —— Popup (openPopup in kit.js) —— */
+.popup{width:min(420px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 48px));padding:0;border:1px solid var(--cizgi);border-radius:14px;background:var(--yuzey);color:var(--metin);overflow:hidden}
+.popup[open]{display:flex;flex-direction:column}
+.popup::backdrop{background:rgba(0,0,0,.5)}
+.popup-bas{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 12px 12px 16px;border-bottom:1px solid var(--cizgi)}
+.popup-bas h2{margin:0;font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--metin)}
+.popup-kapat{flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:8px;background:none;color:var(--soluk);cursor:pointer}
+.popup-ic{overflow-y:auto;overscroll-behavior:contain;padding:6px 8px 10px}
+html:has(.popup[open]){overflow:hidden}

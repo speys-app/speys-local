@@ -65,7 +65,7 @@ Load `/kit.css` and `/kit.js`. `kit.js` gives you:
 
 `t`, `LOCALE`, `$`, `esc`, `inlineMd`, `timeAgo`, `notify`, `getJson`, `isHidden`, `goTo`, `percent`, `formatNumber`,
 `formatDecimal`, `lineChart`, `diffHtml`, `shortDay`, `svg`, `ICON`, `formatDate`, `checkboxHtml`, `isoDay`, `listHtml`,
-`notConfigured`.
+`notConfigured`, `openPopup`.
 
 The dashboard fires `focus` on a frame when its applet comes back or every 30 seconds, so refresh data on `focus`,
 and skip it when `isHidden()`.

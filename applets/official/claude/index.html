@@ -10,9 +10,17 @@
 .ses-aciklama{margin:0 0 8px;font-size:13px}
 .ses-satir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--cizgi);font-size:14px}
 .ses-satir span{flex:1;min-width:200px;font-weight:600}
-.ses-satir select{border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey2);color:var(--metin);padding:6px 8px;font-size:13px;min-width:160px}
 .ses-satir button{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey);color:var(--metin)}
 .ses-satir button:disabled{opacity:.4}
+.ses-satir button.ses-sec{justify-content:space-between;gap:10px;width:auto;min-width:220px;padding:0 10px;background:var(--yuzey2);font-size:13px;cursor:pointer}
+.ses-liste h3{margin:12px 8px 4px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--soluk)}
+.ses-secenek{display:flex;align-items:center;gap:4px;border-radius:8px}
+.ses-secenek:hover{background:var(--yuzey2)}
+.ses-secenek.secili{background:var(--yuzey2)}
+.ses-ad{flex:1;min-width:0;display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border:0;background:none;color:inherit;font-size:14px;text-align:left;cursor:pointer}
+.ses-tik{flex:none;width:14px;display:flex;color:var(--vurgu)}
+.ses-cal{flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;margin-right:2px;border:0;border-radius:8px;background:none;color:var(--metin);cursor:pointer}
+.ses-cal:hover{background:var(--yuzey)}
 .ses-not{margin:8px 0 0;font-size:12px}
 .ses-kanca-satir{margin-top:8px}
 .ses-kanca-satir small{display:block;font-size:12px;font-weight:400;color:var(--soluk)}
@@ -53,14 +61,22 @@ function render() {
 let sounds = null;
 const PLAY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>';
 const SOUND_EVENTS = [["done", () => t("When a session finishes")], ["approval", () => t("When it needs your approval")]];
+const DOWN_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+const soundName = (id) => sounds.options.find((s) => s.id === id)?.name ?? t("No sound");
 function soundRow([event, label]) {
   const chosen = sounds.chosen[event];
-  const option = (s) => `<option value="${esc(s.id)}"${s.id === chosen ? " selected" : ""}>${esc(s.name)}</option>`;
-  const own = sounds.options.filter((s) => s.own), system = sounds.options.filter((s) => !s.own);
-  const group = (title, list) => (list.length ? `<optgroup label="${esc(title)}">${list.map(option).join("")}</optgroup>` : "");
   return `<div class="ses-satir"><span>${esc(label())}</span>
-    <select data-sound="${event}"><option value="${esc(sounds.none)}"${chosen === sounds.none ? " selected" : ""}>${esc(t("No sound"))}</option>${group(t("Your sounds"), own)}${group(t("System sounds"), system)}</select>
+    <button type="button" class="ses-sec" data-choose="${event}" aria-haspopup="dialog">${esc(soundName(chosen))}${DOWN_ICON}</button>
     ${sounds.canPlay ? `<button type="button" data-play="${event}" title="${esc(t("Play"))}" aria-label="${esc(t("Play"))}"${chosen === sounds.none ? " disabled" : ""}>${PLAY_ICON}</button>` : ""}</div>`;
+}
+/** The sound list in its window: choosing plays the sound and the window stays, so sounds can be compared. */
+function pickerHtml(event) {
+  const chosen = sounds.chosen[event];
+  const row = (id, name) => `<div class="ses-secenek${id === chosen ? " secili" : ""}">
+      <button type="button" class="ses-ad" data-pick="${esc(id)}"><span class="ses-tik">${id === chosen ? ICON.check(14) : ""}</span>${esc(name)}</button>
+      ${sounds.canPlay && id !== sounds.none ? `<button type="button" class="ses-cal" data-preview="${esc(id)}" title="${esc(t("Play"))}" aria-label="${esc(t("Play {name}", { name }))}">${PLAY_ICON}</button>` : ""}</div>`;
+  const group = (title, list) => (list.length ? `<h3>${esc(title)}</h3>${list.map((s) => row(s.id, s.name)).join("")}` : "");
+  return `<div class="ses-liste">${row(sounds.none, t("No sound"))}${group(t("Your sounds"), sounds.options.filter((s) => s.own))}${group(t("System sounds"), sounds.options.filter((s) => !s.own))}</div>`;
 }
 function soundsHtml() {
   return `<section class="kart ses-kart"><h2>${esc(t("Sound"))}</h2>
@@ -77,19 +93,29 @@ async function loadSounds() {
   $("#sounds").innerHTML = soundsHtml();
 }
 const postSound = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body) });
-document.addEventListener("change", async (e) => {
-  const event = e.target.dataset?.sound;
-  if (!event) return;
-  const id = e.target.value;
-  const r = await postSound("./api/sounds", { event, id });
-  if (!r.ok) return notify(t("Could not save."));
-  await loadSounds();
-  if (id !== sounds.none) postSound("./api/sounds/play", { id });
-});
-document.addEventListener("click", (e) => {
+let picking = null;
+document.addEventListener("click", async (e) => {
   if (e.target.closest("[data-hook]")) return postSound("./api/sounds/hook", { on: !sounds.hook }).then(loadSounds);
   const button = e.target.closest("[data-play]");
-  if (button) postSound("./api/sounds/play", { id: sounds.chosen[button.dataset.play] });
+  if (button) return postSound("./api/sounds/play", { id: sounds.chosen[button.dataset.play] });
+  const opener = e.target.closest("[data-choose]");
+  if (opener) {
+    const event = opener.dataset.choose;
+    const popup = openPopup({ title: SOUND_EVENTS.find(([x]) => x === event)[1](), body: pickerHtml(event), onClose: () => (picking = null) });
+    picking = { event, popup };
+    popup.element.querySelector(".secili")?.scrollIntoView({ block: "center" });
+    return;
+  }
+  const preview = e.target.closest("[data-preview]");
+  if (preview) return postSound("./api/sounds/play", { id: preview.dataset.preview });
+  const pick = e.target.closest("[data-pick]");
+  if (!pick || !picking) return;
+  const id = pick.dataset.pick, { event, popup } = picking;
+  const r = await postSound("./api/sounds", { event, id });
+  if (!r.ok) return notify(t("Could not save."));
+  if (id !== sounds.none) postSound("./api/sounds/play", { id });
+  await loadSounds();
+  popup.setBody(pickerHtml(event));
 });
 loadSounds().catch(() => {});
 
