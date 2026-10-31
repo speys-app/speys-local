@@ -184,6 +184,16 @@ function busy(frame) {
   }
 }
 
+/** A frame of ours whose page can't be read holds the browser's error page: it opened while the server was restarting. */
+function failedToLoad(id, frame) {
+  if (!applets.find((a) => a.id === id)?.url?.startsWith("/")) return false; // a tool at another address can't be read anyway
+  try {
+    return !frame.contentWindow.location.href;
+  } catch {
+    return true;
+  }
+}
+
 let seen = null;
 async function watchVersion() {
   if (document.hidden) return;
@@ -192,6 +202,10 @@ async function watchVersion() {
     v = await fetch("/api/version", { cache: "no-store" }).then((r) => r.json());
   } catch {
     return; // the server may be restarting
+  }
+  // The server answers again: an error page would otherwise stay, and it also reads as busy below
+  for (const [id, frame] of frames) {
+    if (failedToLoad(id, frame)) frame.src = frame.src;
   }
   if (!seen) {
     seen = v;

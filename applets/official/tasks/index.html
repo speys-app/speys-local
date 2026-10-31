@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tasks</title>
 <link rel="stylesheet" href="/kit.css">
+<style>
+.issue-applet{display:inline-flex;vertical-align:-.2em;margin-right:6px;color:var(--soluk)}
+.issue-applet svg{width:1.15em;height:1.15em}
+.issue-kisi{flex:none;width:22px;height:22px;margin-right:2px;border-radius:50%;background:var(--yuzey2)}
+.github-ac{display:inline-flex;align-items:center;margin-left:auto;padding:6px 12px;border:1px solid var(--cizgi);border-radius:8px;font-size:12px;font-weight:500;color:var(--metin);text-decoration:none;white-space:nowrap}
+.github-ac:hover{background:color-mix(in srgb,var(--metin) 8%,transparent)}
+.github-isareti{margin-right:6px;vertical-align:-2px}
+.lst-baslik .depo{display:inline-flex;align-items:center;font-size:12px;color:var(--soluk);text-decoration:none;overflow-wrap:anywhere}
+.lst-baslik .depo:hover{color:var(--metin)}
+</style>
 </head>
 <body>
 <header class="ust"><div class="ic">
@@ -22,7 +32,7 @@ async function write(body) {
     method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body),
   });
   if (r.status === 409) notify(t("The file changed in the meantime; reloaded."));
-  else if (!r.ok) notify(t("Could not write."));
+  else if (!r.ok) notify((await r.json().catch(() => ({}))).error || t("Could not write."));
   await loadTasks();
   draw();
 }
@@ -34,7 +44,15 @@ const route = () => {
   return { tab: "gorevler", sub, file: file.join("/") };
 };
 window.addEventListener("hashchange", draw);
-async function loadTasks() { tasksData = await getJson("./api/gorevler"); }
+const GITHUB_MARK = '<svg class="github-isareti" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>';
+// An issue label named after an applet ("typo-check") shows as that applet's icon; other labels stay as they are.
+let appletIcons = null;
+const appletTag = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+async function loadTasks() {
+  tasksData = await getJson("./api/gorevler");
+  if (appletIcons || !tasksData.projeler.some((p) => p.github)) return;
+  appletIcons = new Map((await getJson("/api/applets").catch(() => [])).filter((a) => a.icon).map((a) => [appletTag(a.name), a]));
+}
 async function refresh() {
   if (isHidden() || editing || dragging) return; // the screen must not change under typing / dragging
   try {
@@ -110,10 +128,16 @@ const view = { selected: null, openSubs: new Set(), moveOpen: false, focus: null
 const filter = { tag: localStorage.getItem("panel.etiket") || "", hideDone: localStorage.getItem("panel.gizle") === "1" };
 const isVisible = (d) => (!filter.hideDone || !d.done) && (!filter.tag || hasTag(d, filter.tag));
 
+const isAppletTag = (tag) => issueList && !!appletIcons?.has(tag);
+const appletIconsHtml = (d) => d.tags.filter(isAppletTag).map((tag) => {
+  const { name, icon } = appletIcons.get(tag);
+  return `<span class="issue-applet" title="${esc(name)}">${icon}</span>`;
+}).join("");
+
 function metaHtml(d) {
-  const kids = subtasks(d);
+  const kids = subtasks(d), tags = d.tags.filter((tag) => !isAppletTag(tag));
   const finish = d.done && d.finish ? `<span class="pil">${esc(t("Done {date}", { date: formatDate(d.finish) }))}</span>` : "";
-  if (!kids.length && !d.tags.length && !finish) return "";
+  if (!kids.length && !tags.length && !finish) return "";
   let progress = "";
   if (kids.length) {
     const doneCount = kids.filter((c) => c.done).length, r = 5, circumference = 2 * Math.PI * r, ratio = doneCount / kids.length;
@@ -121,7 +145,7 @@ function metaHtml(d) {
       ratio > 0 ? `<circle cx="7" cy="7" r="${r}" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="${circumference * ratio} ${circumference}" ${ratio === 1 ? 'stroke-opacity=".4"' : ""}/>` : ""
     }</svg>${doneCount}/${kids.length}</span>`;
   }
-  return `<div class="meta">${progress}${finish}${d.tags.map((tag) => `<span class="pil${tag === "bugün" ? " bugun" : ""}">${esc(tagLabel(tag))}</span>`).join("")}</div>`;
+  return `<div class="meta">${progress}${finish}${tags.map((tag) => `<span class="pil${tag === "bugün" ? " bugun" : ""}">${esc(tagLabel(tag))}</span>`).join("")}</div>`;
 }
 const taskAttrs = (d, level) => `data-gorev data-seviye="${level}" data-satir="${d.line}" data-ham="${esc(d.raw)}" data-metin="${esc(d.body)}"`;
 const addHtml = (place, parent, hint = t("Add subtask")) =>
@@ -135,11 +159,18 @@ function scoreBadge(d) {
   return `<span class="ap-puan"><em class="p-${m[1].toLowerCase()}">${esc(t("size {level}", { level: level(m[1]) }))}</em><em class="p-${m[2].toLowerCase()}">${esc(t("impact {level}", { level: level(m[2]) }))}</em></span>`;
 }
 
+// A GitHub list is read-only: it is there to keep an eye on, and only takes the personal tags.
+let issueList = false, listPeople = {};
+const personHtml = (d) => {
+  const person = listPeople[d.line];
+  return person?.avatar ? `<img class="issue-kisi" src="${esc(person.avatar)}&s=44" alt="" title="${esc(person.login)}" loading="lazy" referrerpolicy="no-referrer">` : "";
+};
+
 function mainRowHtml(d, selected) {
   return `<div class="satir${selected ? " secili" : ""}${d.done ? " bitti" : ""}" ${taskAttrs(d, "ana")}>
-    <span class="tutamac" draggable="true" aria-label="${esc(t("Drag"))}">${ICON.handle}</span>
-    <span style="margin-top:1px">${checkboxHtml(d.done, "lg")}</span>
-    <div class="govde"><p class="yazi">${inlineMd(d.body)}</p>${scoreBadge(d)}${metaHtml(d)}</div>
+    ${issueList ? "" : `<span class="tutamac" draggable="true" aria-label="${esc(t("Drag"))}">${ICON.handle}</span>`}
+    ${issueList ? personHtml(d) : `<span style="margin-top:1px">${checkboxHtml(d.done, "lg")}</span>`}
+    <div class="govde"><p class="yazi">${appletIconsHtml(d)}${inlineMd(d.body)}</p>${scoreBadge(d)}${metaHtml(d)}</div>
     ${d.children.length ? `<span class="ok">${ICON.chevron}</span>` : ""}
   </div>`;
 }
@@ -160,6 +191,12 @@ function subRowHtml(d, withHandle) {
   </div>`;
 }
 
+/** The row's own "[#19](address)" link, as a button. */
+function githubLinkHtml(d) {
+  const url = d.body.match(/\[#\d+\]\((https:\/\/github\.com\/[^)\s]+)\)/)?.[1];
+  return url ? `<a class="github-ac" href="${esc(url)}" target="_blank" rel="noopener">${GITHUB_MARK}${esc(t("Open on GitHub"))}</a>` : "";
+}
+
 function panelHtml(d, list, others, hasFinishDate) {
   const sliding = view.sliding; view.sliding = false;
   return `<aside class="gpanel${sliding ? " kayarak" : ""}"><div class="icerik">
@@ -168,21 +205,21 @@ function panelHtml(d, list, others, hasFinishDate) {
       <span class="liste-adi">${esc(list.title || list.name)}</span>
       ${others.length ? `<div class="tasi${view.moveOpen ? " acik" : ""}"><button type="button" data-is="tasi-ac">${ICON.arrow()}${esc(t("Move"))}</button>${
         view.moveOpen ? `<div class="tasi-menu">${others.map((l) => `<button type="button" data-is="tasi" data-hedef="${esc(l.name)}">${ICON.arrow()}${esc(l.title || l.name)}</button>`).join("")}</div>` : ""}</div>` : ""}
-      <button type="button" class="yuvarlak sil" data-is="sil-ana" aria-label="${esc(t("Delete task"))}">${ICON.trash()}</button>
+      ${issueList ? githubLinkHtml(d) : `<button type="button" class="yuvarlak sil" data-is="sil-ana" aria-label="${esc(t("Delete task"))}">${ICON.trash()}</button>`}
     </div>
     <div class="p-baslik" ${taskAttrs(d, "panel")}>
-      ${checkboxHtml(d.done, "lg")}
-      <p class="duz${d.done ? " bitti-yazi" : ""}" data-is="duzenle">${inlineMd(d.body)}</p>
+      ${issueList ? "" : checkboxHtml(d.done, "lg")}
+      <p class="duz${d.done ? " bitti-yazi" : ""}"${issueList ? "" : ' data-is="duzenle"'}>${inlineMd(d.body)}</p>
     </div>
     ${hasFinishDate && d.done ? `<div class="bitis" ${taskAttrs(d, "panel")} data-bitis="${d.finish || ""}">${esc(t("Done"))}
       <button type="button" data-is="bitis">${d.finish ? esc(formatDate(d.finish, true)) : esc(t("add date"))}</button></div>` : ""}
-    <div class="etiketler" ${taskAttrs(d, "panel")}>${TAGS.map(([id, label]) => {
+    <div class="etiketler" ${issueList ? 'style="margin-left:0;padding-left:0" ' : ""}${taskAttrs(d, "panel")}>${TAGS.map(([id, label]) => {
       const on = d.tags.includes(id);
       return `<button type="button" data-is="etiket" data-etiket="${id}" class="${on ? "on" : ""}${id === "bugün" ? " bugun" : ""}">${esc(label)}</button>`;
     }).join("")}</div>
     <div class="altlar">
       <div data-kume="panel">${d.children.map((c) => c.kind === "note" ? `<p class="p-not">${inlineMd(c.text)}</p>` : subRowHtml(c, true)).join("")}</div>
-      ${addHtml("panel", d)}
+      ${issueList ? "" : addHtml("panel", d)}
     </div>
   </div></aside>`;
 }
@@ -208,9 +245,11 @@ function tasksHtml() {
   const tabs = thisTab !== "gorevler" ? "" : shown.map((p) =>
     `<button class="${p === project ? "secili" : ""}" data-is="proje" data-proje="${esc(p.id)}">${iconImg(p)}${esc(p.ad)}</button>`).join("")
     + `<div class="proje-menu"><button type="button" data-is="proje-menu" aria-label="${esc(t("Hide / show companies"))}">${ICON.dots}</button>${menu}</div>`;
-  const lists = project.listeler.map((f) => ({ name: f.ad, claude: f.claude, isDoneList: f.bitenler, ...parseList(f.icerik) }));
+  const lists = project.listeler.map((f) => ({ name: f.ad, claude: f.claude, isDoneList: f.bitenler, github: !!f.github, people: f.kisiler || {}, ...parseList(f.icerik) }));
   if (!lists.length) return `<div class="alt-sekmeler">${tabs}</div><p class="bos">${esc(t("This project has no lists."))}</p>`;
   const list = lists.find((l) => l.name === file) || lists[0];
+  issueList = list.github;
+  listPeople = list.people;
   const mainTasks = list.blocks.filter((b) => b.kind === "task");
   // The line number can shift after a move or add, so it is also looked up by text.
   const selected = view.selected && (mainTasks.find((x) => x.line === view.selected.line && x.body === view.selected.body)
@@ -221,7 +260,7 @@ function tasksHtml() {
   // everything in the done list is ticked, so there it is the total.
   const chip = (l) => {
     const count = l.blocks.filter((b) => b.kind === "task" && (l.isDoneList || !b.done)).length;
-    return `<button type="button" class="lst-cip${l === list ? " secili" : ""}${l.claude ? " claude" : ""}" data-is="liste" data-ad="${esc(l.name)}">${esc(l.title || l.name)}<span>${count}</span></button>`;
+    return `<button type="button" class="lst-cip${l === list ? " secili" : ""}${l.claude ? " claude" : ""}" data-is="liste" data-ad="${esc(l.name)}"${l.github ? ` title="${esc(t("Connected to {repo} on GitHub", { repo: project.github }))}"` : ""}>${l.github ? GITHUB_MARK : ""}${esc(l.title || l.name)}<span>${count}</span></button>`;
   };
   const claudeLists = lists.filter((l) => l.claude);
   const chips = lists.filter((l) => !l.claude).map(chip).join("")
@@ -243,11 +282,11 @@ function tasksHtml() {
     <div class="lst-alan${selected ? " panel-acik" : ""}" data-proje="${esc(project.id)}" data-liste="${esc(list.name)}">
     <div class="lst-ust">${chips}${filterHtml}</div>
       <section class="lst-kart">
-        <div class="lst-baslik"><h2>${esc(list.title || list.name)}</h2><span>${mainTasks.filter((x) => x.done).length}/${mainTasks.length}</span></div>
-        ${addHtml("kok", null, t("Add new task"))}
+        <div class="lst-baslik"><h2>${esc(list.title || list.name)}</h2>${issueList ? `<a class="depo" href="https://github.com/${esc(project.github)}/${esc(list.name)}" target="_blank" rel="noopener" title="${esc(t("Open on GitHub"))}">${GITHUB_MARK}${esc(project.github)}</a>` : `<span>${mainTasks.filter((x) => x.done).length}/${mainTasks.length}</span>`}</div>
+        ${issueList ? "" : addHtml("kok", null, t("Add new task"))}
         <div data-kume="ana">${blocks}</div>
       </section>
-      ${selected ? panelHtml(selected, list, lists.filter((l) => l !== list), project.bitis_tarihi) : ""}
+      ${selected ? panelHtml(selected, list, issueList ? [] : lists.filter((l) => l !== list && !l.github), project.bitis_tarihi) : ""}
     </div>`;
 }
 
@@ -379,7 +418,7 @@ document.addEventListener("click", (e) => {
     case "duzenle": return g && startEditing(h, g);
     case "bitis": return g && changeFinishDate(h, g);
   }
-  if (!action && g?.level === "ana" && !e.target.closest(".tutamac")) {
+  if (!action && g?.level === "ana" && !e.target.closest(".tutamac, a")) {
     const same = view.selected && view.selected.line === g.line && view.selected.body === g.body;
     view.sliding = !view.selected; // if the panel is already open only its content changes
     view.selected = same ? null : { line: g.line, body: g.body };

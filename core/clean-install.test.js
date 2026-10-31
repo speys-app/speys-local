@@ -1,7 +1,7 @@
 // Opening with an empty home folder: with no custom applets, settings or data, every applet must open without an error.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { after, before, test } from "node:test";
@@ -85,6 +85,23 @@ test("the demo workspace has its own data and leaves main alone", async () => {
   assert.equal((await post({ create: "Client Work" })).status, 200);
   assert.ok((await (await fetch(`${BASE}/api/workspaces`)).json()).list.includes("client-work"));
   assert.equal((await post({ id: "main" })).status, 200);
+});
+
+test("a project can have GitHub lists and list files; only the files can be written", async () => {
+  const folder = join(home, "both");
+  mkdirSync(folder);
+  writeFileSync(join(folder, "ideas.md"), "# Ideas\n\n- [ ] One\n");
+  const json = (path, body) => fetch(`${BASE}${path}`, { method: "POST", headers: { "X-Panel": "1", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  // A name that isn't a repo: the issues list exists but nothing goes to the network.
+  const project = { id: "both", name: "Both", github: "not a repo", folder, files: ["ideas.md"] };
+  assert.equal((await json("/api/settings", { values: [{ section: "tasks", key: "projects", value: JSON.stringify([project]) }] })).status, 200);
+  const [{ listeler }] = (await (await fetch(`${BASE}/a/tasks/api/gorevler`)).json()).projeler;
+  assert.deepEqual(listeler.map((l) => [l.ad, !!l.github]), [["issues", true], ["pulls", true], ["ideas.md", false]]);
+  const op = { action: "toggle", line: 2, text: "- [ ] One", done: true };
+  assert.equal((await json("/a/tasks/api/gorevler", { proje: "both", ad: "ideas.md", op })).status, 200);
+  assert.match(readFileSync(join(folder, "ideas.md"), "utf8"), /- \[x\] One/);
+  assert.equal((await json("/a/tasks/api/gorevler", { proje: "both", ad: "issues", op })).status, 400);
+  assert.equal((await json("/api/settings", { values: [{ section: "tasks", key: "projects", value: "" }] })).status, 200);
 });
 
 test("no personal paths in the code", () => {

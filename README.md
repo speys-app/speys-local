@@ -78,7 +78,7 @@ Everything is an applet. Turn off what you don't need in Settings.
 |---|---|---|---|
 | 🔔 | **Claude Sessions** | Session status, notifications and sound | Claude hook |
 | ⌨️ | **Typo Check** | The typos you make writing to Claude, and practice built from them | Claude Code logs |
-| ✅ | **Tasks** | The md task lists in your projects; Claude sees the same files | Project folders |
+| ✅ | **Tasks** | The md task lists in your projects, which Claude sees too; keep an eye on any repo's GitHub issues and pull requests | Project folders or a repo |
 | 💰 | **Finances** | Income, expenses, recurring payments | Nothing |
 | 🤝 | **CRM** | Deals and meetings: pipelines, stages, next steps | Nothing |
 | 🎬 | **Social Media Planner** | Content calendar: accounts, videos, posts, numbers | A folder with `takvim.json` |

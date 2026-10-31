@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { GITHUB_LISTS, createGithub } from "./github.js";
 import { applyOp, moveBetween } from "./tasks.js";
 
 const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
@@ -39,24 +40,32 @@ function readBody(req) {
   });
 }
 
-export default function create({ settings, t }) {
+export default function create({ dataDir, settings, t }) {
+  const github = createGithub({ dataDir, t });
   const projects = () =>
     (settings().projects || []).map((p) => ({ ...p, folder: expand(p.folder), icon: expand(p.icon) }));
 
-  const overview = () => ({
-    projeler: projects().map((p) => ({
+  const fileLists = (p) => listNames(p).map((a) => ({
+    ad: a,
+    claude: (p.claude || []).includes(a),
+    bitenler: a === p.doneList,
+    icerik: readFileSync(join(p.folder, a), "utf8"),
+  }));
+
+  /** A project can have a repo's GitHub lists, list files, or both: GitHub comes first. */
+  const overview = async () => ({
+    projeler: await Promise.all(projects().map(async (p) => ({
       id: p.id,
       ad: p.name,
-      listeler: listNames(p).map((a) => ({
-        ad: a,
-        claude: (p.claude || []).includes(a),
-        bitenler: a === p.doneList,
-        icerik: readFileSync(join(p.folder, a), "utf8"),
-      })),
-      bitis_tarihi: !!p.finishDate,
+      listeler: [
+        ...(p.github ? await github.lists(p.github, p.githubLists) : []),
+        ...(p.github && !p.folder ? [] : fileLists(p)),
+      ],
+      bitis_tarihi: !!p.finishDate && !p.github,
       ikon: !!p.icon,
       sekme: "gorevler",
-    })),
+      ...(p.github ? { github: p.github } : {}),
+    }))),
   });
 
   /** Only one of the project's list files; no other path is accepted. */
@@ -68,6 +77,7 @@ export default function create({ settings, t }) {
   function write({ proje, ad, op, tasi }) {
     const project = projects().find((p) => p.id === proje);
     if (!project) throw new Error(t("invalid project"));
+    if (project.github && GITHUB_LISTS.includes(ad)) return github.write(project.github, ad, op);
     if (tasi) {
       const from = listPath(project, tasi.kaynak);
       const to = listPath(project, tasi.hedef);
@@ -89,7 +99,7 @@ export default function create({ settings, t }) {
     if (req.method === "GET" && path === "/") {
       return send(res, 200, readFileSync(join(import.meta.dirname, "index.html")), "text/html; charset=utf-8");
     }
-    if (req.method === "GET" && path === "/api/gorevler") return send(res, 200, overview());
+    if (req.method === "GET" && path === "/api/gorevler") return send(res, 200, await overview());
     if (req.method === "GET" && path.startsWith("/ikon/")) {
       const project = projects().find((p) => p.id === path.slice(6));
       if (!project?.icon || !existsSync(project.icon)) return send(res, 404, { error: t("not found") });
@@ -99,7 +109,7 @@ export default function create({ settings, t }) {
     if (req.method === "POST" && path === "/api/gorevler") {
       if (req.headers["x-panel"] !== "1") return send(res, 403, { error: t("forbidden") });
       try {
-        const ok = write(JSON.parse((await readBody(req)) || "{}"));
+        const ok = await write(JSON.parse((await readBody(req)) || "{}"));
         // 409: the file changed in the meantime; the page reloads
         return send(res, ok ? 200 : 409, { ok });
       } catch (e) {

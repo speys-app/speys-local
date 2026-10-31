@@ -32,6 +32,7 @@
   "Your sounds": "Senin seslerin",
   "System sounds": "Sistem sesleri",
   "Play": "Çal",
+  "Play {name}": "{name} sesini çal",
   "Sound": "Ses",
   "Hear when Claude is done, without watching the tab.": "Claude işini bitirince sekmeye bakmadan duy.",
   "Sounds and notifications work on macOS for now.": "Ses ve bildirim şimdilik macOS'ta çalışıyor.",
