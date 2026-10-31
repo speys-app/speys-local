@@ -35,6 +35,17 @@ test("moving between lists takes the block with its indentation", () => {
   assert.ok(!moved.source.includes("alt iş"));
 });
 
+test("a CRLF file is read as tasks and keeps its line endings", () => {
+  const crlf = FILE.replaceAll("\n", "\r\n");
+  const next = applyOp(crlf, { action: "toggle", line: 5, text: "- [ ] İkinci", done: true });
+  assert.ok(next.includes("- [x] İkinci\r\n"));
+  assert.ok(!/[^\r]\n/.test(next));
+  const moved = moveBetween(crlf, "# Hedef\n", 5, "- [ ] İkinci");
+  assert.ok(!moved.source.includes("İkinci"));
+  assert.equal(moved.target, "# Hedef\n\n- [ ] İkinci");
+  assert.equal(toLf("a\r\nb\n"), "a\nb\n");
+});
+
 test("a tab-indented block is a subtask: delete, move and add treat it as one", () => {
   const tabs = "- [ ] parent\n\t- [ ] child\n\t\t- [ ] grandchild\n- [ ] other\n";
   assert.equal(applyOp(tabs, { action: "delete", line: 0, text: "- [ ] parent" }), "- [ ] other\n");

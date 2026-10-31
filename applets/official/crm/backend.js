@@ -9,7 +9,7 @@ const FIELDS = ["title", "contact_name", "contact_role", "contact_phone", "next_
 const MEETINGS = ["visit", "call", "meeting", "email", "note"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (/^~[\\/]/.test(p ?? "") ? join(homedir(), p.slice(2)) : p);
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

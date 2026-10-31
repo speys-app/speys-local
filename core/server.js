@@ -184,7 +184,7 @@ const serverCode = (applets) => [
 ];
 const serverStamp = (applets) => Math.max(0, ...serverCode(applets).map(mtime));
 
-const expandHome = (p) => (typeof p === "string" && p.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expandHome = (p) => (typeof p === "string" && /^~[\\/]/.test(p) ? join(homedir(), p.slice(2)) : p);
 
 const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -o BatchMode=yes -o ConnectTimeout=10" };
 

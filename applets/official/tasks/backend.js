@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { GITHUB_LISTS, createGithub } from "./github.js";
 import { applyOp, moveBetween, toLf } from "./tasks.js";
 
-const expand = (p) => (typeof p === "string" && p.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (typeof p === "string" && /^~[\\/]/.test(p) ? join(homedir(), p.slice(2)) : p);
 const isFile = (path) => existsSync(path) && statSync(path).isFile();
 const isFolder = (path) => typeof path === "string" && existsSync(path) && statSync(path).isDirectory();
 

@@ -1,13 +1,13 @@
 // Claude: the status of sessions. Settings: settings.json → "claude" (folders, eventsFile, projectsRoot); defaults when empty.
-import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { sessions } from "./sessions.js";
 import { hookInstalled, installHook, removeHook } from "./install-hook.js";
+import { canPlay, playSound } from "./notify.js";
 import { NONE, chosenSounds, listSounds, soundPath, soundsFolder } from "./sounds.js";
 
-const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (/^~[\\/]/.test(p ?? "") ? join(homedir(), p.slice(2)) : p);
 const FURNITURE = ["clock", "painting", "whiteboard", "plant", "coffee", "cooler", "shelf", "lamp", "cat"];
 const DEFAULT_FURNITURE = ["clock", "plant", "coffee"];
 
@@ -76,7 +76,7 @@ export default function create({ dataDir, settings, baseDir, t }) {
     if (req.method === "GET" && path === "/api/sounds") {
       return send(res, 200, {
         options: listSounds(home), chosen: chosenSounds(home, baseClaude().sounds), none: NONE, folder: relative(resolve(import.meta.dirname, "..", "..", ".."), soundsFolder(home)).split(sep).join("/"),
-        canPlay: process.platform === "darwin", hook: hookInstalled(claudeFolders()), hookFailed: hookFailed.map((f) => f.replace(homedir(), "~")),
+        canPlay: canPlay(), hook: hookInstalled(claudeFolders()), hookFailed: hookFailed.map((f) => f.replace(homedir(), "~")),
       });
     }
     if (req.method === "GET" && path === "/api/office") return send(res, 200, { items: baseClaude().officeItems ?? DEFAULT_FURNITURE });
@@ -100,9 +100,9 @@ export default function create({ dataDir, settings, baseDir, t }) {
         return send(res, 200, { ok: true });
       }
       if (path === "/api/sounds/play") {
-        const file = process.platform === "darwin" && soundPath(home, q.id);
+        const file = canPlay() && soundPath(home, q.id);
         if (!file) return send(res, 400, { error: "cannot play this sound" });
-        execFile("afplay", [file], () => {});
+        playSound(file);
         return send(res, 200, { ok: true });
       }
       if (!["done", "approval"].includes(q.event) || (q.id !== NONE && !soundPath(home, q.id))) return send(res, 400, { error: "unknown sound" });

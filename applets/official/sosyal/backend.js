@@ -15,7 +15,7 @@ const TYPES = {
 };
 const FFMPEG = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"].find(existsSync) || "ffmpeg";
 
-const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (/^~[\\/]/.test(p ?? "") ? join(homedir(), p.slice(2)) : p);
 const pad = (n) => String(n).padStart(2, "0");
 const today = () => {
   const d = new Date();
@@ -155,13 +155,23 @@ export default function create({ dataDir, settings, t }) {
     return null;
   }
 
-  /** Copies the latest render to the clipboard as a file, or shows it in Finder. */
+  /** Explorer's exit code says nothing about success; the clipboard path goes through the environment. */
+  function videoActionWindows(action, file) {
+    if (action === "goster") {
+      execFile("explorer.exe", [`/select,"${file}"`], { windowsVerbatimArguments: true }, () => {});
+      return;
+    }
+    execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -LiteralPath $env:SPEYS_FILE"], { timeout: 10_000, stdio: "ignore", windowsHide: true, env: { ...process.env, SPEYS_FILE: file } });
+  }
+
+  /** Copies the latest render to the clipboard as a file, or shows it in Finder or File Explorer. */
   function videoAction({ id, ne: action }) {
     const v = overview().videolar.find((x) => x.id === id);
     if (!v) throw new Error(t("no such video"));
     const m = mediaFile(v.video || "");
     if (!m) throw new Error(t("no such video"));
-    if (process.platform !== "darwin") throw new Error(t("macOS only"));
+    if (process.platform === "win32") return videoActionWindows(action, m.file);
+    if (process.platform !== "darwin") throw new Error(t("macOS and Windows only"));
     if (action === "goster") {
       execFileSync("open", ["-R", m.file], { timeout: 10_000 });
       return;

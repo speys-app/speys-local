@@ -1,9 +1,11 @@
 // Notification sounds: the ones that come with this applet, your own files in <home>/apps/claude/sounds, then the sounds
-// macOS ships with. Used by the page and the hook.
+// the system ships with. Used by the page and the hook.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const SYSTEM_FOLDER = "/System/Library/Sounds";
+const WINDOWS = process.platform === "win32";
+const SYSTEM_FOLDER = WINDOWS ? join(process.env.WINDIR || "C:\\Windows", "Media") : "/System/Library/Sounds";
+const SYSTEM_TYPE = WINDOWS ? ".wav" : ".aiff";
 const SPEYS_FOLDER = join(import.meta.dirname, "sounds");
 const DEFAULTS = { done: "Speys Approval 4 Soft Knock.wav", approval: "Speys Approval 2 Question.wav" };
 const AUDIO = /\.(m4a|mp3|wav|aiff?|caf)$/i;
@@ -38,6 +40,6 @@ export function soundPath(home, id) {
   const found = listSounds(home).find((s) => s.id === id);
   if (!found) return null;
   const [kind, name] = [id.slice(0, id.indexOf(":")), id.slice(id.indexOf(":") + 1)];
-  if (kind !== "file") return join(SYSTEM_FOLDER, `${name}.aiff`);
+  if (kind !== "file") return join(SYSTEM_FOLDER, `${name}${SYSTEM_TYPE}`);
   return join(found.speys ? SPEYS_FOLDER : soundsFolder(home), name);
 }

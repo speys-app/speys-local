@@ -47,7 +47,7 @@
   "Play {name}": "{name} sesini çal",
   "Sound": "Ses",
   "Hear when Claude is done, without watching the tab.": "Claude işini bitirince sekmeye bakmadan duy.",
-  "Sounds and notifications work on macOS for now.": "Ses ve bildirim şimdilik macOS'ta çalışıyor.",
+  "Sound works on macOS and Windows for now, notifications on macOS.": "Ses şimdilik macOS ve Windows'ta, bildirim macOS'ta çalışıyor.",
   "To add your own, put an audio file in <code>{folder}</code>.": "Kendi sesini eklemek için <code>{folder}</code> klasörüne bir ses dosyası koy.",
   "Could not save.": "Kaydedilemedi.",
   "Sound and notifications": "Ses ve bildirim",

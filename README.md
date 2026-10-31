@@ -60,7 +60,7 @@ cd speys-local
 node start.js          # http://localhost:3400
 ```
 
-Start with the computer (macOS): `node start.js --install`, remove with `--uninstall`.
+Start with the computer (macOS, Windows): `node start.js --install`, remove with `--uninstall`.
 It checks GitHub once an hour and asks when there is an update; nothing installs without your click. Turn the check off in Settings. You can also update with `git pull`.
 
 Settings and data live in `data/` next to the code. It stays out of git and updates don't touch it, but `git clean -x` would delete it, so don't run that here and keep your own backup. The interface comes in English and Turkish; pick the language in Settings.
@@ -69,9 +69,9 @@ Settings and data live in `data/` next to the code. It stays out of git and upda
 
 ### Claude hook
 
-Session status, notifications and sound run on a Claude Code hook. Speys Local adds it to `~/.claude/settings.json` when you first open it: only its own entries, with a backup next to the file. Turn it off with the switch on the Claude Sessions page and it is removed. If you delete the folder first, the entry stays in the settings file but does nothing.
+Session status, notifications and sound run on a Claude Code hook. Speys Local adds it to `~/.claude/settings.json` when you first open it: only its own entries, with a backup next to the file. Turn it off with the switch on the Claude Sessions page and it is removed. On macOS, if you delete the folder first, the entry stays in the settings file but does nothing; on Windows, turn it off first.
 
-Speys Local is built and tested on macOS. It hasn't been tried on Windows or Linux yet, so expect rough edges there. Sound and notifications work on macOS for now. It comes with 13 sounds of its own. To add yours, put audio files in `data/main/apps/claude/sounds/`.
+Speys Local is built on macOS and has had a run-through on Windows 11. It hasn't been tried on Linux yet, so expect rough edges there. Sound works on macOS and Windows for now, notifications on macOS. It comes with 13 sounds of its own. To add yours, put audio files in `data/main/apps/claude/sounds/`.
 
 ### Uninstall
 

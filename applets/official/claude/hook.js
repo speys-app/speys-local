@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// Claude hook: records the event, and gives a macOS notification + sound when
-// a long job finishes or permission is requested. Rules: print nothing,
+// Claude hook: records the event, and gives a sound (macOS, Windows) + a notification (macOS)
+// when a long job finishes or permission is requested. Rules: print nothing,
 // never block, exit silently on any error.
 //
 // The sound is chosen on the Claude Sessions page (settings.json → claude.sounds); see sounds.js.
-import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { SOURCE_LANGUAGE, messagesOf, translator } from "../../../lib/i18n.js";
+import { canPlay, playSound, showNotification } from "./notify.js";
 import { clean, projectName, readTail } from "./sessions.js";
 import { chosenSounds, soundPath } from "./sounds.js";
 
@@ -24,10 +24,11 @@ function readSettings() {
   }
 }
 
-/** The dashboard's language setting, else the system's (LANG=tr_TR.UTF-8 → tr; C and POSIX have none). */
-const languageOf = (all) => all._dashboard?.language || process.env.LANG?.match(/^[a-z]{2}(?![a-z])/i)?.[0].toLowerCase() || SOURCE_LANGUAGE;
+/** The dashboard's language setting, else the system's (LANG=tr_TR.UTF-8 → tr; C and POSIX have none; Windows has no LANG). */
+const systemLanguage = () => (process.platform === "win32" ? Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 2) : process.env.LANG?.match(/^[a-z]{2}(?![a-z])/i)?.[0].toLowerCase());
+const languageOf = (all) => all._dashboard?.language || systemLanguage() || SOURCE_LANGUAGE;
 
-const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (/^~[\\/]/.test(p ?? "") ? join(homedir(), p.slice(2)) : p);
 
 function lastStart(file, session) {
   if (!existsSync(file)) return 0;
@@ -44,13 +45,10 @@ function lastStart(file, session) {
 }
 
 function notify(title, subtitle, message, sound) {
-  if (process.platform !== "darwin") return;
-  const quote = (s) => String(s).replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-  const script = `display notification "${quote(message)}" with title "${quote(title)}" subtitle "${quote(subtitle)}"`;
+  if (!canPlay()) return;
   const soundFile = soundPath(HOME, chosenSounds(HOME, readSettings().claude?.sounds)[sound]);
-  const commands = [["osascript", ["-e", script]]];
-  if (soundFile) commands.push(["afplay", [soundFile]]);
-  for (const [cmd, args] of commands) spawn(cmd, args, { stdio: "ignore", detached: true }).unref();
+  showNotification(title, subtitle, message);
+  if (soundFile) playSound(soundFile);
 }
 
 function sessionTitle(transcript) {
