@@ -375,6 +375,7 @@ export async function startDashboard({ port = 3400 }) {
     activeLanguage = languageOf(req);
     if (url.pathname === "/") return sendFile(res, join(import.meta.dirname, "ui.html"));
     if (url.pathname === "/logo.svg") return sendFile(res, join(import.meta.dirname, "logo.svg"));
+    if (url.pathname === "/favicon.ico") return sendFile(res, join(import.meta.dirname, "logo.svg"));
     // Shared look and helpers. kit.js carries the language and the messages of the applet asking for it (from the
     // Referer), so a translated page needs no extra request and the source language costs nothing.
     if (url.pathname === "/kit.css") return sendFile(res, join(CORE_FOLDER, "kit.css"));
