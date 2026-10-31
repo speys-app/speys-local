@@ -8,6 +8,8 @@ import { hookInstalled, installHook, removeHook } from "./install-hook.js";
 import { NONE, chosenSounds, listSounds, soundPath, soundsFolder } from "./sounds.js";
 
 const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const FURNITURE = ["clock", "painting", "whiteboard", "plant", "coffee", "cooler", "shelf", "lamp", "cat"];
+const DEFAULT_FURNITURE = ["clock", "plant", "coffee"];
 
 function defaultFolders() {
   const paths = [join(homedir(), ".claude"), process.env.CLAUDE_CONFIG_DIR].filter(Boolean);
@@ -76,6 +78,14 @@ export default function create({ dataDir, settings, baseDir, t }) {
         options: listSounds(home), chosen: chosenSounds(home, baseClaude().sounds), none: NONE, folder: relative(resolve(import.meta.dirname, "..", "..", ".."), soundsFolder(home)).split(sep).join("/"),
         canPlay: process.platform === "darwin", hook: hookInstalled(claudeFolders()), hookFailed: hookFailed.map((f) => f.replace(homedir(), "~")),
       });
+    }
+    if (req.method === "GET" && path === "/api/office") return send(res, 200, { items: baseClaude().officeItems ?? DEFAULT_FURNITURE });
+    if (req.method === "POST" && path === "/api/office") {
+      if (req.headers["x-panel"] !== "1") return send(res, 403, { error: "forbidden" });
+      const { items } = JSON.parse((await readBody(req)) || "{}");
+      if (!Array.isArray(items)) return send(res, 400, { error: "items must be a list" });
+      saveBaseClaude({ officeItems: FURNITURE.filter((id) => items.includes(id)) });
+      return send(res, 200, { ok: true });
     }
     if (req.method === "POST" && path.startsWith("/api/sounds")) {
       if (req.headers["x-panel"] !== "1") return send(res, 403, { error: "forbidden" });

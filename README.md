@@ -76,7 +76,7 @@ Everything is an applet. Turn off what you don't need in Settings.
 
 | | Applet | What it does | Needs |
 |---|---|---|---|
-| 🔔 | **Claude Sessions** | Session status, notifications and sound | Claude hook |
+| 🔔 | **Claude Sessions** | Your sessions at their desks in a little office, with status, notifications and sound | Claude hook |
 | ⌨️ | **Typo Check** | The typos you make writing to Claude, and practice built from them | Claude Code logs |
 | ✅ | **Tasks** | The md task lists in your projects, which Claude sees too; keep an eye on any repo's GitHub issues and pull requests | Project folders or a repo |
 | 💰 | **Finances** | Income, expenses, recurring payments | Nothing |

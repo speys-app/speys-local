@@ -104,6 +104,15 @@ test("a project can have GitHub lists and list files; only the files can be writ
   assert.equal((await json("/api/settings", { values: [{ section: "tasks", key: "projects", value: "" }] })).status, 200);
 });
 
+test("office furniture is saved, and only known items", async () => {
+  const send = (headers, body) => fetch(`${BASE}/a/claude/api/office`, { method: "POST", headers, body: JSON.stringify(body) });
+  assert.deepEqual((await (await fetch(`${BASE}/a/claude/api/office`)).json()).items, ["clock", "plant", "coffee"]);
+  assert.equal((await send({}, { items: [] })).status, 403);
+  assert.equal((await send({ "X-Panel": "1" }, { items: "cat" })).status, 400);
+  assert.equal((await send({ "X-Panel": "1" }, { items: ["cat", "<script>", "lamp"] })).status, 200);
+  assert.deepEqual((await (await fetch(`${BASE}/a/claude/api/office`)).json()).items, ["lamp", "cat"]);
+});
+
 test("no personal paths in the code", () => {
   const paths = ["core/server.js", "applets/official/claude/backend.js", "applets/official/yazim/analyze.js", "applets/official/seo/backend.js", "applets/official/today/backend.js"];
   for (const p of paths) {
