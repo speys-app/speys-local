@@ -6,7 +6,9 @@ Node 24+, no dependencies, no build step. Paths go through `node:path` and dynam
 **Speed is a requirement.** Backends load on their first request, an opened frame is not reloaded, and nothing
 heavy runs at startup. A new applet must not change that.
 
-Code, comments and interface source text are in English. Run `npm test` before opening a pull request.
+Code, comments and interface source text are in English.
+
+Run `npm test` before opening a pull request and put the result in its description. A pull request without a test result waits until it has one.
 
 ## Folders
 
