@@ -127,11 +127,14 @@ export function handler({ root, scanned, lang: language = "en" }) {
         };
   };
 
-  const run = ({ mod }, { sql, lesson: id }) => {
+  const run = async ({ mod }, { sql, lesson: id }) => {
+    const asked = lang; // another request may run during the query
     const c = course(mod);
     const lesson = id && c.lessons.find((l) => l.id === id);
     const text = String(sql || "");
-    const r = mod.check(lesson ? lesson.schema : c.lessons[0].schema, text, lesson);
+    const r = await mod.checkLimited(lesson ? lesson.schema : c.lessons[0].schema, text, lesson);
+    lang = asked;
+    if (r.limit) r.error = pick({ en: r.error, tr: "Bu sorgu çok uzun sürdü ya da çok büyüdü, durduruldu." }, lang);
     if (lesson) {
       const progress = load(mod);
       const p = ((progress.lessons ||= {})[lesson.id] ||= { tries: 0, done: null });
@@ -197,10 +200,10 @@ export function handler({ root, scanned, lang: language = "en" }) {
     const asked = lang; // another request may run while the body arrives
     let body = "";
     req.on("data", (c) => (body += c));
-    req.on("end", () => {
+    req.on("end", async () => {
       lang = asked;
       try {
-        send(res, 200, fn(JSON.parse(body || "{}")));
+        send(res, 200, await fn(JSON.parse(body || "{}")));
       } catch (e) {
         send(res, 400, { error: String(e.message || e) });
       }

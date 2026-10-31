@@ -1,5 +1,7 @@
 // Runs a lesson query on a fresh in-memory SQLite database and compares it with the solution.
 // Every run starts from the same seed, so a DELETE in one try can't spoil the next.
+import { execFile } from "node:child_process";
+import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const MAX_ROWS = 100;
@@ -72,6 +74,21 @@ export function tableInfo(schema) {
   } finally {
     db.close();
   }
+}
+
+/**
+ * `check` for a query someone typed: it runs in a process of its own, so one that never ends costs a few seconds
+ * of that process and the dashboard keeps answering.
+ */
+export function checkLimited(schema, sql, lesson, ms = 3000) {
+  return new Promise((done) => {
+    const child = execFile(process.execPath, ["--max-old-space-size=256", join(import.meta.dirname, "sandbox-child.js")],
+      { timeout: ms, killSignal: "SIGKILL", maxBuffer: 5 * 1024 * 1024 }, (err, stdout) => {
+        done(err ? { ok: false, limit: true, error: "This query took too long or got too big, so it was stopped." } : JSON.parse(stdout));
+      });
+    child.stdin.on("error", () => {}); // the process can be gone before it has read the query
+    child.stdin.end(JSON.stringify({ schema, sql, lesson: lesson ? { solution: lesson.solution, ordered: lesson.ordered } : null }));
+  });
 }
 
 /**
