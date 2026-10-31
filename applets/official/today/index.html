@@ -43,7 +43,7 @@ const openApplet = (id, inner) => parent.openApplet?.(id, inner);
 // A missing or unconfigured applet just hides its card.
 const read = (path) => getJson(path).then((d) => (d.not_configured ? null : d)).catch(() => null);
 const pad = (n) => String(n).padStart(2, "0");
-const money = (n) => `${formatNumber(Math.round(n))} TL`;
+const money = (n) => `${formatNumber(Math.round(n))} ${data?.ledger?.currency ?? ""}`.trim();
 const daysFromToday = (iso) => Math.round((new Date(iso + "T00:00") - new Date(isoDay(new Date()) + "T00:00")) / 864e5);
 let data = null, typing = false;
 

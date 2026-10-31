@@ -1,6 +1,9 @@
 {
   "Income and expenses on this computer: spending, recurring payments, pending items.": "Gelir ve giderler bu bilgisayarda: harcamalar, düzenli ödemeler, bekleyenler.",
   "Ledger file": "Defter dosyası",
+  "Currency": "Para birimi",
+  "USD": "TL",
+  "Only the label: amounts aren't converted. If empty, TL in Turkish and USD in other languages": "Yalnızca etiket, tutarlar çevrilmez. Boşsa Türkçede TL, diğer dillerde USD",
   "If empty, data/main/apps/kasa/defter.json": "Boşsa data/main/apps/kasa/defter.json",
   "January": "Ocak",
   "February": "Şubat",
@@ -49,7 +52,7 @@
   "Income": "Gelir",
   "Profit": "Kâr",
   "Title": "Başlık",
-  "Amount (TL)": "Tutar (TL)",
+  "Amount ({currency})": "Tutar ({currency})",
   "Category": "Kategori",
   "Date": "Tarih",
   "To / from": "Kime / kimden",

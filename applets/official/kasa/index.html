@@ -120,7 +120,8 @@ const monthStart = () => `${state.year}-${pad2(state.month + 1)}-01`;
 const monthEnd = () => `${state.year}-${pad2(state.month + 1)}-${pad2(new Date(state.year, state.month + 1, 0).getDate())}`;
 const inCurrentMonth = () => state.year === today.getFullYear() && state.month === today.getMonth();
 const todayIso = () => `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
-const tl = (n) => (+n || 0).toLocaleString(LOCALE, { maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }) + " TL";
+const currency = () => data?.currency || "";
+const tl = (n) => (+n || 0).toLocaleString(LOCALE, { maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }) + " " + currency();
 const dayLabel = (s) => { const [y, m, d] = s.split("-"); return `${+d} ${MONTHS[+m - 1]}${+y === state.year ? "" : " " + y}`; };
 const categoryName = (k) => CATEGORY[k] || CATEGORY.other;
 const categoryOptions = (direction, selected) => [...CATEGORIES[direction], ...(selected && !CATEGORIES[direction].includes(selected) ? [selected] : [])]
@@ -178,7 +179,7 @@ function entryForm() {
   const e = state.form.record, direction = e?.direction ?? state.direction;
   return `<form class="ks-form" id="entry-form">
     <label class="ks-genis">${esc(t("Title"))}<input name="title" required maxlength="200" value="${esc(e?.title ?? "")}" autofocus></label>
-    <label>${esc(t("Amount (TL)"))}<input name="amount" type="number" min="0.01" step="0.01" required value="${e?.amount ?? ""}"></label>
+    <label>${esc(t("Amount ({currency})", { currency: currency() }))}<input name="amount" type="number" min="0.01" step="0.01" required value="${e?.amount ?? ""}"></label>
     <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, e?.category)}</select></label>
     <label>${esc(t("Date"))}<input name="entryDate" type="date" required value="${esc(e?.entryDate ?? (inCurrentMonth() ? todayIso() : monthStart()))}"></label>
     <label>${esc(t("To / from"))}<input name="counterparty" value="${esc(e?.counterparty ?? "")}"></label>
@@ -198,7 +199,7 @@ function ruleForm() {
   const r = state.form.record, direction = r?.direction ?? state.direction, cycle = state.form.cycle ?? r?.cycle ?? "monthly";
   return `<form class="ks-form dar" id="rule-form">
     <label class="ks-genis">${esc(t("Title"))}<input name="title" required maxlength="200" value="${esc(r?.title ?? "")}" autofocus></label>
-    <label>${esc(t("Amount (TL)"))}<input name="amount" type="number" min="0.01" step="0.01" required value="${r?.amount ?? ""}"></label>
+    <label>${esc(t("Amount ({currency})", { currency: currency() }))}<input name="amount" type="number" min="0.01" step="0.01" required value="${r?.amount ?? ""}"></label>
     <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, r?.category)}</select></label>
     <label>${esc(t("Cycle"))}<select name="cycle" id="rule-cycle">${Object.entries(CYCLES).map(([k, label]) => `<option value="${k}" ${k === cycle ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
     <label>${esc(t("Day of the month"))}<input name="dayOfMonth" type="number" min="1" max="31" required value="${r?.dayOfMonth ?? 1}"></label>
@@ -219,7 +220,7 @@ function planForm() {
   const p = state.form.record, direction = p?.direction ?? state.direction, cycle = state.form.cycle ?? p?.cycle ?? "monthly";
   return `<form class="ks-form dar" id="plan-form">
     <label class="ks-genis">${esc(t("Title"))}<input name="title" required maxlength="200" value="${esc(p?.title ?? "")}" autofocus></label>
-    <label>${esc(t("Amount (TL)"))}<input name="amount" type="number" min="0.01" step="0.01" required value="${p?.amount ?? ""}"></label>
+    <label>${esc(t("Amount ({currency})", { currency: currency() }))}<input name="amount" type="number" min="0.01" step="0.01" required value="${p?.amount ?? ""}"></label>
     <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, p?.category)}</select></label>
     <label>${esc(t("Cycle"))}<select name="cycle" id="plan-cycle">${Object.entries(PLAN_CYCLES).map(([k, label]) => `<option value="${k}" ${k === cycle ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
     <label>${esc(cycle === "once" ? t("Month") : t("Start month"))}<input name="startMonth" type="month" required value="${esc(p?.startMonth ?? nextMonth())}"></label>
@@ -254,7 +255,7 @@ function quarterChart(f) {
   <div class="ks-lejant"><span><i style="--renk:${COLOR.income}"></i>${esc(t("income"))}</span><span><i style="--renk:${COLOR.expense}"></i>${esc(t("expense"))}</span><span><i class="beklenen"></i>${esc(t("dashed: expected"))}</span></div>`;
 }
 
-/** An amount in the table: no cents, no TL; negatives in brackets as in accounting, zero as a dash. */
+/** An amount in the table: no cents, no currency; negatives in brackets as in accounting, zero as a dash. */
 const figure = (n) => {
   const r = Math.round(n);
   if (!r) return "–";
@@ -295,7 +296,7 @@ function financeTable(f) {
   return `<div class="ks-tablo-kap"><table class="ks-tablo">
     <thead>
       <tr><th></th>${quarters}<th class="sinir"></th></tr>
-      <tr><th class="ay-baslik">TL</th>${f.map((m) => `<th class="ay-baslik ${(+m.ym.slice(5, 7) - 1) % 3 === 0 ? "sinir" : ""} ${m.ym === thisMonth() ? "bugun-ay" : ""}"><button data-is="month-pick" data-ym="${m.ym}">${esc(MONTHS[+m.ym.slice(5, 7) - 1].slice(0, 3))}</button></th>`).join("")}<th class="ay-baslik sinir">${esc(t("Total"))}</th></tr>
+      <tr><th class="ay-baslik">${esc(currency())}</th>${f.map((m) => `<th class="ay-baslik ${(+m.ym.slice(5, 7) - 1) % 3 === 0 ? "sinir" : ""} ${m.ym === thisMonth() ? "bugun-ay" : ""}"><button data-is="month-pick" data-ym="${m.ym}">${esc(MONTHS[+m.ym.slice(5, 7) - 1].slice(0, 3))}</button></th>`).join("")}<th class="ay-baslik sinir">${esc(t("Total"))}</th></tr>
     </thead>
     <tbody>
       ${groupRow(t("INCOME"))}

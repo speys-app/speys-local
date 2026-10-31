@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { expand, handleWrite, isoDay, page, readJson, send, writeJson } from "../../../lib/common.js";
 import { deleteEntry, deletePlan, deleteRule, emptyLedger, materialize, overview, saveEntry, savePlan, saveRule, setRuleActive } from "./ledger.js";
 
-export default function create({ dataDir, settings, t }) {
+export default function create({ dataDir, settings, t, language }) {
+  const currency = () => String(settings().currency ?? "").replace(/[<>&"']/g, "").trim().slice(0, 8) || (language() === "tr" ? "TL" : "USD");
   const file = () => expand(settings().file) || join(dataDir, "defter.json");
   const load = () => (existsSync(file()) ? readJson(file()) : emptyLedger());
 
@@ -41,7 +42,7 @@ export default function create({ dataDir, settings, t }) {
     if (req.method === "GET" && path === "/") return page(res, import.meta.dirname);
     if (req.method === "GET" && path === "/api/kasa") {
       try {
-        return send(res, 200, read(url.searchParams));
+        return send(res, 200, { ...read(url.searchParams), currency: currency() });
       } catch (e) {
         return send(res, 500, { error: t("Could not read the ledger file ({file}): {message}", { file: file(), message: e.message }) });
       }
