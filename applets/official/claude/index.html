@@ -266,7 +266,7 @@ function pickerHtml(event) {
       <button type="button" class="ses-ad" data-pick="${esc(id)}"><span class="ses-tik">${id === chosen ? ICON.check(14) : ""}</span>${esc(name)}</button>
       ${sounds.canPlay && id !== sounds.none ? `<button type="button" class="ses-cal" data-preview="${esc(id)}" title="${esc(t("Play"))}" aria-label="${esc(t("Play {name}", { name }))}">${PLAY_ICON}</button>` : ""}</div>`;
   const group = (title, list) => (list.length ? `<h3>${esc(title)}</h3>${list.map((s) => row(s.id, s.name)).join("")}` : "");
-  return `<div class="ses-liste">${row(sounds.none, t("No sound"))}${group(t("Your sounds"), sounds.options.filter((s) => s.own))}${group(t("System sounds"), sounds.options.filter((s) => !s.own))}</div>`;
+  return `<div class="ses-liste">${row(sounds.none, t("No sound"))}${group("Speys", sounds.options.filter((s) => s.speys))}${group(t("Your sounds"), sounds.options.filter((s) => s.own))}${group(t("System sounds"), sounds.options.filter((s) => !s.own && !s.speys))}</div>`;
 }
 function soundsHtml() {
   return `<section class="kart ses-kart"><h2>${esc(t("Sound"))}</h2>

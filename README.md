@@ -71,7 +71,7 @@ Settings and data live in `data/` next to the code. It stays out of git and upda
 
 Session status, notifications and sound run on a Claude Code hook. Speys Local adds it to `~/.claude/settings.json` when you first open it: only its own entries, with a backup next to the file. Turn it off with the switch on the Claude Sessions page and it is removed. If you delete the folder first, the entry stays in the settings file but does nothing.
 
-Speys Local is built and tested on macOS. It hasn't been tried on Windows or Linux yet, so expect rough edges there. Sound and notifications work on macOS for now. To add your own sounds, put audio files in `data/main/apps/claude/sounds/`.
+Speys Local is built and tested on macOS. It hasn't been tried on Windows or Linux yet, so expect rough edges there. Sound and notifications work on macOS for now. It comes with 13 sounds of its own. To add yours, put audio files in `data/main/apps/claude/sounds/`.
 
 ### Uninstall
 
