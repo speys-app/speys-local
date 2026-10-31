@@ -558,7 +558,7 @@ function mapView() {
 
 function draw() {
   document.querySelectorAll(".tab").forEach((b) => { b.textContent = L[b.dataset.v]; b.classList.toggle("on", b.dataset.v === view); });
-  $("#meta").textContent = S.root.split("/").slice(-2).join("/");
+  $("#meta").textContent = S.root.split(/[\\/]/).slice(-2).join("/");
   if (view === "lessons" && pkg) setTimeout(() => loadViz(lesson().id));
   document.body.classList.toggle("wide", view === "lessons" && !!pkg);
   // columns scroll on their own: keep their place across redraws (a new lesson has new keys, so it starts at the top)

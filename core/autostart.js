@@ -1,6 +1,7 @@
 // Start with the computer: `node start.js --install`, remove with `--uninstall`.
-// macOS only for now (launchd); it opens no browser, it only keeps the server running.
-import { execFileSync } from "node:child_process";
+// launchd on macOS, the user's Run key on Windows (no admin rights needed; it starts at sign-in but isn't restarted
+// after a crash). It opens no browser, it only keeps the server running.
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -44,9 +45,33 @@ function unload() {
   }
 }
 
+const RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+const quoted = (s) => `'${s.replaceAll("'", "''")}'`;
+// A hidden PowerShell: node would otherwise leave a console window open for as long as it runs
+const HIDDEN = ["-NoProfile", "-WindowStyle", "Hidden", "-Command", `& ${quoted(process.execPath)} ${quoted(join(ROOT, "start.js"))} --no-open`];
+
+function installWindows() {
+  const value = `powershell.exe ${HIDDEN.slice(0, -1).join(" ")} "${HIDDEN.at(-1)}"`;
+  execFileSync("reg.exe", ["add", RUN_KEY, "/v", LABEL, "/t", "REG_SZ", "/d", value, "/f"], { stdio: "ignore" });
+  // The Run key takes effect at the next sign-in; this is the server for now
+  spawn(process.execPath, [join(ROOT, "start.js"), "--no-open"], { cwd: ROOT, stdio: "ignore", detached: true, windowsHide: true }).unref();
+  console.log("Installed: runs when you sign in. http://localhost:3400");
+  return true;
+}
+
+function uninstallWindows() {
+  try {
+    execFileSync("reg.exe", ["delete", RUN_KEY, "/v", LABEL, "/f"], { stdio: "ignore" });
+  } catch {
+    // was not installed
+  }
+  console.log("Autostart removed. A server already running stays until you sign out.");
+}
+
 export function install() {
+  if (process.platform === "win32") return installWindows();
   if (process.platform !== "darwin") {
-    console.error("Autostart is macOS only for now; run `node start.js` here.");
+    console.error("Autostart is macOS and Windows only for now; run `node start.js` here.");
     return false;
   }
   mkdirSync(join(homedir(), "Library", "Logs", "Speys"), { recursive: true });
@@ -58,6 +83,7 @@ export function install() {
 }
 
 export function uninstall() {
+  if (process.platform === "win32") return uninstallWindows();
   if (process.platform !== "darwin") return;
   unload();
   if (existsSync(PLIST)) rmSync(PLIST);

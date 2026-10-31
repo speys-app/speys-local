@@ -57,7 +57,7 @@ cd speys-local
 node start.js          # http://localhost:3400
 ```
 
-Start with the computer (macOS): `node start.js --install`, remove with `--uninstall`.
+Start with the computer (macOS, Windows): `node start.js --install`, remove with `--uninstall`.
 Update with the button in Settings, or `git pull`.
 
 Settings and data live in `data/` next to the code. It stays out of git and updates don't touch it, but `git clean -x` would delete it, so don't run that here and keep your own backup. The interface comes in English and Turkish; pick the language in Settings.
@@ -68,7 +68,7 @@ Settings and data live in `data/` next to the code. It stays out of git and upda
 
 Session status, notifications and sound run on a Claude Code hook. Speys Local adds it to `~/.claude/settings.json` when you first open it: only its own entries, with a backup next to the file. Turn it off with the switch on the Claude Sessions page and it is removed.
 
-Sound and notifications work on macOS for now. To add your own sounds, put audio files in `data/main/apps/claude/sounds/`.
+Sound works on macOS and Windows for now, notifications on macOS. To add your own sounds, put audio files in `data/main/apps/claude/sounds/`.
 
 ## 🧩 Applets
 

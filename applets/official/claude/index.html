@@ -66,7 +66,7 @@ function soundsHtml() {
   return `<section class="kart ses-kart"><h2>${esc(t("Sound"))}</h2>
     <p class="soluk ses-aciklama">${esc(t("Hear when Claude is done, without watching the tab."))}</p>
     ${SOUND_EVENTS.map(soundRow).join("")}
-    ${sounds.canPlay ? "" : `<p class="soluk ses-not">${esc(t("Sounds and notifications work on macOS for now."))}</p>`}
+    ${sounds.canPlay ? "" : `<p class="soluk ses-not">${esc(t("Sound works on macOS and Windows for now, notifications on macOS."))}</p>`}
     <p class="soluk ses-not">${t("To add your own, put an audio file in <code>{folder}</code>.", { folder: esc(sounds.folder) })}</p>
     <div class="ses-satir ses-kanca-satir"><span>${esc(t("Sound and notifications"))}<small>${esc(t("Runs through a Claude Code hook, added to its settings automatically."))}</small></span>
       <button type="button" class="ses-anahtar${sounds.hook ? " on" : ""}" role="switch" aria-checked="${sounds.hook}" aria-label="${esc(t("Sound and notifications"))}" data-hook></button></div>

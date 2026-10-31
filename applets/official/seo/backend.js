@@ -31,7 +31,7 @@ const countMatches = (pattern, text) => (pattern ? [...text.matchAll(new RegExp(
 function checkPost(folder, name, domain, t) {
   const post = join(folder, "post.md");
   if (!existsSync(post)) return null;
-  const m = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(readFileSync(post, "utf8"));
+  const m = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(readFileSync(post, "utf8").replaceAll("\r\n", "\n"));
   if (!m) return null;
   const front = {};
   for (const line of m[1].split("\n")) {
@@ -240,7 +240,7 @@ export default function create({ dataDir, settings, t, language }) {
       surum: existsSync(site.file) ? version(site.file) : null, search_console: await searchConsole.data(force),
       siteler: sites().map((x) => ({ id: x.id, ad: x.name, alan: x.domain, proje: x.project ?? null })),
       liste_ad: site.list ? site.list.split(sep).slice(-2).join("/") : null,
-      liste: site.list && existsSync(site.list) ? readFileSync(site.list, "utf8") : "",
+      liste: site.list && existsSync(site.list) ? readFileSync(site.list, "utf8").replaceAll("\r\n", "\n") : "",
     };
   }
 

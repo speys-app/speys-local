@@ -9,7 +9,7 @@ import { join } from "node:path";
 const INTERVAL_MS = 3600_000;
 const LOCK_MAX_MS = 600_000;
 
-const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (/^~[\\/]/.test(p ?? "") ? join(homedir(), p.slice(2)) : p);
 const ageMs = (file) => Date.now() - statSync(file).mtimeMs;
 
 function send(res, code, body, type = "application/json; charset=utf-8") {

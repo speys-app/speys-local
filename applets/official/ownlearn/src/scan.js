@@ -2,7 +2,7 @@
 // into statements and how a statement is described comes from the module (modules/<id>/).
 // Nothing leaves the machine: the result is a JSON map in ~/.ownlearn/<repo>/.
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 const SKIP = new Set(["node_modules", ".git", "dist", "build", ".next", ".turbo", ".cache", "vendor", "coverage", ".encore"]);
 const MAX_EXAMPLES = 40;
@@ -59,7 +59,7 @@ export function scan(root, module) {
   const ctx = module.context(sources);
   for (const [file, source] of sources) {
     map.files++;
-    const rel = relative(root, file);
+    const rel = relative(root, file).split(sep).join("/");
     const note = module.fileNote(source);
     for (const stmt of module.split(source)) {
       map.statements++;

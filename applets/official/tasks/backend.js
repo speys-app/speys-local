@@ -3,9 +3,9 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { applyOp, moveBetween } from "./tasks.js";
+import { applyOp, moveBetween, toLf } from "./tasks.js";
 
-const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const expand = (p) => (/^~[\\/]/.test(p ?? "") ? join(homedir(), p.slice(2)) : p);
 
 /** A one-level pattern such as `listeler/*.md`; a number at the start of a file name gives the order. */
 function matchPattern(folder, pattern) {
@@ -51,7 +51,7 @@ export default function create({ settings, t }) {
         ad: a,
         claude: (p.claude || []).includes(a),
         bitenler: a === p.doneList,
-        icerik: readFileSync(join(p.folder, a), "utf8"),
+        icerik: toLf(readFileSync(join(p.folder, a), "utf8")),
       })),
       bitis_tarihi: !!p.finishDate,
       ikon: !!p.icon,

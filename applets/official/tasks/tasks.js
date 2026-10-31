@@ -54,7 +54,16 @@ function withDoneDate(line, date) {
   return buildLine(m, body, [...tags.filter((t) => !DONE_TAG_RE.test(t)), ...(date ? [`bitti-${date}`] : [])]);
 }
 
+/** Editors on Windows save CRLF. Lines are worked on with LF, and a file keeps the line endings it had. */
+export const toLf = (content) => content.replaceAll("\r\n", "\n");
+const asBefore = (original, text) => (original.includes("\r\n") ? text.replaceAll("\n", "\r\n") : text);
+
 export function applyOp(content, op, finishDate = false) {
+  const next = applyToLines(toLf(content), op, finishDate);
+  return next === null ? null : asBefore(content, next);
+}
+
+function applyToLines(content, op, finishDate) {
   const s = content.split("\n");
   switch (op?.action) {
     case "toggle": {
@@ -127,11 +136,11 @@ export function applyOp(content, op, finishDate = false) {
 
 /** Moves a task with its subtasks to the top of another list; returns the two changed texts, or null. */
 export function moveBetween(source, target, line, text) {
-  const s = source.split("\n");
+  const s = toLf(source).split("\n");
   if (!isTask(s, line, text)) return null;
   const end = blockEnd(s, line);
   const own = indent(s[line]);
   const block = s.slice(line, end).map((t) => t.slice(Math.min(own, indent(t))));
   s.splice(line, end - line);
-  return { source: s.join("\n"), target: prepend(target, block) };
+  return { source: asBefore(source, s.join("\n")), target: asBefore(target, prepend(toLf(target), block)) };
 }

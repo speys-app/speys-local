@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyOp, moveBetween } from "./tasks.js";
+import { applyOp, moveBetween, toLf } from "./tasks.js";
 
 const FILE = "# Liste\n\n- [ ] Birinci #bugün\n  not satırı\n  - [ ] alt iş\n- [ ] İkinci\n";
 
@@ -33,4 +33,15 @@ test("moving between lists takes the block with its indentation", () => {
   const moved = moveBetween(FILE, "# Öteki\n", 4, "  - [ ] alt iş");
   assert.equal(moved.target, "# Öteki\n\n- [ ] alt iş");
   assert.ok(!moved.source.includes("alt iş"));
+});
+
+test("a CRLF file is read as tasks and keeps its line endings", () => {
+  const crlf = FILE.replaceAll("\n", "\r\n");
+  const next = applyOp(crlf, { action: "toggle", line: 5, text: "- [ ] İkinci", done: true });
+  assert.ok(next.includes("- [x] İkinci\r\n"));
+  assert.ok(!/[^\r]\n/.test(next));
+  const moved = moveBetween(crlf, "# Hedef\n", 5, "- [ ] İkinci");
+  assert.ok(!moved.source.includes("İkinci"));
+  assert.equal(moved.target, "# Hedef\n\n- [ ] İkinci");
+  assert.equal(toLf("a\r\nb\n"), "a\nb\n");
 });
