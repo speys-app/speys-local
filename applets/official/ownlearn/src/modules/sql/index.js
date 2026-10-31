@@ -8,5 +8,5 @@ export { schema } from "./lessons.js";
 export { packages, lessons } from "./packages.js";
 export { writing, stepsOf, annotate } from "./steps.js";
 export { mistakes, findMistakes } from "./mistakes.js";
-export { check, tableInfo, wants } from "./sandbox.js";
+export { check, checkLimited, tableInfo, wants } from "./sandbox.js";
 export { split, context, describe, fileNote, schemaSummary } from "./analyze.js";

@@ -8,12 +8,15 @@
 // How the right word is known:
 //   sozluk/tr.txt  Turkish word frequency (OpenSubtitles, hermitdave/FrequencyWords; seen 10+ times)
 //   sozluk/en.txt  the 50k most frequent English words
+//   sozluk/terms.txt  product and technical words neither list has ("apk", "capcut")
 //   Words seen 5+ times across 3+ sessions in Claude's Turkish replies (applet, speys…): project terms should
 //   not raise false alarms. Quoted text doesn't count (it quotes the user's own spelling).
 //
-// Error candidate: a word not in the dictionary + a frequent word within edit distance 1 (2 at 6+ letters) (SymSpell
+// Error candidate: a word not in the dictionary + a frequent word within edit distance 1 (2 at 8+ letters) (SymSpell
 // deletion index). Transposition comes first: it is the most common error. A word that is in the dictionary but rare
-// is still an error if it has a neighbour 50 times as frequent. Spoken forms ("bakcaz", "dicem") are not errors.
+// is still an error if it has a neighbour 50 times as frequent. Spoken forms ("bakcaz", "dicem", "geliyo") are not errors.
+// Not errors either: a known stem with Turkish endings ("iconları", "fotoda"), and a neighbour only keys far apart could
+// produce ("widget" is not a slip of "şiddet"); this looks for keyboard errors.
 //
 // ~1 min and high memory; runs in a separate process so it doesn't stay in the server's memory.
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -25,6 +28,25 @@ const WORD = /[a-zçğıöşüâîû]+/g;
 const LEFT_HAND = new Set("qwertasdfgzxcvb");
 const TR_PAIRS = new Set(["ıi", "iı", "sş", "şs", "gğ", "ğg", "cç", "çc", "oö", "öo", "uü", "üu"]);
 const SPOKEN = /(c|ç)(az|ez|am|em|ak|ek|an|en|anız|eniz|aksın|eksin|ağım|eğim)$|^(bi|di|dicem|napcaz|naber)$/;
+// "geliyo" → "geliyor", "geliyom" → "geliyorum"; the stem still gets checked, "açlışıyo" is an error
+const SPOKEN_YOR = /(?<=[ıiuü])yo(m|z|sun|sunuz|lar|du|dum|dun|duk|dunuz|dular|muş)?$/;
+const YOR_ENDINGS = { m: "um", z: "uz" };
+// plural, possessive, then one case ending, "ki" last
+const ENDINGS = /^(l[ae]r)?(ları|leri|[ıiuü]m|[ıiuü]n|[ıiuü]|s[ıiuü]|m[ıiuü]z|n[ıiuü]z|[ıiuü]m[ıiuü]z|[ıiuü]n[ıiuü]z)?(y?[ıiuü]|y?[ae]|n[ıiuü]|n[ae]|[dt][ae]|[dt][ae]n|nd[ae]|nd[ae]n|y?l[ae]|n?[ıiuü]n|y?s[ae]|[cç][ıiuü])?(ki)?$/;
+const PAST_OR_REPORTED = /([dt][ıiuü](m|n|k|n[ıiuü]z)?|m[ıiuü]ş)$/;
+const VOICELESS_END = /[fstkçşhp]$/; // after these a d turns into t: "girişte", not "girişde"
+const VOWEL = /[aeıioöuü]/;
+const TWO_VOWELS = /[aeıioöuü]{2}/;
+const MIN_STEM = 3, STEM_FREQUENCY = 100, SHORT_STEM_FREQUENCY = 1000; // two letters only if common: "okun", "aslar"
+const MIN_PERSON_STEM = 5; // "-cı" only after a longer stem: "bakımcı", not "sınucu"
+const DOMINANT = 40; // a stem with endings doesn't save a word this many times rarer than its neighbour: "kulla" is "kullan"
+const VERY_COMMON = 20_000; // one wrong key, however far, if the word is this common and the typed form unknown: "olnn"
+const RARE_LONG_LENGTH = 8, RARE_LONG_FREQUENCY = 10; // long words are safe to suggest even when rare: "panelden"
+const SAME_LETTERS_LENGTH = 6; // the same letters in another order are a typing slip from here on: "oalrka", "ypalaım", "faklrı"
+const TWO_EDITS_LENGTH = 8; // two edits turn a shorter word into a different word: "soliter" → "splinter"
+const CLOSE_FORMS = new Set(["bp", "pb", "dt", "td", "gk", "kg", "ğk", "kğ", "ei", "ie"]); // spelled by sound, not keyed: "takib", "deniyelim"
+const KEY_ROWS = [["qwertyuıopğü", 0], ["asdfghjklşi", 0.25], ["zxcvbnmöç", 0.75]]; // Turkish Q, with each row's offset
+const KEYS = new Map(KEY_ROWS.flatMap(([keys, offset], row) => [...keys].map((k, i) => [k, [i + offset, row]])));
 const LINE_BREAK = /\r\n|[\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029]/;
 // Error type labels, written to sonuc.json → turler; the page shows them through t(), the Turkish is in locales/tr.json.
 const TURKISH_LETTER = "Turkish letter";
@@ -147,6 +169,36 @@ function asciiVariant(a, b) {
   return true;
 }
 
+const closeKeys = (a, b) => {
+  const [p, q] = [KEYS.get(a), KEYS.get(b)];
+  return !p || !q || Math.hypot(p[0] - q[0], p[1] - q[1]) < 1.6;
+};
+
+/** Same length: every difference is a swap of neighbours, a Turkish letter or a key next to the right one. */
+function sameLengthSlip(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === b[i]) continue;
+    if (a[i] === b[i + 1] && a[i + 1] === b[i]) i++;
+    else if (!TR_PAIRS.has(a[i] + b[i]) && !CLOSE_FORMS.has(a[i] + b[i]) && !closeKeys(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+/** Could fingers have turned the right word into this one? One letter too many or too few always can, two rarely do. */
+export function isKeyboardSlip(wrong, right) {
+  if (wrong.length === right.length) return sameLengthSlip(wrong, right);
+  if (Math.abs(wrong.length - right.length) > 1) return false;
+  const [long, short] = wrong.length > right.length ? [wrong, right] : [right, wrong];
+  for (let i = 0; i < long.length; i++) if (sameLengthSlip(long.slice(0, i) + long.slice(i + 1), short)) return true;
+  return false;
+}
+
+/** "kalıyo" → "kalıyor", or null. */
+export function fullYorForm(w) {
+  const m = SPOKEN_YOR.exec(w);
+  return m ? w.slice(0, m.index) + "yor" + (YOR_ENDINGS[m[1]] ?? m[1] ?? "") : null;
+}
+
 function errorKind(wrong, right) {
   if (asciiVariant(wrong, right)) return [TURKISH_LETTER, null];
   if (wrong.length === right.length) {
@@ -184,7 +236,7 @@ export async function analyze(outDir, roots) {
     tr.set(line.slice(0, at), Number(line.slice(at + 1)));
   }
   tr.delete("faklı"); // a typo that is common in subtitles too: don't count it as a dictionary word
-  const en = new Set(dictLines("en.txt").map((s) => s.split(" ")[0]));
+  const en = new Set([...dictLines("en.txt"), ...dictLines("terms.txt")].map((s) => s.split(" ")[0]));
 
   // Project terms Claude knows that are not in the dictionary: their suffixed forms are correct too ("speyste", "appletler")
   const terms = new Set([...known].filter((w) => w.length >= 4 && !tr.has(w) && !en.has(w)));
@@ -193,11 +245,47 @@ export async function analyze(outDir, roots) {
     return false;
   };
   for (const w of known) if (!tr.has(w)) tr.set(w, 1000);
+  const isStem = (w) => (w.length >= MIN_STEM && (en.has(w) || (tr.get(w) ?? 0) >= STEM_FREQUENCY)) || (tr.get(w) ?? 0) >= SHORT_STEM_FREQUENCY;
+  /** The stem of a word with endings, or null. It is bare: "oyunlara" + "da" doesn't count, that is a typo of "oyunlarda". */
+  const stemOf = (w, nested = false) => {
+    for (let n = w.length - 1; n >= 2; n--) {
+      const stem = w.slice(0, n), ending = w.slice(n);
+      if (!ENDINGS.test(ending) || TWO_VOWELS.test(ending) || !isStem(stem) || /yor$/.test(stem)) continue;
+      const person = /[cç][ıiuü](ki)?$/.test(ending);
+      if (person && stem.length < MIN_PERSON_STEM) continue;
+      if (ending[0] === "y" && !VOWEL.test(stem.at(-1))) continue; // this y only joins two vowels: "okyu"
+      if (/^[dt]/.test(ending) && (ending[0] === "t") !== VOICELESS_END.test(stem)) continue;
+      if (VOWEL.test(ending[0]) && VOWEL.test(stem.at(-1))) continue; // two vowels need a letter between them: "ekleü"
+      if (nested || person || !stemOf(stem, true)) return stem; // "bakım" + "cı": a noun of its own, though "bak" + "ım" fits too
+    }
+    return null;
+  };
+  /** "ekliyorduk" comes from "ekle", though the list only has some forms of it; "açlışıyor" comes from nothing. */
+  const isVerbForm = (full) => {
+    const base = full.replace(/[ıiuü]yor[a-zçğıöşü]*$/, "");
+    return base !== full && [base, base + "e", base + "a"].some((v) => (tr.get(v) ?? 0) >= STEM_FREQUENCY);
+  };
+  /** "kaldı" and "gelmiş" have a verb under them, "kedi" and "notu" don't: "kedimi" is a correct word, not "kedi mi". */
+  const isConjugated = (w) => {
+    if (isVerbForm(w)) return true;
+    const m = PAST_OR_REPORTED.exec(w);
+    if (!m) return false;
+    const root = w.slice(0, m.index);
+    return Math.max(tr.get(`${root}mak`) ?? 0, tr.get(`${root}mek`) ?? 0) >= STEM_FREQUENCY;
+  };
+  /** "kaldımı" → "kaldım mı", "geliyomu" → "geliyor mu": a question particle without its space. */
+  const gluedQuestion = (w) => {
+    const m = /m[ıiuü]$/.exec(w);
+    if (!m || m.index < 4) return null;
+    const base = w.slice(0, m.index), full = fullYorForm(base);
+    if (full && (tr.has(full) || isVerbForm(full))) return `${full} ${m[0]}`;
+    return (tr.get(base) ?? 0) >= 300 && isConjugated(base) ? `${base} ${m[0]}` : null;
+  };
 
   const index = new Map();
   const ranked = [...tr.entries()].sort((a, b) => b[1] - a[1]).slice(0, 150000);
   for (const [w, n] of ranked) {
-    if (w.length < 2 || w.length > 20 || (n < 100 && !known.has(w))) continue;
+    if (w.length < 2 || w.length > 20 || (n < (w.length >= RARE_LONG_LENGTH ? RARE_LONG_FREQUENCY : 100) && !known.has(w))) continue;
     for (const s of deletions(w, w.length >= 5 ? 2 : 1)) {
       const list = index.get(s);
       if (list) list.push(w);
@@ -208,21 +296,26 @@ export async function analyze(outDir, roots) {
   const cache = new Map();
   function correct(w, rare) {
     if (cache.has(w)) return cache.get(w);
-    const limit = w.length >= 6 ? 2 : 1;
+    const limit = w.length >= TWO_EDITS_LENGTH ? 2 : 1;
+    const sorted = [...w].sort().join("");
     const candidates = new Set();
-    for (const s of deletions(w, limit)) for (const c of index.get(s) || []) candidates.add(c);
+    for (const s of deletions(w, w.length >= SAME_LETTERS_LENGTH ? 2 : limit)) for (const c of index.get(s) || []) candidates.add(c);
+    candidates.delete(w);
     let best = null;
     for (const c of candidates) {
       let d;
       if (asciiVariant(w, c)) d = 0.5;
       else {
         d = distance(w, c);
-        if (d === 1 && w.length === c.length && [...w].sort().join("") === [...c].sort().join("")) d = 0.8;
+        if (d === 1 && w.length === c.length && sorted === [...c].sort().join("")) d = 0.8;
       }
       if (c.length <= 3 && (tr.get(c) || 0) < 1000) continue; // short, rare candidates such as "gib", "ibi" give wrong corrections
-      if (d > limit) continue;
       const freq = tr.get(c) || 0;
-      if (!best || d < best.d || (d === best.d && freq > best.freq)) best = { d, freq, c };
+      const sameLetters = d === 2 && w.length >= SAME_LETTERS_LENGTH && w.length === c.length && sorted === [...c].sort().join("");
+      if (!sameLetters && (d > limit || (!isKeyboardSlip(w, c) && !(d === 1 && !rare && w.length === c.length && freq >= VERY_COMMON)))) continue;
+      // A swap beats another edit, unless the other word is far more common: "içn" is "için", not "çin"
+      const close = best && Math.abs(d - best.d) <= 0.2;
+      if (!best || (close ? freq >= best.freq * (d < best.d ? 0.1 : d > best.d ? 10 : 1) : d < best.d)) best = { d, freq, c };
     }
     let result = best ? best.c : null;
     if (rare && result && (best.d > 1 || (tr.get(result) || 0) < 50 * (tr.get(w) ?? 1))) result = null;
@@ -250,8 +343,17 @@ export async function analyze(outDir, roots) {
       total++;
       counts[0]++;
       if (w.length < 3 || SPOKEN.test(w) || known.has(w) || en.has(w) || startsWithTerm(w)) continue;
+      const full = fullYorForm(w);
+      if (full && (tr.has(full) || isVerbForm(full))) continue;
       const rare = tr.has(w);
       if (rare && tr.get(w) >= 300) continue;
+      const question = gluedQuestion(w);
+      if (question) {
+        addWrong(question, w);
+        kinds.add("shifted space");
+        counts[1]++;
+        continue;
+      }
       // shifted space: "miy apsak" → "mi yapsak", "y ada" → "ya da"
       if (!rare && i < tokens.length) {
         const n = tokens[i];
@@ -270,10 +372,12 @@ export async function analyze(outDir, roots) {
           continue;
         }
       }
-      const right = correct(w, rare);
+      const right = correct(full || w, rare);
       if (!right) continue;
+      const [kind, detail] = errorKind(full || w, right);
+      const stem = stemOf(w);
+      if (stem && kind !== TRANSPOSITION && (tr.get(right) || 0) < DOMINANT * (tr.get(stem) ?? Infinity)) continue; // "gridin" is still "girdin"
       addWrong(right, w);
-      const [kind, detail] = errorKind(w, right);
       kinds.add(kind);
       counts[1]++;
       if (kind === TRANSPOSITION) {

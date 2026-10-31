@@ -23,7 +23,9 @@ const route = () => {
 window.addEventListener("hashchange", render);
 function render() {
   const scrollPosition = scrollY;
-  $("#content").innerHTML = renderTyping();
+  // The dictionary and casing lean on Turkish (issue #8): say so instead of showing wrong corrections as fact.
+  const notice = LOCALE === "tr" ? "" : `<p class="kart soluk">${esc(t("Typo Check is built for Turkish for now. In other languages it misses real typos and can flag correct words."))}</p>`;
+  $("#content").innerHTML = notice + renderTyping();
   scrollTo(0, scrollPosition);
 }
 

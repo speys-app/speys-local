@@ -1,8 +1,10 @@
-// Social media content calendar: takvim.json at the root + the projects' renders/ folders. Setting: Settings → Social.
+// Social media content calendar: takvim.json at the root + the projects' renders/ folders. The root is the applet's
+// data folder unless Settings → Social names another; the file is written with the first change.
 import { execFile, execFileSync } from "node:child_process";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, relative, resolve, sep } from "node:path";
+import { randomUUID } from "node:crypto";
 
 const STEPS = ["veri", "kesit", "render", "paylasildi"];
 const PLATFORMS = ["instagram", "tiktok", "youtube"];
@@ -74,11 +76,18 @@ function periods(source, t) {
 }
 
 export default function create({ dataDir, settings, t }) {
-  const root = () => expand(settings().root);
-  const configured = () => !!root() && existsSync(join(root(), "takvim.json"));
+  const root = () => expand(settings().root) || dataDir;
+  const configured = () => root() === dataDir || existsSync(root()); // a folder named in Settings has to be there
   const calendar = () => join(root(), "takvim.json");
+  /** Whatever the file leaves out counts as empty, so an older or hand-written calendar still opens. */
+  function readCalendar() {
+    const d = existsSync(calendar()) ? JSON.parse(readFileSync(calendar(), "utf8")) : {};
+    for (const key of ["hesaplar", "videolar", "kuyruk", "arka_plan"]) d[key] ??= [];
+    for (const v of d.videolar) v.adimlar ??= {};
+    return d;
+  }
   const covers = join(dataDir, "kapaklar");
-  const version = () => String(statSync(calendar(), { bigint: true }).mtimeNs); // text: nanoseconds do not fit in a JS number
+  const version = () => (existsSync(calendar()) ? String(statSync(calendar(), { bigint: true }).mtimeNs) : "0"); // text: nanoseconds do not fit in a JS number
 
   function latestVideo(project) {
     if (!project) return null;
@@ -97,7 +106,7 @@ export default function create({ dataDir, settings, t }) {
 
   function overview() {
     if (!configured()) return { not_configured: true };
-    const d = JSON.parse(readFileSync(calendar(), "utf8"));
+    const d = readCalendar();
     const day = today();
     for (const v of d.videolar) {
       // A video past its day and not shared falls among the undated; the date in the file stays, this is display only
@@ -124,7 +133,7 @@ export default function create({ dataDir, settings, t }) {
   }
 
   async function cover(id) {
-    const v = JSON.parse(readFileSync(calendar(), "utf8")).videolar.find((x) => x.id === id);
+    const v = readCalendar().videolar.find((x) => x.id === id);
     if (!v) return null;
     const video = latestVideo(v.proje);
     if (video) {
@@ -182,9 +191,28 @@ export default function create({ dataDir, settings, t }) {
   /** Changes one field. False (409) if the file changed in the meantime. */
   function apply(q) {
     if (q.surum && String(q.surum) !== version()) return false;
-    const d = JSON.parse(readFileSync(calendar(), "utf8"));
+    const d = readCalendar();
     const { op } = q;
-    if (op === "takipci") {
+    const text = (s) => String(s ?? "").trim();
+    if (op === "hesap_ekle") {
+      if (!text(q.ad)) throw new Error(t("name is empty"));
+      d.hesaplar.push({ id: randomUUID(), ad: text(q.ad), kullanici: text(q.kullanici), takipci: null });
+    } else if (op === "hesap_sil") {
+      if (d.videolar.some((v) => v.hesap === q.hesap)) throw new Error(t("This account still has videos."));
+      d.hesaplar = d.hesaplar.filter((x) => x.id !== q.hesap);
+    } else if (op === "video_ekle") {
+      if (!text(q.baslik)) throw new Error(t("title is empty"));
+      if (!d.hesaplar.some((x) => x.id === q.hesap)) throw new Error(t("no such account"));
+      if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
+      d.videolar.push({ id: randomUUID(), hesap: q.hesap, baslik: text(q.baslik), tarih: q.tarih || null, adimlar: {}, aciklama: "" });
+    } else if (op === "arka_ekle") {
+      if (!text(q.is)) throw new Error(t("name is empty"));
+      d.arka_plan.push({ is: text(q.is), bitti: false });
+    } else if (op === "arka_sil") {
+      d.arka_plan.splice(Number(q.sira), 1);
+    } else if (op === "video_sil") {
+      d.videolar = d.videolar.filter((x) => x.id !== q.id);
+    } else if (op === "takipci") {
       const h = d.hesaplar.find((x) => x.id === q.hesap);
       if (!h) throw new Error(t("no such account"));
       h.takipci = q.deger == null || q.deger === "" ? null : Math.trunc(Number(q.deger));
@@ -193,7 +221,11 @@ export default function create({ dataDir, settings, t }) {
     } else {
       const v = d.videolar.find((x) => x.id === q.id);
       if (!v) throw new Error(t("no such video"));
-      if (op === "adim") {
+      if (op === "video_duzenle") {
+        if (!text(q.baslik)) throw new Error(t("title is empty"));
+        v.baslik = text(q.baslik);
+        for (const field of ["aciklama", "baglanti", "not"]) v[field] = text(q[field]);
+      } else if (op === "adim") {
         if (!STEPS.includes(q.adim)) throw new Error(t("no such step"));
         if (q.adim === "paylasildi" && q.deger) settleShareDay(v);
         v.adimlar[q.adim] = !!q.deger;
@@ -250,6 +282,7 @@ export default function create({ dataDir, settings, t }) {
         throw new Error(t("no such operation"));
       }
     }
+    mkdirSync(root(), { recursive: true });
     const temp = calendar() + ".yeni";
     writeFileSync(temp, JSON.stringify(d, null, 2) + "\n");
     renameSync(temp, calendar());

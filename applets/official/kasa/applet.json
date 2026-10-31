@@ -10,6 +10,13 @@
       "label": "Ledger file",
       "hint": "If empty, data/main/apps/kasa/defter.json",
       "type": "path"
+    },
+    {
+      "key": "currency",
+      "label": "Currency",
+      "hint": "Only the label: amounts aren't converted. If empty, TL in Turkish and USD in other languages",
+      "type": "text",
+      "placeholder": "USD"
     }
   ]
 }

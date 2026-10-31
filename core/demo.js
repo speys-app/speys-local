@@ -181,7 +181,7 @@ export async function seedDemo(dir, { disabled = [], language } = {}) {
   const social = seedSocial(dir);
   seedHabits(dir);
   writeJson(join(dir, "settings.json"), {
-    _dashboard: { disabled, ...(language ? { language } : {}) },
+    _dashboard: { disabled, autoUpdateCheck: false, ...(language ? { language } : {}) },
     tasks: { projects },
     claude: { folders: [{ path: claude, label: "Claude" }], projectsRoot: join(dir, "projects") },
     yazim: { claudeFolders: [claude] },

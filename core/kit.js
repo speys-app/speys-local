@@ -98,3 +98,48 @@ const listHtml = (rows, empty = t("No data.")) => rows.length ? `<ul class="list
 const notConfigured = (name) => `<section class="kart" style="max-width:520px;margin:12vh auto"><h2>${esc(t("{name} is not set up", { name }))}</h2>
   <p class="soluk">${esc(t("Tell it where its data is in Settings."))}</p>
   <button type="button" class="yz-dugme" onclick="parent.openApplet?.('settings')">${esc(t("Go to Settings"))}</button></section>`;
+
+/**
+ * A window in the middle of the dashboard; the sidebar darkens with the rest. `body` is HTML, and clicks in it reach the
+ * page's own listeners. The cross, Escape and a click outside close it. Returns { element, setBody, close }.
+ */
+function openPopup({ title, body = "", onClose }) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "popup";
+  dialog.innerHTML = `<div class="popup-bas"><h2>${esc(title)}</h2><button type="button" class="popup-kapat" aria-label="${esc(t("Close"))}">${ICON.close}</button></div><div class="popup-ic">${body}</div>`;
+  const inner = dialog.querySelector(".popup-ic");
+  const close = () => dialog.close();
+  // A page lives in a frame beside the sidebar: the part of the dashboard left of the frame is darkened from outside.
+  const left = window.frameElement?.getBoundingClientRect().left || 0;
+  const shade = left ? parent.document.createElement("div") : null;
+  if (shade) {
+    shade.style.cssText = `position:fixed;inset:0 auto 0 0;width:${left}px;background:rgba(0,0,0,.5);z-index:1000`;
+    shade.addEventListener("click", close);
+    parent.document.body.append(shade);
+  }
+  const removeShade = () => shade?.remove(); // a page reloading under an open window must not leave it behind
+  window.addEventListener("pagehide", removeShade);
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog || e.target.closest(".popup-kapat")) close();
+  });
+  dialog.addEventListener("close", () => {
+    removeShade();
+    window.removeEventListener("pagehide", removeShade);
+    dialog.remove();
+    onClose?.();
+  });
+  document.body.append(dialog);
+  dialog.showModal();
+  // Centred on the whole dashboard, as far as the frame allows.
+  const room = Math.max(0, (window.innerWidth - dialog.offsetWidth) / 2 - 8);
+  dialog.style.transform = `translateX(-${Math.min(left / 2, room)}px)`;
+  return {
+    element: dialog,
+    close,
+    setBody(html) {
+      const scroll = inner.scrollTop;
+      inner.innerHTML = html;
+      inner.scrollTop = scroll;
+    },
+  };
+}

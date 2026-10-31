@@ -173,6 +173,7 @@ function versionView(applets) {
     boot: BOOT,
     core: Math.max(...CORE_PAGES.map(mtime), mtime(join(CORE_FOLDER, "locales", `${activeLanguage}.json`))),
     pages: Object.fromEntries(applets.map((a) => [a.id, Math.max(mtime(join(a.folder, a.page || "index.html")), mtime(join(a.folder, "locales", `${activeLanguage}.json`)))])),
+    update: autoCheckOn() ? updateWaiting : null,
   };
 }
 
@@ -196,23 +197,52 @@ function git(args, timeout = 30_000) {
   });
 }
 
-/** Version info; with `check` it asks the remote. It only goes on the network when the user asks. */
+// The automatic check only fetches and asks: getting the update stays a click. It waits after startup to keep opening light.
+const UPDATE_FIRST_CHECK = 60_000, UPDATE_CHECK_EVERY = 60 * 60_000;
+const autoCheckOn = () => readSettings()._dashboard?.autoUpdateCheck !== false;
+let updateChecked = false, updateWaiting = null, fetching = null;
+
+async function waitingCommits() {
+  const log = await git(["log", "--format=%h|%cs|%s", "HEAD..@{u}"]);
+  return log ? log.split("\n").map((l) => {
+    const [hash, day, ...m] = l.split("|");
+    return { hash, date: day, message: m.join("|") };
+  }) : [];
+}
+
+/** Version info; with `check` it asks the remote, otherwise it only reads what the last check brought. */
 async function updateStatus(check) {
   if (!existsSync(join(ROOT, ".git"))) return { git: false };
   const [head, branch, changes] = await Promise.all([
     git(["log", "-1", "--format=%h|%cs"]), git(["branch", "--show-current"]), git(["status", "--porcelain"]),
   ]);
   const [version, date] = head.split("|");
-  const out = { git: true, version, date, branch, changes: changes ? changes.split("\n").length : 0 };
-  if (!check) return out;
-  await git(["fetch", "--quiet"], 60_000);
-  const log = await git(["log", "--format=%h|%cs|%s", "HEAD..@{u}"]);
-  out.commits = log ? log.split("\n").map((l) => {
-    const [hash, day, ...m] = l.split("|");
-    return { hash, date: day, message: m.join("|") };
-  }) : [];
+  const out = { git: true, version, date, branch, changes: changes ? changes.split("\n").length : 0, autoCheck: autoCheckOn() };
+  if (check) {
+    await (fetching ??= git(["fetch", "--quiet"], 60_000).finally(() => { fetching = null; }));
+    out.commits = await waitingCommits();
+    updateChecked = true;
+  } else if (updateChecked) {
+    out.commits = await waitingCommits().catch(() => []);
+  } else {
+    return out;
+  }
   out.checked = true;
+  updateWaiting = out.commits.length ? { count: out.commits.length, latest: out.commits[0].hash } : null;
   return out;
+}
+
+function backgroundCheck() {
+  updateStatus(true).catch(() => { /* offline or no upstream: the next round tries again */ });
+}
+
+function setAutoCheck(on) {
+  const all = readSettings();
+  const panel = (all._dashboard ??= {});
+  if (on) delete panel.autoUpdateCheck;
+  else panel.autoUpdateCheck = false;
+  writeAll(all);
+  if (on) backgroundCheck();
 }
 
 /** Fast-forward only: local changes are never overwritten, a conflict returns an error. Restarts under launchd. */
@@ -415,6 +445,11 @@ export async function startDashboard({ port = 3400 }) {
       }
       return send(res, 200, versionView(applets));
     }
+    if (url.pathname === "/api/update/auto") {
+      if (req.method !== "POST" || req.headers["x-panel"] !== "1") return send(res, 403, { error: "forbidden" });
+      setAutoCheck(JSON.parse((await readBody(req)) || "{}").on !== false);
+      return send(res, 200, { ok: true });
+    }
     if (url.pathname === "/api/update") {
       try {
         if (req.method === "POST") {
@@ -517,5 +552,8 @@ export async function startDashboard({ port = 3400 }) {
     server.once("error", fail);
     server.listen(port, "127.0.0.1", done);
   });
+  const autoCheck = () => { if (autoCheckOn()) backgroundCheck(); };
+  setTimeout(autoCheck, UPDATE_FIRST_CHECK).unref();
+  setInterval(autoCheck, UPDATE_CHECK_EVERY).unref();
   return { server, applets };
 }

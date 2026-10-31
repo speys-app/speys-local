@@ -77,6 +77,8 @@ function updateHtml() {
     <div class="ay-gun"><div class="bilgi"><b>${esc(update.version)}</b> <span class="soluk">· ${esc(update.date)} · ${esc(update.branch)}${update.changes ? ` · ${esc(t("{n} local changes", { n: update.changes }))}` : ""}</span>
       ${state ? `<small class="ay-ipucu">${esc(state)}</small>` : ""}${updateError ? `<small class="ay-hata" style="display:block">${esc(updateError)}</small>` : ""}</div>${button}</div>
     ${commits.length ? `<ul class="ay-yeni">${commits.map((c) => `<li><code>${esc(c.hash)}</code> ${esc(c.message)} <span class="soluk">· ${esc(c.date)}</span></li>`).join("")}</ul>` : ""}
+    <div class="ay-ap"><div class="bilgi"><b>${esc(t("Check automatically"))}</b><small>${esc(t("Looks at GitHub once an hour and asks you when there is something new. Nothing is installed without your click."))}</small></div>
+      <button type="button" class="ay-anahtar${update.autoCheck ? " on" : ""}" role="switch" aria-checked="${!!update.autoCheck}" aria-label="${esc(t("Check automatically"))}" data-update-auto></button></div>
     <p class="ay-not">${t("Fast-forward only: local changes are never overwritten, it stops on a conflict. It does not touch <code>applets/custom/</code> or your settings.")}</p></section>`;
 }
 
@@ -118,7 +120,7 @@ function draw() {
 }
 
 async function load() {
-  [data, applets, update, language] = await Promise.all([getJson("/api/settings"), getJson("/api/applets"), update?.checked ? update : getJson("/api/update").catch(() => null), getJson("/api/language")]);
+  [data, applets, update, language] = await Promise.all([getJson("/api/settings"), getJson("/api/applets"), getJson("/api/update").catch(() => null), getJson("/api/language")]);
   draw();
 }
 
@@ -163,6 +165,12 @@ document.addEventListener("change", async (e) => {
 document.addEventListener("click", async (e) => {
   if (e.target.closest("[data-update-check]")) return checkUpdate();
   if (e.target.closest("[data-update-pull]")) return pullUpdate();
+  if (e.target.closest("[data-update-auto]")) {
+    const r = await fetch("/api/update/auto", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ on: !update.autoCheck }) });
+    if (!r.ok) return notify(t("Could not change it."));
+    update = await getJson("/api/update");
+    return draw();
+  }
   const toggle = e.target.closest("[data-applet]");
   if (toggle) {
     const on = toggle.classList.contains("on");

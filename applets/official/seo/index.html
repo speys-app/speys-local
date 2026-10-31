@@ -117,7 +117,7 @@ function scChart(rows, dayName, incomplete = null, W = 1100, H = 220) {
 }
 function scCard(sc, summary, dayName) {
   const totals = summary?.toplam;
-  if (!sc.bagli) return `<section class="kart sc-kart"><h2>Search Console</h2><p class="bos">${esc(t("Not connected: node lib/search-console.js giris"))}</p></section>`;
+  if (!sc.bagli) return `<section class="kart sc-kart"><h2>Search Console</h2><p class="bos">${esc(t("Not connected. To connect your own Google account, run this in the Speys Local folder and follow what it says:"))}</p><p><code>node lib/search-console.js giris</code></p></section>`;
   if (!totals) return `<section class="kart sc-kart"><h2>Search Console</h2><p class="bos">${esc(sc.hata || t("property not found"))}</p></section>`;
   const rows = summary.gunluk || [], last = scSlice(rows.slice(-7)), previous = scSlice(rows.slice(-14, -7));
   const whole = (v) => formatNumber(Math.round(v)), pct = (v) => t("{n}%", { n: formatDecimal(v) });
@@ -163,9 +163,9 @@ function scPages(rows, count = 12) {
 const JSONLD_HELPER_TYPES = new Set(["PostalAddress", "GeoCoordinates", "ListItem", "Offer", "MenuSection", "MenuItem", "Question", "Answer", "AggregateRating", "LocationFeatureSpecification", "ImageObject", "Person", "SearchAction", "EntryPoint"]);
 function previewHtml(url) {
   const v = previews[url];
-  if (!v || v === "loading") return `<p class="bos serp-bekle">${esc(t("Checking the page, Google and schema.org…"))}</p>`;
+  if (!v || v === "loading") return `<p class="bos serp-bekle">${esc(t("Checking the page and Google…"))}</p>`;
   if (v.error && !v.sayfa) return `<p class="fark-kotu">${esc(v.error)}</p>`;
-  const s = v.sayfa || {}, g = v.google || {}, sc = v.schema || {}, u = new URL(url);
+  const s = v.sayfa || {}, g = v.google || {}, sc = v.schema, u = new URL(url);
   const dayMonth = (iso) => new Date(iso).toLocaleDateString(LOCALE, { day: "numeric", month: "long" });
   const path = u.pathname.split("/").filter(Boolean).map(decodeURIComponent);
   // Google shows the rating line only when it accepts the review snippet. z.tur comes from Google in the request's language.
@@ -202,7 +202,7 @@ function previewHtml(url) {
       ` · <span class="${z.sorunlar.length ? "fark-kotu" : "fark-iyi"}" title="${esc(z.sorunlar.map((x) => x.mesaj).join("\n"))}">${esc(z.tur)} ${z.sorunlar.length ? esc(issuesText(z.sorunlar.length)) : "✓"}</span>`).join("")}
       ${(g.zengin || []).flatMap((z) => z.sorunlar).map((x) => `<br><small>${esc(x.seviye)}: ${esc(x.mesaj)}</small>`).join("")}`;
   const schemaLine = `${blocks.length ? esc(blocks.join(" · ")) : `<span class="soluk">${esc(t("no structured data"))}</span>`}${s.jsonld_bozuk ? ` · <span class="fark-kotu">${esc(brokenText(s.jsonld_bozuk))}</span>` : ""}
-    · schema.org: ${sc.error ? `<span class="soluk">${esc(sc.error)}</span>` : (sc.hatalar || []).length ? `<span class="fark-kotu">${esc(errorsText(sc.hatalar.length))}</span>${sc.hatalar.slice(0, 8).map((h) => `<br><small>${esc(h.yer)}: ${esc(h.tur)} ${esc(JSON.stringify(h.ayrinti ?? ""))}</small>`).join("")}` : `<span class="fark-iyi">${esc(t("no errors"))}</span>`}`;
+    · schema.org: ${!sc ? `<button type="button" data-is="seo-schema" data-url="${esc(url)}"${v.schemaLoading ? " disabled" : ""}>${esc(v.schemaLoading ? t("Checking…") : t("Check"))}</button> <small class="soluk">${esc(t("Sends this page's address to validator.schema.org."))}</small>` : sc.error ? `<span class="soluk">${esc(sc.error)}</span>` : (sc.hatalar || []).length ? `<span class="fark-kotu">${esc(errorsText(sc.hatalar.length))}</span>${sc.hatalar.slice(0, 8).map((h) => `<br><small>${esc(h.yer)}: ${esc(h.tur)} ${esc(JSON.stringify(h.ayrinti ?? ""))}</small>`).join("")}` : `<span class="fark-iyi">${esc(t("no errors"))}</span>`}`;
   return `<div class="serp">
       <div class="serp-site"><img src="https://${esc(u.host)}/favicon.ico" alt="" onerror="this.style.visibility='hidden'">
         <div><b>${esc(s.site_adi || u.host)}</b><span>${esc(u.origin)}${path.map((p) => ` › ${esc(p)}`).join("")}</span></div></div>
@@ -218,6 +218,12 @@ async function fetchPreview(url, refresh) {
   previews[url] = "loading"; render();
   try { previews[url] = await getJson(`./api/seo/onizleme?url=${encodeURIComponent(url)}${refresh ? "&yenile=1" : ""}`); }
   catch (err) { previews[url] = { error: String(err.message || err) }; }
+  render();
+}
+async function checkSchema(url) {
+  previews[url] = { ...previews[url], schemaLoading: true }; render();
+  try { previews[url] = await getJson(`./api/seo/onizleme?url=${encodeURIComponent(url)}&schema=1`); }
+  catch (err) { previews[url] = { ...previews[url], schemaLoading: false, schema: { error: String(err.message || err) } }; }
   render();
 }
 document.addEventListener("click", (e) => {
@@ -324,6 +330,7 @@ document.addEventListener("click", async (e) => {
   }
   if (action === "seo-kontrol") return writeSeo({ op: "kontrol", no: +el.dataset.no, geri: !!el.dataset.geri });
   if (action === "seo-onizleme-yenile") return fetchPreview(el.dataset.url, true);
+  if (action === "seo-schema") return checkSchema(el.dataset.url);
   const pageRow = e.target.closest("[data-seo-sayfa]");
   if (pageRow) {
     const url = pageRow.dataset.seoSayfa;

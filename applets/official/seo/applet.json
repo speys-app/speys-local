@@ -15,7 +15,7 @@
       "section": "searchConsole",
       "key": "folder",
       "label": "Search Console credentials folder",
-      "hint": "search-console-istemci.json and belirtec.json go here",
+      "hint": "search-console-istemci.json and search-console-belirtec.json go here. If empty, data/main/apps/seo",
       "type": "path"
     },
     {
