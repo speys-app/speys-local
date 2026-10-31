@@ -1,0 +1,488 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks</title>
+<link rel="stylesheet" href="/kit.css">
+</head>
+<body>
+<header class="ust"><div class="ic">
+  <h1>Tasks</h1>
+  <span class="durum" id="durum"></span>
+</div></header>
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+document.title = $("header.ust h1").textContent = "Tasks";
+
+async function write(body) {
+  const r = await fetch("./api/gorevler", {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body),
+  });
+  if (r.status === 409) notify(t("The file changed in the meantime; reloaded."));
+  else if (!r.ok) notify(t("Could not write."));
+  await loadTasks();
+  draw();
+}
+
+let tasksData = null;
+let editing = false, dragging = null;
+const route = () => {
+  const [, sub = "", ...file] = decodeURIComponent(location.hash.slice(1)).split("/");
+  return { tab: "gorevler", sub, file: file.join("/") };
+};
+window.addEventListener("hashchange", draw);
+async function loadTasks() { tasksData = await getJson("./api/gorevler"); }
+async function refresh() {
+  if (isHidden() || editing || dragging) return; // the screen must not change under typing / dragging
+  try {
+    await loadTasks();
+    $("#durum").textContent = "";
+    draw();
+  } catch (e) {
+    $("#durum").textContent = t("server unreachable");
+  }
+}
+function draw() {
+  if (!tasksData) return;
+  if (!tasksData.projeler.length) {
+    const path = `<b>${esc(t("Settings → Tasks → Projects"))}</b>`;
+    $("#icerik").innerHTML = `<p style="max-width:560px;color:var(--soluk)">${t("No projects yet. Add them under {path}:", { path })}</p><pre style="max-width:560px;overflow:auto;background:var(--yuzey2);padding:12px;border-radius:8px">[
+  ${esc(t('{ "id": "my-project", "name": "My project", "folder": "~/my-project/tasks", "pattern": "*.md", "finishDate": true }'))}
+]</pre>`;
+    return;
+  }
+  const scroll = scrollY;
+  $("#icerik").innerHTML = tasksHtml();
+  restoreFocus();
+  document.documentElement.style.setProperty("--ust", $("header.ust").offsetHeight + "px");
+  scrollTo(0, scroll);
+}
+// —— Tasks ——————————————————————————————————————————
+// title editing, Move, delete, tags, subtasks. File format:
+//   "# Name", "- [ ] task" (2 spaces = one level down), indented plain line = description,
+//   "## Section", "---", "#bugün" / "#bu-hafta" at the end of the line; in a finishDate project a finished
+//   top-level task has "#bitti-YYYY-MM-DD" (the server writes it on tick, the detail panel changes it).
+const TAGS = [["bugün", t("Today")], ["bu-hafta", t("This week")]];
+const tagLabel = (id) => (TAGS.find(([k]) => k === id) || [, id])[1];
+const splitTags = (line) => {
+  const m = line.match(/((?:\s+#[\p{L}\p{N}_-]+)+)\s*$/u);
+  if (!m || m.index === 0) return { body: line, tags: [] };
+  return { body: line.slice(0, m.index).trimEnd(), tags: m[1].trim().split(/\s+/).map((x) => x.slice(1)) };
+};
+
+function parseList(content) {
+  let title = null; const blocks = []; const stack = [];
+  content.split("\n").forEach((raw, line) => {
+    if (!raw.trim()) return;
+    if (raw.startsWith("# ")) { title = raw.slice(2).trim(); return; }
+    if (raw.startsWith("## ")) { blocks.push({ kind: "section", text: raw.slice(3).trim() }); stack.length = 0; return; }
+    if (/^#{3,6} /.test(raw)) { blocks.push({ kind: "subsection", text: raw.replace(/^#+\s*/, "") }); stack.length = 0; return; }
+    if (raw.trim() === "---") { blocks.push({ kind: "divider" }); stack.length = 0; return; }
+    const depth = Math.floor((raw.match(/^\s*/)[0].length) / 2);
+    while (stack.length && stack.at(-1).depth >= depth) stack.pop();
+    const siblings = stack.length ? stack.at(-1).node.children : blocks;
+    const k = raw.match(/^\s*[-*] \[( |x|X)\] ?(.*)$/);
+    if (k) {
+      const { body, tags: allTags } = splitTags(k[2]);
+      const finish = allTags.map((tag) => tag.match(/^bitti-(\d{4}-\d{2}-\d{2})$/)?.[1]).find(Boolean) || null;
+      const tags = allTags.filter((tag) => !/^bitti-\d{4}-\d{2}-\d{2}$/.test(tag));
+      const node = { kind: "task", line, raw, body, tags, finish, done: k[1] !== " ", children: [] };
+      siblings.push(node);
+      stack.push({ depth, node });
+    } else siblings.push({ kind: "note", text: raw.trim().replace(/^[-*] /, "") });
+  });
+  return { title, blocks };
+}
+const subtasks = (d) => d.children.filter((c) => c.kind === "task");
+/** The "this week" filter includes today; a parent shows when one of its subtasks matches. */
+const hasTag = (d, e) =>
+  d.tags.some((tag) => tag === e || (e === "bu-hafta" && tag === "bugün")) || subtasks(d).some((c) => hasTag(c, e));
+
+// sliding: the panel just opened; the slide animation plays only in that draw
+// (the screen is redrawn every 10 s and after every operation).
+const hiddenProjects = new Set((() => { try { return JSON.parse(localStorage.getItem("panel.gizliProjeler")) || []; } catch { return []; } })());
+let projectMenuOpen = false;
+let filterMenuOpen = false;
+const view = { selected: null, openSubs: new Set(), moveOpen: false, focus: null, sliding: false };
+const filter = { tag: localStorage.getItem("panel.etiket") || "", hideDone: localStorage.getItem("panel.gizle") === "1" };
+const isVisible = (d) => (!filter.hideDone || !d.done) && (!filter.tag || hasTag(d, filter.tag));
+
+function metaHtml(d) {
+  const kids = subtasks(d);
+  const finish = d.done && d.finish ? `<span class="pil">${esc(t("Done {date}", { date: formatDate(d.finish) }))}</span>` : "";
+  if (!kids.length && !d.tags.length && !finish) return "";
+  let progress = "";
+  if (kids.length) {
+    const doneCount = kids.filter((c) => c.done).length, r = 5, circumference = 2 * Math.PI * r, ratio = doneCount / kids.length;
+    progress = `<span class="ilerleme"><svg viewBox="0 0 14 14" width="12" height="12"><circle cx="7" cy="7" r="${r}" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="2"/>${
+      ratio > 0 ? `<circle cx="7" cy="7" r="${r}" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="${circumference * ratio} ${circumference}" ${ratio === 1 ? 'stroke-opacity=".4"' : ""}/>` : ""
+    }</svg>${doneCount}/${kids.length}</span>`;
+  }
+  return `<div class="meta">${progress}${finish}${d.tags.map((tag) => `<span class="pil${tag === "bugün" ? " bugun" : ""}">${esc(tagLabel(tag))}</span>`).join("")}</div>`;
+}
+const taskAttrs = (d, level) => `data-gorev data-seviye="${level}" data-satir="${d.line}" data-ham="${esc(d.raw)}" data-metin="${esc(d.body)}"`;
+const addHtml = (place, parent, hint = t("Add subtask")) =>
+  `<label class="ekle">${ICON.plus()}<input data-ekle="${esc(place)}" ${parent ? `data-ust-satir="${parent.line}" data-ust-ham="${esc(parent.raw)}"` : ""} placeholder="${esc(hint)}"></label>`;
+
+/** The "Büyüklük: … · Etki: …" note line of big jobs (speys-panel/buyuk-*.md, 24 October 2026) as a badge. The line is data, its words stay. */
+function scoreBadge(d) {
+  const m = d.children.map((c) => c.kind === "note" && c.text.trim().match(/^Büyüklük:\s*(düşük|orta|yüksek)\s*·\s*Etki:\s*(düşük|orta|yüksek)$/i)).find(Boolean);
+  if (!m) return "";
+  const level = (word) => ({ "düşük": t("low"), "orta": t("medium"), "yüksek": t("high") })[word.toLowerCase()];
+  return `<span class="ap-puan"><em class="p-${m[1].toLowerCase()}">${esc(t("size {level}", { level: level(m[1]) }))}</em><em class="p-${m[2].toLowerCase()}">${esc(t("impact {level}", { level: level(m[2]) }))}</em></span>`;
+}
+
+function mainRowHtml(d, selected) {
+  return `<div class="satir${selected ? " secili" : ""}${d.done ? " bitti" : ""}" ${taskAttrs(d, "ana")}>
+    <span class="tutamac" draggable="true" aria-label="${esc(t("Drag"))}">${ICON.handle}</span>
+    <span style="margin-top:1px">${checkboxHtml(d.done, "lg")}</span>
+    <div class="govde"><p class="yazi">${inlineMd(d.body)}</p>${scoreBadge(d)}${metaHtml(d)}</div>
+    ${d.children.length ? `<span class="ok">${ICON.chevron}</span>` : ""}
+  </div>`;
+}
+
+function subRowHtml(d, withHandle) {
+  const key = `${d.line}:${d.body}`, open = view.openSubs.has(key), hasKids = d.children.length > 0;
+  return `<div ${taskAttrs(d, "alt")}>
+    <div class="alt-satir">
+      ${withHandle ? `<span class="tutamac" draggable="true" aria-label="${esc(t("Drag"))}">${ICON.handle}</span>` : ""}
+      ${checkboxHtml(d.done, "md")}
+      <div class="govde"><p class="duz${d.done ? " bitti-yazi" : ""}" data-is="duzenle">${inlineMd(d.body)}</p>${metaHtml(d)}</div>
+      <button type="button" class="ikon sil-ikon" data-is="sil" aria-label="${esc(t("Delete"))}">${ICON.trash(14)}</button>
+      <button type="button" class="ikon${hasKids ? "" : " gizli"}" data-is="alt-ac" aria-label="${open ? esc(t("Close")) : esc(t("Open"))}">${
+        hasKids ? `<span class="ok${open ? " acik" : ""}">${ICON.chevron}</span>` : ICON.plus(14)}</button>
+    </div>
+    ${open ? `<div class="ic-altlar">${d.children.map((c) => c.kind === "note" ? `<p class="p-not">${inlineMd(c.text)}</p>` : subRowHtml(c, false)).join("")}
+      ${addHtml(`alt:${key}`, d)}</div>` : ""}
+  </div>`;
+}
+
+function panelHtml(d, list, others, hasFinishDate) {
+  const sliding = view.sliding; view.sliding = false;
+  return `<aside class="gpanel${sliding ? " kayarak" : ""}"><div class="icerik">
+    <div class="bar">
+      <button type="button" class="yuvarlak" data-is="kapat" aria-label="${esc(t("Close"))}">${ICON.close}</button>
+      <span class="liste-adi">${esc(list.title || list.name)}</span>
+      ${others.length ? `<div class="tasi${view.moveOpen ? " acik" : ""}"><button type="button" data-is="tasi-ac">${ICON.arrow()}${esc(t("Move"))}</button>${
+        view.moveOpen ? `<div class="tasi-menu">${others.map((l) => `<button type="button" data-is="tasi" data-hedef="${esc(l.name)}">${ICON.arrow()}${esc(l.title || l.name)}</button>`).join("")}</div>` : ""}</div>` : ""}
+      <button type="button" class="yuvarlak sil" data-is="sil-ana" aria-label="${esc(t("Delete task"))}">${ICON.trash()}</button>
+    </div>
+    <div class="p-baslik" ${taskAttrs(d, "panel")}>
+      ${checkboxHtml(d.done, "lg")}
+      <p class="duz${d.done ? " bitti-yazi" : ""}" data-is="duzenle">${inlineMd(d.body)}</p>
+    </div>
+    ${hasFinishDate && d.done ? `<div class="bitis" ${taskAttrs(d, "panel")} data-bitis="${d.finish || ""}">${esc(t("Done"))}
+      <button type="button" data-is="bitis">${d.finish ? esc(formatDate(d.finish, true)) : esc(t("add date"))}</button></div>` : ""}
+    <div class="etiketler" ${taskAttrs(d, "panel")}>${TAGS.map(([id, label]) => {
+      const on = d.tags.includes(id);
+      return `<button type="button" data-is="etiket" data-etiket="${id}" class="${on ? "on" : ""}${id === "bugün" ? " bugun" : ""}">${esc(label)}</button>`;
+    }).join("")}</div>
+    <div class="altlar">
+      <div data-kume="panel">${d.children.map((c) => c.kind === "note" ? `<p class="p-not">${inlineMd(c.text)}</p>` : subRowHtml(c, true)).join("")}</div>
+      ${addHtml("panel", d)}
+    </div>
+  </div></aside>`;
+}
+
+// Tabs that use the list view (which tab a project is on: its "sekme" field).
+const LIST_TABS = ["gorevler"];
+
+function tasksHtml() {
+  // Address: #<tab>/<project>/<list file>; projects come from the settings.
+  const { tab: thisTab, sub, file } = route();
+  const pool = tasksData.projeler.filter((p) => (p.sekme || "gorevler") === thisTab);
+  const iconImg = (p) => p.ikon ? `<img src="./ikon/${esc(p.id)}" alt="">` : "";
+  // Hidden companies (while screen sharing) are not on the tab bar; the ⋯ menu brings them back.
+  const shown = pool.filter((p) => !hiddenProjects.has(p.id));
+  const project = shown.find((p) => p.id === sub) || shown[0];
+  const menu = projectMenuOpen ? `<div class="tasi-menu">${pool.map((p) => {
+    const open = !hiddenProjects.has(p.id);
+    return `<button type="button" data-is="proje-gizle" data-proje="${esc(p.id)}">${iconImg(p)}${esc(p.ad)}<span class="goz">${open ? ICON.eye : ICON.eyeOff}</span></button>`;
+  }).join("")}<hr>
+    <button type="button" data-is="proje-tumu" data-goster="1">${esc(t("Show all"))}<span class="goz">${ICON.eye}</span></button>
+    <button type="button" data-is="proje-tumu" data-proje="${esc(project.id)}">${esc(t("Hide all"))}<span class="goz">${ICON.eyeOff}</span></button></div>` : "";
+  // A tab with a single project has no project picker or hide menu.
+  const tabs = thisTab !== "gorevler" ? "" : shown.map((p) =>
+    `<button class="${p === project ? "secili" : ""}" data-is="proje" data-proje="${esc(p.id)}">${iconImg(p)}${esc(p.ad)}</button>`).join("")
+    + `<div class="proje-menu"><button type="button" data-is="proje-menu" aria-label="${esc(t("Hide / show companies"))}">${ICON.dots}</button>${menu}</div>`;
+  const lists = project.listeler.map((f) => ({ name: f.ad, claude: f.claude, isDoneList: f.bitenler, ...parseList(f.icerik) }));
+  if (!lists.length) return `<div class="alt-sekmeler">${tabs}</div><p class="bos">${esc(t("This project has no lists."))}</p>`;
+  const list = lists.find((l) => l.name === file) || lists[0];
+  const mainTasks = list.blocks.filter((b) => b.kind === "task");
+  // The line number can shift after a move or add, so it is also looked up by text.
+  const selected = view.selected && (mainTasks.find((x) => x.line === view.selected.line && x.body === view.selected.body)
+    || mainTasks.find((x) => x.body === view.selected.body)) || null;
+  if (view.selected && !selected) view.selected = null;
+
+  // The user's own lists first, then the faded Claude lists. The count is open tasks;
+  // everything in the done list is ticked, so there it is the total.
+  const chip = (l) => {
+    const count = l.blocks.filter((b) => b.kind === "task" && (l.isDoneList || !b.done)).length;
+    return `<button type="button" class="lst-cip${l === list ? " secili" : ""}${l.claude ? " claude" : ""}" data-is="liste" data-ad="${esc(l.name)}">${esc(l.title || l.name)}<span>${count}</span></button>`;
+  };
+  const claudeLists = lists.filter((l) => l.claude);
+  const chips = lists.filter((l) => !l.claude).map(chip).join("")
+    + (claudeLists.length ? `<span class="lst-grup"></span>${claudeLists.map(chip).join("")}` : "");
+  // behind a single filter button that opens on click); the button names the active filter.
+  const activeFilters = [filter.tag && tagLabel(filter.tag), filter.hideDone && t("done hidden")].filter(Boolean);
+  const filterMenu = filterMenuOpen ? `<div class="tasi-menu">${[["", t("All")], ...TAGS].map(([id, label]) =>
+    `<button type="button" data-is="filtre" data-etiket="${id}">${esc(label)}<span class="goz">${filter.tag === id ? ICON.check(12) : ""}</span></button>`).join("")}
+    <hr><button type="button" data-is="gizle">${esc(t("Hide done"))}<span class="goz">${filter.hideDone ? ICON.check(12) : ""}</span></button></div>` : "";
+  const filterHtml = `<div class="filtre-menu"><button type="button" class="filtre-dugme${activeFilters.length ? " etkin" : ""}" data-is="filtre-menu">${ICON.filter}${esc(t("Filter"))}${activeFilters.length ? `<span>· ${esc(activeFilters.join(", "))}</span>` : ""}</button>${filterMenu}</div>`;
+  const blocks = list.blocks.map((b) =>
+    b.kind === "section" ? `<h3 class="lst-h3">${inlineMd(b.text)}</h3>`
+    : b.kind === "subsection" ? `<h4 class="lst-h4">${inlineMd(b.text)}</h4>`
+    : b.kind === "divider" ? '<hr class="lst-hr">'
+    : b.kind === "note" ? ""
+    : isVisible(b) ? mainRowHtml(b, b === selected) : "").join("");
+
+  return `<div class="alt-sekmeler">${tabs}</div>
+    <div class="lst-alan${selected ? " panel-acik" : ""}" data-proje="${esc(project.id)}" data-liste="${esc(list.name)}">
+    <div class="lst-ust">${chips}${filterHtml}</div>
+      <section class="lst-kart">
+        <div class="lst-baslik"><h2>${esc(list.title || list.name)}</h2><span>${mainTasks.filter((x) => x.done).length}/${mainTasks.length}</span></div>
+        ${addHtml("kok", null, t("Add new task"))}
+        <div data-kume="ana">${blocks}</div>
+      </section>
+      ${selected ? panelHtml(selected, list, lists.filter((l) => l !== list), project.bitis_tarihi) : ""}
+    </div>`;
+}
+
+// —— task events (bound once; the screen is rebuilt on every draw) ——
+const activeList = () => $("[data-liste]")?.dataset.liste;
+const activeProject = () => $("[data-liste]")?.dataset.proje;
+const taskInfo = (el) => {
+  const g = el?.closest("[data-gorev]");
+  return g && { el: g, level: g.dataset.seviye, line: +g.dataset.satir, text: g.dataset.ham, body: g.dataset.metin };
+};
+const childCount = (g) => g.el.querySelectorAll?.("[data-gorev]").length || 0;
+const confirmDelete = (g, text) => {
+  const n = (view.selected && g.level === "panel") ? $(".gpanel [data-kume=panel]")?.querySelectorAll("[data-gorev]").length : childCount(g);
+  return !n || confirm(t('Delete "{text}" and its subtasks?', { text }));
+};
+const apply = (op) => write({ proje: activeProject(), ad: activeList(), op });
+function closePanel() { view.selected = null; view.moveOpen = false; draw(); }
+
+function startEditing(p, g) {
+  if (p.tagName === "TEXTAREA") return;
+  const old = g.body;
+  const area = document.createElement("textarea");
+  area.className = "duzenle"; area.rows = 1; area.value = old;
+  p.replaceWith(area);
+  const resize = () => { area.style.height = "auto"; area.style.height = area.scrollHeight + "px"; };
+  editing = true; area.focus(); area.setSelectionRange(old.length, old.length); resize();
+  let finished = false;
+  const finish = (save) => {
+    if (finished) return; finished = true; editing = false;
+    const next = area.value.trim();
+    if (save && next && next !== old) {
+      if (g.level === "panel" && view.selected) view.selected.body = next;
+      apply({ action: "edit", line: g.line, text: g.text, newText: next });
+    } else draw();
+  };
+  area.oninput = resize;
+  area.onblur = () => finish(true);
+  area.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") finish(false);
+    else if ((e.key === "Backspace" || e.key === "Delete") && !area.value && confirmDelete(g, old)) {
+      e.preventDefault(); finished = true; editing = false;
+      if (g.level === "panel") view.selected = null;
+      apply({ action: "delete", line: g.line, text: g.text });
+    }
+  };
+}
+
+/** Finish date: a date picker replaces the button; picking writes it, clearing removes it. */
+function changeFinishDate(h, g) {
+  const old = h.parentElement.dataset.bitis, picker = document.createElement("input");
+  picker.type = "date"; picker.value = old;
+  h.replaceWith(picker);
+  editing = true; picker.focus();
+  try { picker.showPicker(); } catch {}
+  let finished = false;
+  // While a year is typed by hand, in-between values (0002, 0020…) also fire change; those are not written.
+  const close = () => { finished = true; editing = false; draw(); };
+  const save = (thenClose) => {
+    if (finished) return;
+    if (picker.value === old || (picker.value && +picker.value.slice(0, 4) < 2000)) return thenClose && close();
+    finished = true; editing = false;
+    apply({ action: "date", line: g.line, text: g.text, date: picker.value || null });
+  };
+  picker.onchange = () => save(false);
+  picker.onblur = () => save(true);
+  picker.onkeydown = (e) => {
+    if (e.key === "Enter") save(true);
+    else if (e.key === "Escape") close();
+  };
+}
+
+document.addEventListener("click", (e) => {
+  if (!LIST_TABS.includes(route().tab)) return;
+  const h = e.target.closest("[data-is]"), action = h?.dataset.is, g = taskInfo(e.target);
+  if (view.moveOpen && !e.target.closest(".tasi")) { view.moveOpen = false; if (!action) return draw(); }
+  if (projectMenuOpen && !e.target.closest(".proje-menu")) { projectMenuOpen = false; if (!action) return draw(); }
+  if (filterMenuOpen && !e.target.closest(".filtre-menu")) { filterMenuOpen = false; if (!action) return draw(); }
+  switch (action) {
+    case "filtre-menu": filterMenuOpen = !filterMenuOpen; return draw();
+    case "isaretle": return g && apply({ action: "toggle", line: g.line, text: g.text, done: h.getAttribute("aria-checked") !== "true" });
+    case "liste": view.selected = null; return goTo(route().tab, activeProject(), h.dataset.ad);
+    case "proje": view.selected = null; view.openSubs.clear(); return goTo("gorevler", h.dataset.proje);
+    case "proje-menu": projectMenuOpen = !projectMenuOpen; return draw();
+    case "proje-gizle": {
+      const id = h.dataset.proje;
+      if (hiddenProjects.has(id)) hiddenProjects.delete(id);
+      else if (tasksData.projeler.filter((p) => p.sekme === "gorevler" && !hiddenProjects.has(p.id)).length > 1) hiddenProjects.add(id); // at least one stays visible
+      localStorage.setItem("panel.gizliProjeler", JSON.stringify([...hiddenProjects]));
+      if (hiddenProjects.has(route().sub)) { view.selected = null; return goTo("gorevler"); }
+      return draw();
+    }
+    // (at least one must stay visible).
+    case "proje-tumu": {
+      hiddenProjects.clear();
+      if (!h.dataset.goster) for (const p of tasksData.projeler) if (p.sekme === "gorevler" && p.id !== h.dataset.proje) hiddenProjects.add(p.id);
+      localStorage.setItem("panel.gizliProjeler", JSON.stringify([...hiddenProjects]));
+      return draw();
+    }
+    case "filtre": filter.tag = h.dataset.etiket; localStorage.setItem("panel.etiket", filter.tag); return draw();
+    case "gizle": filter.hideDone = !filter.hideDone; localStorage.setItem("panel.gizle", filter.hideDone ? "1" : ""); return draw();
+    case "kapat": return closePanel();
+    case "tasi-ac": view.moveOpen = !view.moveOpen; return draw();
+    case "tasi": {
+      const p = taskInfo($(".gpanel .p-baslik"));
+      view.selected = null; view.moveOpen = false;
+      return write({ proje: activeProject(), tasi: { kaynak: activeList(), hedef: h.dataset.hedef, satir: p.line, metin: p.text } });
+    }
+    case "sil-ana": {
+      const p = taskInfo($(".gpanel .p-baslik"));
+      if (!confirmDelete(p, p.body)) return;
+      view.selected = null;
+      return apply({ action: "delete", line: p.line, text: p.text });
+    }
+    case "etiket": {
+      const id = h.dataset.etiket, { tags } = splitTags(g.text.replace(/^\s*[-*] \[( |x|X)\] ?/, ""));
+      const on = tags.includes(id);
+      // Today and This week exclude each other; other tags are kept.
+      const next = on ? tags.filter((tag) => tag !== id) : [...tags.filter((tag) => !TAGS.some(([k]) => k === tag)), id];
+      return apply({ action: "tags", line: g.line, text: g.text, tags: next });
+    }
+    case "alt-ac": {
+      const k = `${g.line}:${g.body}`;
+      view.openSubs.has(k) ? view.openSubs.delete(k) : view.openSubs.add(k);
+      if (view.openSubs.has(k)) view.focus = `alt:${k}`;
+      return draw();
+    }
+    case "sil": return g && confirmDelete(g, g.body) && apply({ action: "delete", line: g.line, text: g.text });
+    case "duzenle": return g && startEditing(h, g);
+    case "bitis": return g && changeFinishDate(h, g);
+  }
+  if (!action && g?.level === "ana" && !e.target.closest(".tutamac")) {
+    const same = view.selected && view.selected.line === g.line && view.selected.body === g.body;
+    view.sliding = !view.selected; // if the panel is already open only its content changes
+    view.selected = same ? null : { line: g.line, body: g.body };
+    view.moveOpen = false;
+    draw();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  const input = e.target.closest?.("input[data-ekle]");
+  if (input) {
+    const place = input.dataset.ekle;
+    if (e.key === "Enter" && input.value.trim()) {
+      view.focus = place; // the field stays active for adding several in a row
+      const parent = input.dataset.ustSatir != null ? { parentLine: +input.dataset.ustSatir, parentText: input.dataset.ustHam } : { parentLine: null, parentText: null };
+      apply({ action: "add", ...parent, newText: input.value.trim() });
+      input.value = "";
+    } else if (e.key === "Escape") {
+      input.value = ""; input.blur();
+      if (place.startsWith("alt:")) { view.openSubs.delete(place.slice(4)); draw(); }
+    } else if ((e.key === "Backspace" || e.key === "Delete") && !input.value && place.startsWith("alt:")) {
+      e.preventDefault(); view.openSubs.delete(place.slice(4)); draw();
+    }
+    return;
+  }
+  if (e.key === "Escape" && view.selected && !e.target.closest?.("textarea, input") && LIST_TABS.includes(route().tab)) closePanel();
+});
+document.addEventListener("focusin", (e) => { if (e.target.matches?.("input[data-ekle], textarea.duzenle")) editing = true; });
+document.addEventListener("focusout", (e) => { if (e.target.matches?.("input[data-ekle]")) setTimeout(() => (editing = !!document.activeElement?.matches?.("input[data-ekle], textarea.duzenle")), 0); });
+
+/** After a draw: focus returns to the field that was adding. */
+function restoreFocus() {
+  if (!view.focus) return;
+  const input = [...document.querySelectorAll("input[data-ekle]")].find((x) => x.dataset.ekle === view.focus);
+  view.focus = null;
+  input?.focus();
+}
+
+// Drag and drop (as in ListsView): reorder among siblings; pulled 40 px right and dropped, a task becomes a
+// subtask of the task under it (of the one above when dropped in place); in the panel, pulled 40 px left and
+// dropped in place, it moves up one level.
+const NEST_PX = 40;
+let drag = null;
+const siblings = (group) => [...group.children].filter((x) => x.matches("[data-gorev]"));
+function dropTarget(e) {
+  const targetEl = e.target.closest?.("[data-gorev]");
+  if (!drag || !targetEl || targetEl.parentElement !== drag.group) return null;
+  const row = siblings(drag.group), from = row.indexOf(drag.el);
+  let to = row.indexOf(targetEl);
+  const dx = e.clientX - drag.x;
+  if (dx > NEST_PX) {
+    if (to === from) to = from - 1;
+    return to >= 0 && to !== from ? { kind: "into", el: row[to] } : null;
+  }
+  if (dx < -NEST_PX && drag.group.dataset.kume === "panel" && to === from) return { kind: "out" };
+  if (to === from || to < 0) return null;
+  return { kind: from < to ? "after" : "before", el: row[to] };
+}
+const clearMarks = () => document.querySelectorAll(".surukle-ust,.surukle-alt,.surukle-ic").forEach((x) => x.classList.remove("surukle-ust", "surukle-alt", "surukle-ic"));
+document.addEventListener("dragstart", (e) => {
+  const handle = e.target.closest?.(".tutamac"); if (!handle) return;
+  const el = handle.closest("[data-gorev]");
+  drag = { el, group: el.parentElement, x: e.clientX, info: taskInfo(el) };
+  dragging = drag;
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", drag.info.body);
+  e.dataTransfer.setDragImage(el.querySelector(".satir, .alt-satir") || el, 20, 16);
+  setTimeout(() => el.classList.add("suruklenen"), 0);
+});
+document.addEventListener("dragover", (e) => {
+  if (!drag) return;
+  const h = dropTarget(e);
+  clearMarks();
+  if (!h) return;
+  e.preventDefault();
+  if (h.el) (h.el.querySelector(".satir, .alt-satir") || h.el).classList.add(h.kind === "into" ? "surukle-ic" : h.kind === "after" ? "surukle-alt" : "surukle-ust");
+});
+document.addEventListener("drop", (e) => {
+  if (!drag) return;
+  const h = dropTarget(e), s = drag.info;
+  e.preventDefault(); clearMarks();
+  drag.el.classList.remove("suruklenen"); drag = dragging = null;
+  if (!h) return;
+  if (h.kind === "out") {
+    const parent = taskInfo($(".gpanel .p-baslik"));
+    return apply({ action: "move", line: s.line, text: s.text, targetLine: parent.line, targetText: parent.text, position: "after" });
+  }
+  const target = taskInfo(h.el);
+  apply(h.kind === "into"
+    ? { action: "nest", line: s.line, text: s.text, parentLine: target.line, parentText: target.text }
+    : { action: "move", line: s.line, text: s.text, targetLine: target.line, targetText: target.text, position: h.kind });
+});
+document.addEventListener("dragend", () => {
+  clearMarks();
+  if (drag) drag.el.classList.remove("suruklenen");
+  drag = dragging = null;
+});
+
+
+
+refresh();
+setInterval(refresh, 10000);
+window.addEventListener("focus", refresh);
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "Finances",
+  "description": "Income and expenses on this computer: spending, recurring payments, pending items.",
+  "icon": "icon.svg",
+  "order": 36,
+  "backend": "backend.js",
+  "settings": [
+    {
+      "key": "file",
+      "label": "Ledger file",
+      "hint": "If empty, data/main/apps/kasa/defter.json",
+      "type": "path"
+    }
+  ]
+}

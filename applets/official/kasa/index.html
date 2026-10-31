@@ -1,0 +1,547 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+.ks-ust{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px}
+.ks-ust h1{font-size:18px;margin:0}
+.ks-senkron{margin-right:auto;font-size:12px;color:var(--soluk)}
+.ks-ust button,.ks-dugme{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;color:var(--metin)}
+.ks-ay{min-width:112px;text-align:center;font-weight:600}
+.ks-rakamlar{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.ks-rakamlar b{display:block;font-size:22px;line-height:1.25;font-variant-numeric:tabular-nums}
+.ks-rakamlar small{display:block;font-size:12px}
+.ks-kat{display:grid;grid-template-columns:150px minmax(0,1fr) 92px;gap:8px;align-items:center;width:calc(100% + 12px);padding:4px 6px;margin:0 -6px;border:0;background:none;border-radius:6px;text-align:left;font-size:13px}
+.ks-kat:hover,.ks-kat.secili{background:var(--yuzey2)}
+.ks-kat div{height:8px;background:var(--yuzey2);border-radius:99px;overflow:hidden}
+.ks-kat.secili div{background:var(--cizgi)}
+.ks-kat i{display:block;height:100%;background:var(--vurgu);border-radius:99px}
+.ks-kat span:last-child,.ks-tutar{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ks-baslik{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ks-baslik h2{margin:0 auto 0 0}
+.ks-satir{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--cizgi)}
+.ks-satir:last-child{border-bottom:0}
+.ks-satir small{display:block}
+.ks-satir.kapali{opacity:.55}
+.ks-ac{border:0;background:none;padding:0;text-align:left;min-width:0;font-size:14px}
+.ks-gelir{color:var(--yesil)}
+.ks-kucuk{border:0;background:none;padding:2px 6px;font-size:12px;color:var(--soluk);border-radius:6px}
+.ks-kucuk:hover{background:var(--yuzey2);color:var(--metin)}
+.ks-form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:end;margin-bottom:12px}
+.ks-form.dar{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ks-form label{display:grid;gap:3px;font-size:12px;color:var(--soluk);min-width:0}
+.ks-form input,.ks-form select{width:100%;min-width:0;border:1px solid var(--cizgi);background:var(--bg);color:var(--metin);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
+.ks-genis{grid-column:span 2}
+.ks-tum{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ks-tum .ks-onay{display:flex;align-items:center;gap:5px;font-size:13px}
+.ks-tum .ks-onay input{width:auto}
+.ks-tum .segment{margin-left:0}
+.ks-sag{margin-left:auto;display:flex;gap:6px}
+.ks-kaydet{background:var(--vurgu);border-color:var(--vurgu);color:#fff;font-weight:600}
+.ks-yil{display:flex;align-items:flex-end;height:164px}
+.ks-yil button{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;border:0;background:none;padding:0 2px;font-size:10px;color:var(--soluk);min-width:0;border-radius:6px 6px 0 0}
+.ks-yil button:hover,.ks-yil button.secili{background:var(--yuzey2)}
+.ks-yil button.ceyrek{border-left:1px solid var(--cizgi)}
+.ks-yil button.ceyrek>span{font-weight:600}
+.ks-yil button>span{display:block;margin-top:3px;text-align:center}
+.ks-yil button.secili>span{color:var(--metin);font-weight:600}
+.ks-yil button>.ks-yil-ciftler{display:flex;align-items:flex-end;gap:2px;justify-content:center;margin:0}
+.ks-yil-sutun{flex:1;max-width:16px;display:flex;flex-direction:column;justify-content:flex-end}
+.ks-yil-sutun i{display:block;background:var(--renk)}
+.ks-yil-sutun i.bos{height:2px;opacity:.35}
+.ks-yil-sutun i.beklenen{background:color-mix(in srgb,var(--renk) 12%,transparent);border:1px dashed var(--renk);border-bottom-width:0;border-radius:2px 2px 0 0}
+.ks-lejant{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:11px;color:var(--soluk)}
+.ks-lejant i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:var(--renk)}
+.ks-lejant i.beklenen{background:none;border:1px dashed var(--soluk)}
+.ks-tablo-kap{overflow-x:auto;margin:0 -16px;padding:0 16px}
+.ks-tablo{width:100%;table-layout:auto;border-collapse:separate;border-spacing:0;font-size:12px;font-variant-numeric:tabular-nums}
+.ks-tablo th,.ks-tablo td{padding:5px 6px;text-align:right;white-space:nowrap;font-weight:400;border:0}
+.ks-tablo th:first-child,.ks-tablo td:first-child{text-align:left;position:sticky;left:0;z-index:1;background:var(--yuzey)}
+.ks-tablo th:last-child,.ks-tablo td:last-child{position:sticky;right:0;z-index:1;background:var(--yuzey);font-weight:600}
+.ks-tablo thead th{color:var(--soluk);font-size:11px}
+.ks-tablo .ceyrek-bas{font-weight:600;color:var(--metin);text-align:right}
+.ks-tablo .sinir{padding-left:26px} /* quarters are separated by space, not a line */
+.ks-tablo .ay-baslik{border-bottom:1px solid var(--cizgi)}
+.ks-tablo .ay-baslik button{border:0;background:none;padding:0;font:inherit;color:inherit}
+.ks-tablo .ay-baslik button:hover{color:var(--metin);text-decoration:underline}
+.ks-tablo .grup td{padding-top:12px;font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--soluk)}
+.ks-tablo .kalem td:first-child{padding-left:18px}
+.ks-tablo .toplam td{font-weight:600}
+.ks-tablo .net td{font-weight:700;padding-top:9px;padding-bottom:9px;border-top:1px solid var(--cizgi)}
+.ks-tablo .kumulatif td{color:var(--soluk)}
+.ks-tablo td.tahmin{color:var(--soluk)}
+.ks-tablo .net td.tahmin{color:var(--metin)}
+.ks-tablo .eksi,.ks-tablo .net td.eksi{color:var(--kirmizi)}
+.ks-tablo th.bugun-ay,.ks-tablo th.bugun-ay button{color:var(--vurgu);font-weight:600}
+.ks-dipnot{margin:10px 0 0;font-size:12px;color:var(--soluk)}
+@media (max-width:760px){.ks-form{grid-template-columns:repeat(2,minmax(0,1fr))}.ks-kat{grid-template-columns:96px minmax(0,1fr) 84px}}
+</style>
+</head>
+<body>
+
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+
+document.title = "Finances";
+
+const MONTHS = [t("January"), t("February"), t("March"), t("April"), t("May"), t("June"), t("July"), t("August"), t("September"), t("October"), t("November"), t("December")];
+// The keys match Speys's Ledger so they line up once sync is connected; `hukuk` exists only here (`other` in Speys).
+const CATEGORY = {
+  malzeme: t("Materials"), kira: t("Rent"), personel: t("Staff"), fatura: t("Bills"), ekipman: t("Equipment"), pazarlama: t("Marketing"),
+  yazilim: t("Software and subscriptions"), muhasebe: t("Accounting and financial advisor"), hukuk: t("Lawyer and legal"), sgk: t("Social security premium (Bağ-Kur / SGK)"),
+  vergi: t("Taxes and fees (stamp duty etc.)"), vergi_odeme: t("Tax payment (VAT, income, provisional)"), ortak_cekis: t("Owner withdrawal"),
+  satis: t("Sales"), hizmet: t("Services"), sermaye: t("Capital"), other: t("Other"),
+};
+const CATEGORIES = {
+  out: ["yazilim", "pazarlama", "malzeme", "kira", "personel", "fatura", "ekipman", "muhasebe", "hukuk", "sgk", "vergi", "vergi_odeme", "ortak_cekis", "other"],
+  in: ["hizmet", "satis", "sermaye", "other"],
+};
+const NON_OPERATING = new Set(["sermaye", "ortak_cekis", "vergi_odeme"]);
+const CYCLES = { monthly: t("monthly"), quarterly: t("every three months"), yearly: t("yearly") };
+const MONTHLY_SHARE = { monthly: 1, quarterly: 1 / 3, yearly: 1 / 12 };
+const PLAN_CYCLES = { once: t("one time"), monthly: t("every month"), quarterly: t("every three months"), yearly: t("every year") };
+const monthName = (ym) => `${MONTHS[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+const thisMonth = () => `${today.getFullYear()}-${pad2(today.getMonth() + 1)}`;
+const selectedMonth = () => `${state.year}-${pad2(state.month + 1)}`;
+const nextMonth = () => { const d = new Date(today.getFullYear(), today.getMonth() + 1, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+
+const today = new Date();
+const state = { year: today.getFullYear(), month: today.getMonth(), category: "", direction: "out", form: null };
+// form: { kind: "entry" | "rule" | "plan", record: the one being edited or null }
+let data = null, error = "", loadSeq = 0;
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const monthStart = () => `${state.year}-${pad2(state.month + 1)}-01`;
+const monthEnd = () => `${state.year}-${pad2(state.month + 1)}-${pad2(new Date(state.year, state.month + 1, 0).getDate())}`;
+const inCurrentMonth = () => state.year === today.getFullYear() && state.month === today.getMonth();
+const todayIso = () => `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+const tl = (n) => (+n || 0).toLocaleString(LOCALE, { maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }) + " TL";
+const dayLabel = (s) => { const [y, m, d] = s.split("-"); return `${+d} ${MONTHS[+m - 1]}${+y === state.year ? "" : " " + y}`; };
+const categoryName = (k) => CATEGORY[k] || CATEGORY.other;
+const categoryOptions = (direction, selected) => [...CATEGORIES[direction], ...(selected && !CATEGORIES[direction].includes(selected) ? [selected] : [])]
+  .map((k) => `<option value="${esc(k)}" ${k === (selected ?? CATEGORIES[direction][0]) ? "selected" : ""}>${esc(categoryName(k))}</option>`).join("");
+
+// "duzenli", "plan" and "finans" are the address after the hash: they stay as they are so existing links keep working.
+const activeTab = () => {
+  const sub = decodeURIComponent(location.hash.slice(1)).split("/")[1];
+  return ["duzenli", "plan", "finans"].includes(sub) ? sub : "monthly";
+};
+const syncText = (s) => {
+  if (!s?.lastImport) return esc(t("No sync · only on this computer"));
+  const time = new Date(s.lastImport.at).toLocaleString(LOCALE, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  return esc(t("No sync · imported once from Speys: {time}", { time }));
+};
+
+async function load() {
+  const seq = ++loadSeq;
+  const q = new URLSearchParams({ from: monthStart(), to: monthEnd(), year: state.year });
+  try {
+    const r = await fetch(`./api/kasa?${q}`, { cache: "no-store" });
+    const d = await r.json();
+    if (seq !== loadSeq) return;
+    if (r.ok) { data = d; error = ""; } else error = d.error || t("Ledger returned {status}.", { status: r.status });
+  } catch (e) {
+    if (seq !== loadSeq) return;
+    error = t("Could not read the ledger: {message}", { message: e.message });
+  }
+  render();
+}
+
+async function write(path, body, doneMessage) {
+  try {
+    const r = await fetch(`./api/${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return notify(d.error || t("Could not save ({status})", { status: r.status }));
+    if (doneMessage) notify(doneMessage);
+    state.form = null;
+    await load();
+  } catch (e) {
+    notify(t("Could not save: {message}", { message: e.message }));
+  }
+}
+
+function directionPicker(direction) {
+  return `<span class="segment">
+    <button type="button" data-is="direction" data-direction="out" class="${direction === "out" ? "secili" : ""}">${esc(t("Expense"))}</button>
+    <button type="button" data-is="direction" data-direction="in" class="${direction === "in" ? "secili" : ""}">${esc(t("Income"))}</button>
+  </span>`;
+}
+
+function entryForm() {
+  const e = state.form.record, direction = e?.direction ?? state.direction;
+  return `<form class="ks-form" id="entry-form">
+    <label class="ks-genis">${esc(t("Title"))}<input name="title" required maxlength="200" value="${esc(e?.title ?? "")}" autofocus></label>
+    <label>${esc(t("Amount (TL)"))}<input name="amount" type="number" min="0.01" step="0.01" required value="${e?.amount ?? ""}"></label>
+    <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, e?.category)}</select></label>
+    <label>${esc(t("Date"))}<input name="entryDate" type="date" required value="${esc(e?.entryDate ?? (inCurrentMonth() ? todayIso() : monthStart()))}"></label>
+    <label>${esc(t("To / from"))}<input name="counterparty" value="${esc(e?.counterparty ?? "")}"></label>
+    <div class="ks-tum">
+      ${e ? "" : directionPicker(direction)}
+      <label class="ks-onay"><input type="checkbox" name="pending" ${e?.status === "pending" ? "checked" : ""}> ${esc(t("Not paid yet"))}</label>
+      <span class="ks-sag">
+        ${e ? `<button type="button" class="ks-dugme" data-is="entry-delete">${esc(t("Delete"))}</button>` : ""}
+        <button type="button" class="ks-dugme" data-is="cancel">${esc(t("Cancel"))}</button>
+        <button class="ks-dugme ks-kaydet">${esc(t("Save"))}</button>
+      </span>
+    </div>
+  </form>`;
+}
+
+function ruleForm() {
+  const r = state.form.record, direction = r?.direction ?? state.direction, cycle = state.form.cycle ?? r?.cycle ?? "monthly";
+  return `<form class="ks-form dar" id="rule-form">
+    <label class="ks-genis">${esc(t("Title"))}<input name="title" required maxlength="200" value="${esc(r?.title ?? "")}" autofocus></label>
+    <label>${esc(t("Amount (TL)"))}<input name="amount" type="number" min="0.01" step="0.01" required value="${r?.amount ?? ""}"></label>
+    <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, r?.category)}</select></label>
+    <label>${esc(t("Cycle"))}<select name="cycle" id="rule-cycle">${Object.entries(CYCLES).map(([k, label]) => `<option value="${k}" ${k === cycle ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
+    <label>${esc(t("Day of the month"))}<input name="dayOfMonth" type="number" min="1" max="31" required value="${r?.dayOfMonth ?? 1}"></label>
+    ${cycle === "monthly" ? "" : `<label>${esc(cycle === "yearly" ? t("Month") : t("First month"))}<select name="monthOfYear">${MONTHS.map((label, i) => `<option value="${i + 1}" ${i + 1 === (r?.monthOfYear ?? today.getMonth() + 1) ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`}
+    <div class="ks-tum">
+      ${r ? "" : directionPicker(direction)}
+      <label class="ks-onay"><input type="checkbox" name="pending" ${r && !r.autoPaid ? "checked" : ""}> ${esc(t("Record as pending"))}</label>
+      <span class="ks-sag">
+        ${r ? `<button type="button" class="ks-dugme" data-is="rule-delete">${esc(t("Delete"))}</button>` : ""}
+        <button type="button" class="ks-dugme" data-is="cancel">${esc(t("Cancel"))}</button>
+        <button class="ks-dugme ks-kaydet">${esc(t("Save"))}</button>
+      </span>
+    </div>
+  </form>`;
+}
+
+function planForm() {
+  const p = state.form.record, direction = p?.direction ?? state.direction, cycle = state.form.cycle ?? p?.cycle ?? "monthly";
+  return `<form class="ks-form dar" id="plan-form">
+    <label class="ks-genis">${esc(t("Title"))}<input name="title" required maxlength="200" value="${esc(p?.title ?? "")}" autofocus></label>
+    <label>${esc(t("Amount (TL)"))}<input name="amount" type="number" min="0.01" step="0.01" required value="${p?.amount ?? ""}"></label>
+    <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, p?.category)}</select></label>
+    <label>${esc(t("Cycle"))}<select name="cycle" id="plan-cycle">${Object.entries(PLAN_CYCLES).map(([k, label]) => `<option value="${k}" ${k === cycle ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
+    <label>${esc(cycle === "once" ? t("Month") : t("Start month"))}<input name="startMonth" type="month" required value="${esc(p?.startMonth ?? nextMonth())}"></label>
+    ${cycle === "once" ? "" : `<label class="ks-genis">${esc(t("End month (empty means no end)"))}<input name="endMonth" type="month" value="${esc(p?.endMonth ?? "")}"></label>`}
+    <div class="ks-tum">
+      ${p ? "" : directionPicker(direction)}
+      <span class="ks-sag">
+        ${p ? `<button type="button" class="ks-dugme" data-is="plan-delete">${esc(t("Delete"))}</button>` : ""}
+        <button type="button" class="ks-dugme" data-is="cancel">${esc(t("Cancel"))}</button>
+        <button class="ks-dugme ks-kaydet">${esc(t("Save"))}</button>
+      </span>
+    </div>
+  </form>`;
+}
+
+const COLOR = { income: "var(--yesil)", expense: "var(--vurgu)" };
+
+/** Four quarters from the start of this one, income and expense side by side each month: solid actual, dashed expected. Quarter starts are ruled. */
+function quarterChart(f) {
+  const most = Math.max(1, ...f.flatMap((m) => [m.expense + m.expectedExpense, m.income + m.expectedIncome]));
+  const barHeight = (amount) => Math.max(3, Math.round((136 * amount) / most));
+  const bar = (color, actual, expected) => `<span class="ks-yil-sutun" style="--renk:${color}">
+    ${expected ? `<i class="beklenen" style="height:${barHeight(expected)}px"></i>` : ""}
+    ${actual ? `<i style="height:${barHeight(actual)}px"></i>` : expected ? "" : `<i class="bos"></i>`}</span>`;
+  return `<div class="ks-yil">${f.map((m) => {
+    const month = +m.ym.slice(5, 7), quarterStart = (month - 1) % 3 === 0;
+    const tip = `${monthName(m.ym)} · ${t("income {amount}", { amount: tl(m.income) })}${m.expectedIncome ? ` + ${t("{amount} expected", { amount: tl(m.expectedIncome) })}` : ""} · ${t("expense {amount}", { amount: tl(m.expense) })}${m.expectedExpense ? ` + ${t("{amount} expected", { amount: tl(m.expectedExpense) })}` : ""}`;
+    return `<button class="${m.ym === selectedMonth() ? "secili" : ""}${quarterStart ? " ceyrek" : ""}" data-is="month-pick" data-ym="${m.ym}" title="${esc(tip)}">
+      <span class="ks-yil-ciftler">${bar(COLOR.income, m.income, m.expectedIncome)}${bar(COLOR.expense, m.expense, m.expectedExpense)}</span>
+      <span>${esc(MONTHS[month - 1].slice(0, 3))}</span></button>`;
+  }).join("")}</div>
+  <div class="ks-lejant"><span><i style="--renk:${COLOR.income}"></i>${esc(t("income"))}</span><span><i style="--renk:${COLOR.expense}"></i>${esc(t("expense"))}</span><span><i class="beklenen"></i>${esc(t("dashed: expected"))}</span></div>`;
+}
+
+/** An amount in the table: no cents, no TL; negatives in brackets as in accounting, zero as a dash. */
+const figure = (n) => {
+  const r = Math.round(n);
+  if (!r) return "–";
+  const s = Math.abs(r).toLocaleString(LOCALE);
+  return r < 0 ? `(${s})` : s;
+};
+
+/** Income statement: rows are categories, columns are months and quarters; a cell that includes expected amounts is faded. */
+function financeTable(f) {
+  const cell = (value, estimated, i, extra = "") => {
+    const m = f[i];
+    return `<td class="${(+m.ym.slice(5, 7) - 1) % 3 === 0 ? "sinir " : ""}${m.ym === thisMonth() ? "bugun-ay " : ""}${estimated ? "tahmin " : ""}${value < 0 ? "eksi " : ""}${extra}">${figure(value)}</td>`;
+  };
+  const rows = (direction) => {
+    const categories = [...new Set(f.flatMap((m) => m.lines.filter((l) => l.direction === direction).map((l) => l.category)))];
+    const totalOf = (k) => f.reduce((sum, m) => { const l = m.lines.find((x) => x.direction === direction && x.category === k); return sum + (l ? l.actual + l.expected : 0); }, 0);
+    return categories.sort((a, b) => totalOf(b) - totalOf(a)).map((k) => {
+      const cells = f.map((m, i) => {
+        const l = m.lines.find((x) => x.direction === direction && x.category === k);
+        return cell(l ? l.actual + l.expected : 0, !!l?.expected, i);
+      }).join("");
+      return `<tr class="kalem"><td>${esc(categoryName(k))}</td>${cells}<td class="sinir">${figure(totalOf(k))}</td></tr>`;
+    }).join("");
+  };
+  const totalRow = (rowClass, label, valueFn, estimatedFn) => {
+    const values = f.map(valueFn), total = values.reduce((a, b) => a + b, 0);
+    return `<tr class="${rowClass}"><td>${esc(label)}</td>${values.map((d, i) => cell(d, estimatedFn(f[i]), i)).join("")}<td class="sinir ${total < 0 ? "eksi" : ""}">${figure(total)}</td></tr>`;
+  };
+  // Cell by cell: a merged row would break the quarter lines and this month's highlight here.
+  const groupRow = (label) => `<tr class="grup"><td>${esc(label)}</td>${f.map((m) => `<td class="${(+m.ym.slice(5, 7) - 1) % 3 === 0 ? "sinir " : ""}${m.ym === thisMonth() ? "bugun-ay" : ""}"></td>`).join("")}<td class="sinir"></td></tr>`;
+  const income = (m) => m.income + m.expectedIncome, expense = (m) => m.expense + m.expectedExpense;
+  let running = 0;
+  const cumulative = f.map((m) => (running += income(m) - expense(m)));
+  const quarters = [0, 3, 6, 9].map((i) => {
+    const year = f[i].ym.slice(0, 4), month = +f[i].ym.slice(5, 7);
+    return `<th colspan="3" class="ceyrek-bas sinir">${esc(t("Q{quarter} {year}", { quarter: Math.ceil(month / 3), year }))}</th>`;
+  }).join("");
+  return `<div class="ks-tablo-kap"><table class="ks-tablo">
+    <thead>
+      <tr><th></th>${quarters}<th class="sinir"></th></tr>
+      <tr><th class="ay-baslik">TL</th>${f.map((m) => `<th class="ay-baslik ${(+m.ym.slice(5, 7) - 1) % 3 === 0 ? "sinir" : ""} ${m.ym === thisMonth() ? "bugun-ay" : ""}"><button data-is="month-pick" data-ym="${m.ym}">${esc(MONTHS[+m.ym.slice(5, 7) - 1].slice(0, 3))}</button></th>`).join("")}<th class="ay-baslik sinir">${esc(t("Total"))}</th></tr>
+    </thead>
+    <tbody>
+      ${groupRow(t("INCOME"))}
+      ${rows("in")}
+      ${totalRow("toplam", t("Total income"), income, (m) => m.expectedIncome > 0)}
+      ${groupRow(t("EXPENSES"))}
+      ${rows("out")}
+      ${totalRow("toplam", t("Total expenses"), expense, (m) => m.expectedExpense > 0)}
+      ${totalRow("net", t("Net profit / loss"), (m) => income(m) - expense(m), (m) => m.expectedIncome > 0 || m.expectedExpense > 0)}
+      <tr class="kumulatif"><td>${esc(t("Cumulative"))}</td>${cumulative.map((d, i) => cell(d, f[i].expectedIncome > 0 || f[i].expectedExpense > 0, i)).join("")}<td class="sinir"></td></tr>
+    </tbody>
+  </table></div>
+  <p class="ks-dipnot">${esc(t("Faded figures include expected amounts: an unpaid entry, a recurring payment or a plan. Document amounts; no tax, VAT, capital or owner withdrawals."))}</p>`;
+}
+
+function render() {
+  const root = $("#icerik");
+  if (!data) { root.innerHTML = error ? `<section class="kart"><p>${esc(error)}</p></section>` : `<p class="bos">${esc(t("Loading…"))}</p>`; return; }
+  const { summary: s, entries, pending, upcoming, monthly, rules, plans, forecast, expected } = data;
+  const expectedRow = (b) => `<div class="ks-satir">
+      <span>${esc(b.title)}<small class="soluk">${b.date ? esc(dayLabel(b.date)) + " · " + esc(t("recurring")) : esc(t("plan"))} · ${esc(categoryName(b.category))}</small></span><span></span>
+      <span class="ks-tutar ${b.direction === "in" ? "ks-gelir" : ""}">${b.direction === "in" ? "+" : "−"}${tl(b.amount)}</span>
+    </div>`;
+
+  const previous = state.month > 0 ? monthly[state.month - 1].expense : 0;
+  const change = previous && selectedMonth() <= thisMonth() ? Math.round((100 * (s.expense - previous)) / previous) : null; // a future month is not compared yet
+  const expenseRules = rules.filter((r) => r.isActive && r.direction === "out");
+  const recurringExpense = expenseRules.reduce((sum, r) => sum + r.amount * MONTHLY_SHARE[r.cycle], 0);
+  const recurringIncome = rules.filter((r) => r.isActive && r.direction === "in").reduce((sum, r) => sum + r.amount * MONTHLY_SHARE[r.cycle], 0);
+  const unpaidDebt = pending.filter((e) => e.direction === "out").reduce((sum, e) => sum + e.amount, 0);
+  const receivable = pending.filter((e) => e.direction === "in").reduce((sum, e) => sum + e.amount, 0);
+
+  const expenses = entries.filter((e) => e.direction === "out" && e.status === "paid" && !NON_OPERATING.has(e.category));
+  const byCategory = Object.entries(expenses.reduce((sums, e) => (sums[e.category] = (sums[e.category] || 0) + e.amount, sums), {})).sort((a, b) => b[1] - a[1]);
+  const largest = byCategory[0]?.[1] || 1;
+  const list = state.category ? entries.filter((e) => e.category === state.category) : entries;
+  const uncollected = entries.filter((e) => e.direction === "in" && e.status === "pending" && !NON_OPERATING.has(e.category)).reduce((sum, e) => sum + e.amount, 0);
+  const monthlyShare = (r) => r.amount * MONTHLY_SHARE[r.cycle];
+
+  const entryRow = (e) => `<div class="ks-satir">
+      <button class="ks-ac" data-is="entry-open" data-id="${esc(e.id)}">${esc(e.title)}
+        <small class="soluk">${esc(dayLabel(e.entryDate))} · ${esc(categoryName(e.category))}${e.counterparty ? " · " + esc(e.counterparty) : ""}${e.currency && e.currency !== "TRY" ? ` · ${esc(e.currency)} ${esc(e.originalAmount ?? "")}` : ""}</small></button>
+      ${e.status === "pending" ? `<span style="display:flex;align-items:center;gap:6px"><span class="pil bugun" style="margin:0">${esc(t("Unpaid"))}</span><button class="ks-kucuk" data-is="mark-paid" data-id="${esc(e.id)}">${esc(t("Mark as paid"))}</button></span>` : "<span></span>"}
+      <span class="ks-tutar ${e.direction === "in" ? "ks-gelir" : ""}">${e.direction === "in" ? "+" : "−"}${tl(e.amount)}</span>
+    </div>`;
+
+  const monthlyScreen = () => `
+    <div class="ks-rakamlar">
+      <section class="kart"><small class="soluk">${esc(t("Expense"))}</small><b>${tl(s.expense)}</b>
+        <small class="soluk">${change === null ? "&nbsp;" : esc(t("{sign}{change}% vs last month", { sign: change > 0 ? "+" : "", change }))}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Income"))}</small><b>${tl(s.income)}</b><small class="soluk">${uncollected ? esc(t("{amount} not collected", { amount: tl(uncollected) })) : "&nbsp;"}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Profit"))}</small><b>${tl(s.profit)}</b><small class="soluk">&nbsp;</small></section>
+      ${expected.items.length ? `<section class="kart"><small class="soluk">${esc(t("Expected expenses"))}</small><b>${tl(expected.expense)}</b><small class="soluk">${esc(t("income {amount}", { amount: tl(expected.income) }))}</small></section>` : ""}
+    </div>
+    <div class="izgara" style="margin-bottom:16px">
+      <section class="kart">
+        <h2>${esc(t("Income and expenses"))} · ${monthName(forecast[0].ym)} – ${monthName(forecast[11].ym)}</h2>
+        ${quarterChart(forecast)}
+      </section>
+      <section class="kart">
+        <h2>${esc(t("Where the expenses go"))}</h2>
+        ${byCategory.length ? byCategory.map(([k, amount]) => `<button class="ks-kat ${state.category === k ? "secili" : ""}" data-is="category" data-category="${esc(k)}">
+          <span>${esc(categoryName(k))}</span><div><i style="width:${(100 * amount) / largest}%"></i></div><span>${tl(amount)}</span></button>`).join("") : `<p class="bos">${esc(t("No paid expenses this month."))}</p>`}
+      </section>
+    </div>
+    ${expected.items.length ? `<section class="kart" style="margin-bottom:16px"><h2>${esc(t("Expected"))} · ${MONTHS[state.month]}</h2>${expected.items.map(expectedRow).join("")}</section>` : ""}
+    <section class="kart">
+      <div class="ks-baslik">
+        <h2>${esc(t("Entries"))}${state.category ? ` · ${esc(categoryName(state.category))} <button class="ks-kucuk" data-is="category" data-category="${esc(state.category)}">${esc(t("clear"))}</button>` : ""}</h2>
+        ${state.form?.kind === "entry" ? "" : `<button class="ks-dugme" data-is="entry-add">${esc(t("Add entry"))}</button>`}
+      </div>
+      ${state.form?.kind === "entry" ? entryForm() : ""}
+      ${list.length ? list.map(entryRow).join("") : `<p class="bos">${esc(t("No entries this month."))}</p>`}
+    </section>`;
+
+  const recurringScreen = () => `
+    <div class="ks-rakamlar">
+      <section class="kart"><small class="soluk">${esc(t("Recurring expenses"))}</small><b>${tl(recurringExpense)}</b><small class="soluk">${esc(expenseRules.length === 1 ? t("per month, {n} rule", { n: expenseRules.length }) : t("per month, {n} rules", { n: expenseRules.length }))}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Recurring income"))}</small><b>${tl(recurringIncome)}</b><small class="soluk">${esc(t("per month"))}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Unpaid debt"))}</small><b>${tl(unpaidDebt)}</b><small class="soluk">${esc(t("all months"))}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Pending receivables"))}</small><b>${tl(receivable)}</b><small class="soluk">${esc(t("all months"))}</small></section>
+    </div>
+    <div class="izgara">
+      <section class="kart">
+        <div class="ks-baslik">
+          <h2>${esc(t("Recurring payments"))}</h2>
+          ${state.form?.kind === "rule" ? "" : `<button class="ks-dugme" data-is="rule-add">${esc(t("Add"))}</button>`}
+        </div>
+        ${state.form?.kind === "rule" ? ruleForm() : ""}
+        ${rules.length ? [...rules].sort((a, b) => b.isActive - a.isActive || monthlyShare(b) - monthlyShare(a)).map((r) => `<div class="ks-satir ${r.isActive ? "" : "kapali"}">
+          <button class="ks-ac" data-is="rule-open" data-id="${esc(r.id)}">${esc(r.title)}<small class="soluk">${esc(CYCLES[r.cycle])} · ${esc(t("on day {day} of the month", { day: r.dayOfMonth }))} · ${esc(categoryName(r.category))}</small></button>
+          <button class="ks-kucuk" data-is="rule-toggle" data-id="${esc(r.id)}">${esc(r.isActive ? t("Pause") : t("Resume"))}</button>
+          <span class="ks-tutar ${r.direction === "in" ? "ks-gelir" : ""}">${r.direction === "in" ? "+" : "−"}${tl(r.amount)}</span>
+        </div>`).join("") : `<p class="bos">${esc(t("Add what goes out every month, like subscriptions and rent; it is written to the ledger by itself when due."))}</p>`}
+      </section>
+      <div class="sutun">
+        <section class="kart">
+          <h2>${esc(t("Next 30 days"))}</h2>
+          ${upcoming.length ? upcoming.map((u) => `<div class="ks-satir">
+            <span>${esc(u.title)}<small class="soluk">${esc(dayLabel(u.dueDate))}</small></span><span></span>
+            <span class="ks-tutar ${u.direction === "in" ? "ks-gelir" : ""}">${u.direction === "in" ? "+" : "−"}${tl(u.amount)}</span></div>`).join("") : `<p class="bos">${esc(t("No upcoming payments."))}</p>`}
+        </section>
+        <section class="kart">
+          <h2>${esc(t("Pending"))}</h2>
+          ${state.form?.kind === "entry" ? entryForm() : ""}
+          ${pending.length ? pending.map(entryRow).join("") : `<p class="bos">${esc(t("No unpaid entries."))}</p>`}
+        </section>
+      </div>
+    </div>`;
+
+  const periodIncome = forecast.reduce((sum, m) => sum + m.income + m.expectedIncome, 0);
+  const periodExpense = forecast.reduce((sum, m) => sum + m.expense + m.expectedExpense, 0);
+  const period = `${monthName(forecast[0].ym)} – ${monthName(forecast[11].ym)}`;
+  const financeScreen = () => `
+    <div class="ks-rakamlar">
+      <section class="kart"><small class="soluk">${esc(t("Total income"))}</small><b>${tl(periodIncome)}</b><small class="soluk">${esc(period)}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Total expenses"))}</small><b>${tl(periodExpense)}</b><small class="soluk">${esc(period)}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Net"))}</small><b>${tl(periodIncome - periodExpense)}</b><small class="soluk">${esc(t("actual + expected"))}</small></section>
+    </div>
+    <section class="kart" style="margin-bottom:16px">
+      <h2>${esc(t("Income and expenses"))}</h2>
+      ${quarterChart(forecast)}
+    </section>
+    <section class="kart">
+      <h2>${esc(t("Income statement"))}</h2>
+      ${financeTable(forecast)}
+    </section>`;
+  const planScreen = () => `
+    <section class="kart">
+      <div class="ks-baslik">
+        <h2>${esc(t("Plan items"))}</h2>
+        ${state.form?.kind === "plan" ? "" : `<button class="ks-dugme" data-is="plan-add">${esc(t("Add"))}</button>`}
+      </div>
+      ${state.form?.kind === "plan" ? planForm() : ""}
+      ${plans.length ? plans.map((p) => `<div class="ks-satir">
+        <button class="ks-ac" data-is="plan-open" data-id="${esc(p.id)}">${esc(p.title)}<small class="soluk">${esc(PLAN_CYCLES[p.cycle])} · ${p.cycle === "once" ? esc(monthName(p.startMonth)) : p.endMonth ? esc(monthName(p.startMonth)) + " – " + esc(monthName(p.endMonth)) : esc(t("from {month}", { month: monthName(p.startMonth) }))} · ${esc(categoryName(p.category))}</small></button><span></span>
+        <span class="ks-tutar ${p.direction === "in" ? "ks-gelir" : ""}">${p.direction === "in" ? "+" : "−"}${tl(p.amount)}</span>
+      </div>`).join("") : `<p class="bos">${esc(t("Add estimated income and expenses for future months. They are not written to the ledger; they show as dashed in the chart and italic in the table."))}</p>`}
+    </section>`;
+
+  const tab = activeTab();
+  root.innerHTML = `
+    <div class="ks-ust">
+      <h1>${esc("Finances")}</h1>
+      <span class="ks-senkron" title="${esc(t("The ledger is on this computer. Changes here do not go to Speys, and changes in Speys do not come here."))}">${syncText(data.sync)}</span>
+      ${tab === "monthly" ? `<button data-is="month-step" data-step="-1" aria-label="${esc(t("Previous month"))}">‹</button>
+      <span class="ks-ay">${MONTHS[state.month]} ${state.year}</span>
+      <button data-is="month-step" data-step="1" aria-label="${esc(t("Next month"))}">›</button>` : ""}
+    </div>
+    <div class="alt-sekmeler" style="margin-bottom:14px">
+      <button data-is="tab" data-tab="" class="${tab === "monthly" ? "secili" : ""}">${esc(t("Monthly"))}</button>
+      <button data-is="tab" data-tab="finans" class="${tab === "finans" ? "secili" : ""}">${esc(t("Financial table"))}</button>
+      <button data-is="tab" data-tab="plan" class="${tab === "plan" ? "secili" : ""}">${esc(t("Plan"))}</button>
+      <button data-is="tab" data-tab="duzenli" class="${tab === "duzenli" ? "secili" : ""}">${esc(t("Recurring and pending"))}</button>
+    </div>
+    ${error ? `<section class="kart" style="margin-bottom:16px"><p>${esc(error)}</p></section>` : ""}
+    ${tab === "monthly" ? monthlyScreen() : tab === "finans" ? financeScreen() : tab === "plan" ? planScreen() : recurringScreen()}`;
+  $("[autofocus]")?.focus();
+}
+
+const findEntry = (id) => [...data.entries, ...data.pending].find((e) => e.id === id);
+
+const ACTIONS = {
+  tab(b) { state.form = null; goTo("kasa", b.dataset.tab); },
+  "month-step"(b) {
+    const d = new Date(state.year, state.month + +b.dataset.step, 1);
+    state.year = d.getFullYear(); state.month = d.getMonth(); state.category = ""; state.form = null;
+    return load();
+  },
+  "month-pick"(b) {
+    state.year = +b.dataset.ym.slice(0, 4); state.month = +b.dataset.ym.slice(5, 7) - 1; state.category = ""; state.form = null;
+    if (activeTab() !== "monthly") goTo("kasa", "");
+    return load();
+  },
+  "plan-add"() { state.direction = "out"; state.form = { kind: "plan", record: null }; render(); },
+  "plan-open"(b) { const p = data.plans.find((x) => x.id === b.dataset.id); if (p) { state.form = { kind: "plan", record: p }; render(); } },
+  "plan-delete"() {
+    const p = state.form.record;
+    if (confirm(t('Delete "{title}" from the plan?', { title: p.title }))) return write("plan/sil", { id: p.id }, t("Deleted"));
+  },
+  category(b) { state.category = state.category === b.dataset.category ? "" : b.dataset.category; render(); },
+  "entry-add"() { state.direction = "out"; state.form = { kind: "entry", record: null }; render(); },
+  "entry-open"(b) { const e = findEntry(b.dataset.id); if (e) { state.form = { kind: "entry", record: e }; render(); $("#entry-form").scrollIntoView({ block: "center" }); } },
+  "rule-add"() { state.direction = "out"; state.form = { kind: "rule", record: null }; render(); },
+  "rule-open"(b) { const r = data.rules.find((x) => x.id === b.dataset.id); if (r) { state.form = { kind: "rule", record: r }; render(); } },
+  cancel() { state.form = null; render(); },
+  direction(b) { state.direction = b.dataset.direction; render(); },
+  "entry-delete"() {
+    const e = state.form.record;
+    if (confirm(t('Delete "{title}"?', { title: e.title }))) return write("kayit/sil", { id: e.id }, t("Deleted"));
+  },
+  "rule-delete"() {
+    const r = state.form.record;
+    if (confirm(t('Delete "{title}"? Entries already written to the ledger stay.', { title: r.title }))) return write("kural/sil", { id: r.id }, t("Deleted"));
+  },
+  "mark-paid"(b) { const e = findEntry(b.dataset.id); if (e) return write("kayit", { ...e, status: "paid" }, t("Paid")); },
+  "rule-toggle"(b) {
+    const r = data.rules.find((x) => x.id === b.dataset.id);
+    if (r) return write("kural/durum", { id: r.id, active: !r.isActive }, r.isActive ? t("Paused") : t("Resumed"));
+  },
+};
+
+window.addEventListener("hashchange", () => { state.form = null; render(); });
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-is]");
+  if (b) ACTIONS[b.dataset.is]?.(b);
+});
+document.addEventListener("change", (ev) => {
+  if (ev.target.id !== "rule-cycle" && ev.target.id !== "plan-cycle") return;
+  // Keep what was typed: the fields depend on the cycle, so re-render and put the values back.
+  const formId = ev.target.form.id, values = Object.fromEntries(new FormData(ev.target.form));
+  state.form.cycle = ev.target.value;
+  render();
+  const fresh = $(`#${formId}`);
+  for (const [k, v] of Object.entries(values)) if (fresh.elements[k] && k !== "cycle" && k !== "pending") fresh.elements[k].value = v;
+  if (fresh.elements.pending) fresh.elements.pending.checked = !!values.pending;
+});
+document.addEventListener("submit", (ev) => {
+  const f = new FormData(ev.target), current = state.form?.record;
+  if (ev.target.id === "entry-form") {
+    ev.preventDefault();
+    write("kayit", {
+      id: current?.id, direction: current?.direction ?? state.direction, note: current?.note,
+      title: f.get("title"), amount: +f.get("amount"), category: f.get("category"), entryDate: f.get("entryDate"),
+      counterparty: f.get("counterparty"), status: f.get("pending") ? "pending" : "paid",
+    }, t("Saved"));
+  } else if (ev.target.id === "plan-form") {
+    ev.preventDefault();
+    write("plan", {
+      id: current?.id, direction: current?.direction ?? state.direction, note: current?.note,
+      title: f.get("title"), amount: +f.get("amount"), category: f.get("category"), cycle: f.get("cycle"),
+      startMonth: f.get("startMonth"), endMonth: f.get("endMonth") || null,
+    }, t("Saved"));
+  } else if (ev.target.id === "rule-form") {
+    ev.preventDefault();
+    write("kural", {
+      id: current?.id, direction: current?.direction ?? state.direction, isActive: current?.isActive ?? true,
+      title: f.get("title"), amount: +f.get("amount"), category: f.get("category"), cycle: f.get("cycle"),
+      dayOfMonth: +f.get("dayOfMonth"), monthOfYear: f.get("monthOfYear") ? +f.get("monthOfYear") : null,
+      counterparty: current?.counterparty, autoPaid: !f.get("pending"),
+    }, t("Saved"));
+  }
+});
+
+render();
+load();
+</script>
+</body>
+</html>

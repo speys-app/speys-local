@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+.ay{max-width:860px;margin:0 auto}
+.ay-kaynak{margin:0 0 16px;font-size:13px;color:var(--soluk)}
+.ay .kart{margin-bottom:16px}
+.ay-gun{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ay-gun .bilgi{flex:1;min-width:220px}
+.ay-gun button,.ay-ekle button{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:8px;padding:5px 12px;font-size:13px}
+.ay-gun button.ana{background:var(--metin);color:var(--bg);border-color:var(--metin);font-weight:600}
+.ay-gun button:disabled{opacity:.6;cursor:default}
+.ay-yeni{margin:10px 0 0;padding:0;list-style:none;font-size:13px}
+.ay-yeni li{padding:4px 0;border-top:1px solid var(--cizgi)}
+.ay-ap{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--cizgi)}
+.ay-ap:first-of-type{border-top:0}
+.ay-ap svg{width:18px;height:18px;flex:none}
+.ay-ap .bilgi{flex:1;min-width:0}
+.ay-ap small{display:block;font-size:12px;color:var(--soluk)}
+.ay-ap.kapali .bilgi,.ay-ap.kapali svg{opacity:.5}
+.ay-anahtar{position:relative;width:34px;height:20px;flex:none;border:0;border-radius:99px;background:var(--cizgi);padding:0}
+.ay-anahtar::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.ay-anahtar.on{background:var(--yesil)}
+.ay-anahtar.on::after{left:16px}
+.ay-not{margin:10px 0 0;font-size:12px;color:var(--soluk)}
+.ay-bas{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ay-bas h2{margin:0;flex:1;min-width:0}
+.ay-bas svg{width:16px;height:16px;flex:none}
+.ay-bas button,.ay-alt button{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:8px;padding:4px 12px;font-size:13px}
+.ay-alt{display:flex;gap:8px;align-items:center;margin-top:12px}
+.ay-alt button.ana{background:var(--metin);color:var(--bg);border-color:var(--metin);font-weight:600}
+.ay-hata{color:var(--kirmizi);font-size:13px}
+.ay-alan{padding:9px 0;border-top:1px solid var(--cizgi)}
+.ay-alan:first-of-type{border-top:0}
+.ay-ad{font-weight:600}
+.ay-ipucu{display:block;font-size:12px;color:var(--soluk);margin-top:1px}
+.ay-deger{margin-top:4px;font:12px ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere;white-space:pre-wrap}
+.ay-bos{color:var(--soluk)}
+.ay-yok{color:var(--kirmizi);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin-left:6px}
+.ay-var{color:var(--yesil);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin-left:6px}
+.ay-alan input,.ay-alan textarea{display:block;width:100%;margin-top:5px;padding:7px 9px;border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey2);color:var(--metin);font:12px ui-monospace,Menlo,Consolas,monospace}
+.ay-alan textarea{min-height:150px;resize:vertical}
+.ay-rozet{font-size:11px;color:var(--soluk);font-weight:500}
+.ay-dil{border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey);color:var(--metin);padding:5px 8px;font-size:13px}
+</style>
+</head>
+<body>
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+let data = null, editing = null, error = "", applets = [], update = null, updateState = "", updateError = "", language = null;
+
+const LANGUAGE_NAMES = { en: "English", tr: "Türkçe" };
+
+function languageHtml() {
+  if (!language) return "";
+  const option = (value, label) => `<option value="${esc(value)}"${language.chosen === value ? " selected" : ""}>${esc(label)}</option>`;
+  return `<section class="kart"><div class="ay-gun"><div class="bilgi"><h2 style="margin:0">${esc(t("Language"))}</h2></div>
+    <select class="ay-dil" data-language>${option("", t("System default"))}${language.available.map((l) => option(l, LANGUAGE_NAMES[l] || l)).join("")}</select></div></section>`;
+}
+
+function updateHtml() {
+  if (!update) return "";
+  if (!update.git) return `<section class="kart"><h2>${esc(t("Updates"))}</h2><p class="soluk">${esc(t("This install is not a git repository, so updates can't be checked."))}</p></section>`;
+  const commits = update.commits || [];
+  const state = updateState === "checking" ? t("Checking GitHub…") : updateState === "pulling" ? t("Getting the update…")
+    : updateError ? "" : !update.checked ? "" : commits.length ? t("{n} new updates.", { n: commits.length }) : t("Up to date.");
+  const button = commits.length && !updateError
+    ? `<button type="button" class="ana" data-update-pull ${updateState ? "disabled" : ""}>${esc(t("Get update"))}</button>`
+    : `<button type="button" data-update-check ${updateState ? "disabled" : ""}>${esc(t("Check for updates"))}</button>`;
+  return `<section class="kart"><h2>${esc(t("Updates"))}</h2>
+    <div class="ay-gun"><div class="bilgi"><b>${esc(update.version)}</b> <span class="soluk">· ${esc(update.date)} · ${esc(update.branch)}${update.changes ? ` · ${esc(t("{n} local changes", { n: update.changes }))}` : ""}</span>
+      ${state ? `<small class="ay-ipucu">${esc(state)}</small>` : ""}${updateError ? `<small class="ay-hata" style="display:block">${esc(updateError)}</small>` : ""}</div>${button}</div>
+    ${commits.length ? `<ul class="ay-yeni">${commits.map((c) => `<li><code>${esc(c.hash)}</code> ${esc(c.message)} <span class="soluk">· ${esc(c.date)}</span></li>`).join("")}</ul>` : ""}
+    <p class="ay-not">${t("Fast-forward only: local changes are never overwritten, it stops on a conflict. It does not touch <code>applets/custom/</code> or your settings.")}</p></section>`;
+}
+
+function appletsHtml() {
+  const row = (a) => `<div class="ay-ap${a.enabled === false ? " kapali" : ""}">${a.icon || ""}<div class="bilgi"><b>${esc(a.name)}</b><small>${esc(a.description || "")}</small></div>
+    <button type="button" class="ay-anahtar${a.enabled === false ? "" : " on"}" role="switch" aria-checked="${a.enabled !== false}" aria-label="${esc(a.name)}" data-applet="${esc(a.id)}"></button></div>`;
+  const group = (title, visibility) => { const l = applets.filter((a) => a.visibility === visibility); return l.length ? `<h3 style="margin:12px 0 2px;font-size:12px;color:var(--soluk)">${esc(title)}</h3>${l.map(row).join("")}` : ""; };
+  return `<section class="kart"><h2>${esc(t("Applets"))}</h2>${group(t("Official"), "official")}${group(t("From the store"), "store")}${group(t("Custom"), "custom")}
+    <p class="ay-not">${t("Turning one off removes it from the sidebar; its data is not deleted. To add an applet, tell Claude: a folder under <code>applets/custom/</code> shows up here and in the sidebar.")}</p></section>`;
+}
+
+const valueHtml = (f) => {
+  if (f.value === undefined || f.value === null || f.value === "") return `<span class="ay-bos">${esc(f.placeholder || t("empty"))}</span>`;
+  return esc(f.type === "json" ? JSON.stringify(f.value, null, 2) : f.value);
+};
+const pathState = (f) => (f.exists === true ? `<span class="ay-var">${esc(t("found"))}</span>` : f.exists === false ? `<span class="ay-yok">${esc(t("not found"))}</span>` : "");
+
+function fieldHtml(f, edit) {
+  const head = `<b class="ay-ad">${esc(f.label)}</b>${f.hint ? `<small class="ay-ipucu">${esc(f.hint)}</small>` : ""}`;
+  if (!edit) return `<div class="ay-alan">${head}<div class="ay-deger">${valueHtml(f)}${pathState(f)}</div></div>`;
+  const text = f.value === undefined || f.value === null ? "" : f.type === "json" ? JSON.stringify(f.value, null, 2) : f.value;
+  const input = f.type === "json"
+    ? `<textarea data-field="${esc(f.section)}.${esc(f.key)}" spellcheck="false">${esc(text)}</textarea>`
+    : `<input data-field="${esc(f.section)}.${esc(f.key)}" value="${esc(text)}" spellcheck="false" autocomplete="off">`;
+  return `<div class="ay-alan">${head}${input}</div>`;
+}
+
+function draw() {
+  if (!data) return;
+  $("#icerik").innerHTML = `<div class="ay">${languageHtml()}${updateHtml()}${appletsHtml()}<p class="ay-kaynak">${t("Settings on this computer: <code>{file}</code>. Stays out of git.", { file: esc(data.file) })}</p>
+    ${data.applets.map((p) => {
+      const open = editing === p.id;
+      return `<section class="kart"><div class="ay-bas">${p.icon || ""}<h2>${esc(p.name)} <span class="ay-rozet">${p.visibility === "custom" ? `· ${esc(t("Custom"))}` : p.visibility === "store" ? `· ${esc(t("From the store"))}` : ""}</span></h2>
+          ${!open && p.fields.length ? `<button type="button" data-edit="${esc(p.id)}">${esc(t("Edit"))}</button>` : ""}</div>
+        ${p.fields.map((f) => fieldHtml(f, open)).join("") || `<p class="bos">${esc(t("No settings."))}</p>`}
+        ${open ? `<div class="ay-alt"><button type="button" class="ana" data-save="${esc(p.id)}">${esc(t("Save"))}</button><button type="button" data-cancel>${esc(t("Cancel"))}</button>${error ? `<span class="ay-hata">${esc(error)}</span>` : ""}</div>` : ""}
+      </section>`;
+    }).join("")}</div>`;
+}
+
+async function load() {
+  [data, applets, update, language] = await Promise.all([getJson("/api/settings"), getJson("/api/applets"), update?.checked ? update : getJson("/api/update").catch(() => null), getJson("/api/language")]);
+  draw();
+}
+
+async function checkUpdate() {
+  updateState = "checking"; updateError = ""; draw();
+  try {
+    const r = await fetch("/api/update?check=1", { cache: "no-store" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    update = j;
+  } catch (e) { updateError = t("Could not check: {error}", { error: e.message }); }
+  updateState = ""; draw();
+}
+
+async function pullUpdate() {
+  updateState = "pulling"; updateError = ""; draw();
+  try {
+    const r = await fetch("/api/update", { method: "POST", headers: { "X-Panel": "1" } });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.restarting) {
+      // The server restarts: the page reloads once it is back
+      for (let i = 0; i < 40; i++) {
+        await new Promise((done) => setTimeout(done, 500));
+        if (await fetch("/api/applets", { cache: "no-store" }).then((x) => x.ok).catch(() => false)) break;
+      }
+      return parent.location.reload();
+    }
+    update = await getJson("/api/update");
+    notify(t("Updated. Restart the server to run the new code."));
+  } catch (e) { updateError = t("Could not update: {error}", { error: e.message }); }
+  updateState = ""; draw();
+}
+
+document.addEventListener("change", async (e) => {
+  if (!e.target.matches("[data-language]")) return;
+  const r = await fetch("/api/language", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ language: e.target.value }) });
+  if (!r.ok) return notify(t("Could not change it."));
+  parent.location.reload();
+});
+
+document.addEventListener("click", async (e) => {
+  if (e.target.closest("[data-update-check]")) return checkUpdate();
+  if (e.target.closest("[data-update-pull]")) return pullUpdate();
+  const toggle = e.target.closest("[data-applet]");
+  if (toggle) {
+    const on = toggle.classList.contains("on");
+    const r = await fetch("/api/applets", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ id: toggle.dataset.applet, enabled: !on }) });
+    if (!r.ok) return notify(t("Could not change it."));
+    applets = await getJson("/api/applets");
+    draw();
+    return parent.refreshApplets?.();
+  }
+  const edit = e.target.closest("[data-edit]");
+  if (edit) { editing = edit.dataset.edit; error = ""; return draw(); }
+  if (e.target.closest("[data-cancel]")) { editing = null; error = ""; return draw(); }
+  if (!e.target.closest("[data-save]")) return;
+  const values = [...document.querySelectorAll("[data-field]")].map((g) => {
+    const dot = g.dataset.field.indexOf(".");
+    return { section: g.dataset.field.slice(0, dot), key: g.dataset.field.slice(dot + 1), value: g.value };
+  });
+  const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ values }) });
+  if (!r.ok) { error = (await r.json().catch(() => ({}))).error || t("Could not save."); return draw(); }
+  editing = null; error = "";
+  notify(t("Saved."));
+  await load();
+});
+window.addEventListener("focus", () => { if (!isHidden() && !editing) load(); });
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speys Local Dashboard</title>
+<link rel="icon" href="/logo.svg">
+<style>
+:root{--bg:#f7f7f4;--side:#efeee9;--line:#e2e1da;--text:#1b1b18;--muted:#73726b;--hover:rgba(0,0,0,.05);--on:#fff;--brand:#fb7a01;--bad:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#0f0f0d;--side:#181816;--line:#2c2c28;--text:#ecebe6;--muted:#97968e;--hover:rgba(255,255,255,.06);--on:#26261f}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+aside{width:232px;flex:none;display:flex;flex-direction:column;gap:18px;padding:14px 10px;background:var(--side);border-right:1px solid var(--line);overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px}
+.brand img{width:30px;height:30px;border-radius:7px}
+.brand b{display:block;font-size:14px;line-height:1.2}
+.brand select{display:block;max-width:150px;margin:1px 0 0 -4px;padding:0 2px;border:0;background:transparent;color:var(--muted);font:12px/1.4 inherit;cursor:pointer}
+h2{margin:0 0 4px;padding:0 8px;font-size:11px;font-weight:600;color:var(--muted)}
+nav a{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;color:inherit;text-decoration:none;cursor:pointer}
+nav a:hover{background:var(--hover)}
+nav a.on{background:var(--on);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+nav a.on svg{color:var(--brand)}
+nav svg{width:18px;height:18px;flex:none}
+nav .name{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+nav .bad{margin-left:auto;width:7px;height:7px;flex:none;border-radius:50%;background:var(--bad)}
+.empty{margin:0;padding:0 8px;font-size:12px;color:var(--muted)}
+code{font:12px ui-monospace,Menlo,Consolas,monospace}
+.alt{margin-top:auto}
+main{flex:1;min-width:0;display:flex}
+iframe{flex:1;width:100%;height:100%;border:0;background:var(--bg)}
+iframe[hidden]{display:none}
+.message{margin:auto;max-width:440px;padding:24px;text-align:center;color:var(--muted)}
+.message b{display:block;margin-bottom:6px;color:var(--text);font-size:16px}
+@media (max-width:720px){aside{width:58px;padding:12px 8px}.brand{justify-content:center;padding:0}.brand div,h2,.empty,nav .name{display:none}nav a{justify-content:center}}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><img src="/logo.svg" alt=""><div><b>Speys Local</b><select id="workspace" title=""></select></div></div>
+  <section id="dashboards-section"><h2 id="dashboards-title"></h2><nav id="dashboards"></nav></section>
+  <section><h2 id="official-title"></h2><nav id="official"></nav></section>
+  <section id="store-section"><h2 id="store-title"></h2><nav id="store"></nav></section>
+  <section><h2 id="custom-title"></h2><nav id="custom"></nav></section>
+  <section class="alt"><nav id="system"></nav></section>
+</aside>
+<main id="main"></main>
+<script src="/kit.js"></script>
+<script>
+// The server restarts when its code changes. A page loading at that moment may miss kit.js: try again instead of staying blank.
+if (!window.I18N) setTimeout(() => location.reload(), 1000);
+</script>
+<script>
+$("#dashboards-title").textContent = t("Dashboards");
+$("#official-title").textContent = t("Official");
+$("#custom-title").textContent = t("Custom");
+$("#store-title").textContent = t("From the store");
+const FALLBACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>';
+const nav = { dashboards: document.getElementById("dashboards"), official: document.getElementById("official"), custom: document.getElementById("custom"), store: document.getElementById("store"), system: document.getElementById("system") };
+const SETTINGS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>';
+const main = document.getElementById("main");
+let applets = [];
+let shown = null;
+const frames = new Map();
+const pendingHash = {};
+
+/** One applet opens another (and a place inside it). */
+window.openApplet = (id, inner) => {
+  const frame = frames.get(id);
+  if (inner && frame) frame.contentWindow.location.hash = inner;
+  else if (inner) pendingHash[id] = inner;
+  if (location.hash === `#/${id}`) return render();
+  location.hash = `#/${id}`;
+};
+
+function show(message, detail) {
+  main.querySelector(".message")?.remove();
+  for (const f of frames.values()) f.hidden = true;
+  const box = document.createElement("div");
+  box.className = "message";
+  const title = document.createElement("b");
+  title.textContent = message;
+  box.append(title, detail || "");
+  main.append(box);
+}
+
+// —— workspaces: separate settings and data, like the demo
+const WORKSPACE_NAMES = { main: () => t("Main"), demo: () => t("Demo") };
+const NEW_WORKSPACE = "__new";
+async function drawWorkspaces() {
+  const { active, list } = await untilServerAnswers("/api/workspaces");
+  const picker = document.getElementById("workspace");
+  const option = (value, label) => `<option value="${esc(value)}"${value === active ? " selected" : ""}>${esc(label)}</option>`;
+  picker.innerHTML = list.map((id) => option(id, WORKSPACE_NAMES[id]?.() ?? id)).join("") + option(NEW_WORKSPACE, t("New workspace…"));
+  picker.dataset.active = active;
+  picker.title = t("Workspace");
+}
+document.getElementById("workspace").addEventListener("change", async (e) => {
+  const picker = e.target, body = picker.value === NEW_WORKSPACE ? { create: prompt(t("Name of the new workspace")) } : { id: picker.value };
+  if (picker.value === NEW_WORKSPACE && !body.create) { picker.value = picker.dataset.active; return; }
+  const r = await fetch("/api/workspaces", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body) });
+  if (!r.ok) { alert((await r.json().catch(() => ({}))).error || r.status); picker.value = picker.dataset.active; return; }
+  location.hash = "";
+  location.reload();
+});
+
+function render() {
+  const current = location.hash.slice(2);
+  const open = applets.filter((m) => m.enabled !== false);
+  const applet = open.find((m) => m.id === current) || open[0];
+  for (const a of document.querySelectorAll("nav a")) a.classList.toggle("on", a.dataset.id === applet?.id);
+  if (!applet) return show(t("No applets yet"), t("Add an applet under applets/custom/."));
+  document.title = `${applet.name} · Speys Local Dashboard`;
+  if (shown === applet.id) return;
+  shown = applet.id;
+  if (applet.error) return show(t("{name} could not be opened", { name: applet.name }), applet.error);
+  // An opened frame stays and is only hidden: switching is instant and its work is not lost
+  let frame = frames.get(applet.id);
+  if (!frame) {
+    frame = document.createElement("iframe");
+    frame.src = applet.url + (pendingHash[applet.id] ? `#${pendingHash[applet.id]}` : "");
+    delete pendingHash[applet.id];
+    frame.title = applet.name;
+    frames.set(applet.id, frame);
+  }
+  main.querySelector(".message")?.remove();
+  if (!frame.isConnected) main.append(frame);
+  for (const f of frames.values()) f.hidden = f !== frame;
+  // An applet coming back from the background refreshes its data
+  try { frame.contentWindow?.dispatchEvent(new Event("focus")); } catch { /* frame on another address */ }
+}
+
+function link(applet) {
+  const a = document.createElement("a");
+  a.href = `#/${applet.id}`;
+  a.dataset.id = applet.id;
+  a.title = applet.description || applet.name;
+  a.innerHTML = applet.icon || FALLBACK_ICON;
+  const name = document.createElement("span");
+  name.className = "name";
+  name.textContent = applet.name;
+  a.append(name);
+  if (applet.error) {
+    const bad = document.createElement("span");
+    bad.className = "bad";
+    a.append(bad);
+  }
+  return a;
+}
+
+function drawNav() {
+  for (const n of Object.values(nav)) n.replaceChildren();
+  for (const applet of applets) if (applet.enabled !== false) nav[applet.dashboard ? "dashboards" : applet.visibility].append(link(applet));
+  document.getElementById("store-section").hidden = !nav.store.children.length;
+  document.getElementById("dashboards-section").hidden = !nav.dashboards.children.length;
+  if (!nav.custom.children.length) {
+    const hint = document.createElement("p");
+    hint.className = "empty";
+    hint.innerHTML = t("What you add under <code>applets/custom/</code> shows up here and stays out of git.");
+    nav.custom.append(hint);
+  }
+}
+
+/** The sidebar refreshes when an applet is switched on or off in Settings. */
+window.refreshApplets = async () => {
+  const list = await fetch("/api/applets").then((r) => r.json());
+  applets = [...list, ...applets.filter((a) => a.visibility === "system")];
+  drawNav();
+  // A disabled applet's frame goes away
+  for (const [id, frame] of frames) {
+    if (applets.find((a) => a.id === id)?.enabled === false) { frame.remove(); frames.delete(id); }
+  }
+  render();
+};
+
+/** A page is not reloaded under a user who is typing or playing a video. */
+function busy(frame) {
+  try {
+    const doc = frame.contentDocument;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(doc.activeElement?.tagName || "")) return true;
+    return [...doc.querySelectorAll("video")].some((v) => !v.paused);
+  } catch {
+    return true;
+  }
+}
+
+let seen = null;
+async function watchVersion() {
+  if (document.hidden) return;
+  let v;
+  try {
+    v = await fetch("/api/version", { cache: "no-store" }).then((r) => r.json());
+  } catch {
+    return; // the server may be restarting
+  }
+  if (!seen) {
+    seen = v;
+    return;
+  }
+  const active = frames.get(shown);
+  if (v.boot !== seen.boot || v.core !== seen.core) {
+    if (active && busy(active)) return;
+    // A full reload keeps the place inside the applet (tab, selected list)
+    try {
+      sessionStorage.setItem("dashboard.ic", JSON.stringify({ id: shown, hash: active?.contentWindow.location.hash.slice(1) || "" }));
+    } catch { /* private window */ }
+    return location.reload();
+  }
+  for (const [id, frame] of frames) {
+    if (v.pages[id] === undefined || v.pages[id] === seen.pages[id] || busy(frame)) continue;
+    seen.pages[id] = v.pages[id];
+    frame.contentWindow.location.reload();
+  }
+  if (Object.keys(v.pages).join() !== Object.keys(seen.pages).join()) window.refreshApplets();
+  seen = { ...v, pages: { ...v.pages, ...seen.pages } };
+}
+
+/** Also refreshes the visible applet's data, for applets without their own timer. */
+function refreshActive() {
+  if (document.hidden) return;
+  try { frames.get(shown)?.contentWindow.dispatchEvent(new Event("focus")); } catch { /* frame on another address */ }
+}
+
+/** The same restart can also hit these first requests. */
+async function untilServerAnswers(path) {
+  for (;;) {
+    try {
+      const r = await fetch(path, { cache: "no-store" });
+      if (r.ok) return await r.json();
+    } catch { /* restarting */ }
+    await new Promise((done) => setTimeout(done, 1000));
+  }
+}
+
+async function start() {
+  try {
+    const kalan = JSON.parse(sessionStorage.getItem("dashboard.ic") || "null");
+    sessionStorage.removeItem("dashboard.ic");
+    if (kalan?.hash) pendingHash[kalan.id] = kalan.hash;
+  } catch { /* private window */ }
+  applets = await untilServerAnswers("/api/applets");
+  applets.push({ id: "store", name: t("Store"), description: t("Applets written by other people"), icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5M4 9.5V20h16V9.5M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0M10 20v-5h4v5"/></svg>', visibility: "system", url: "/store" });
+  applets.push({ id: "settings", name: t("Settings"), description: t("Settings on this computer"), icon: SETTINGS_ICON, visibility: "system", url: "/settings" });
+  drawNav();
+  render();
+  const logo = document.querySelector(".brand img");
+  if (!logo.complete || !logo.naturalWidth) logo.src = "/logo.svg";
+}
+
+addEventListener("hashchange", render);
+// A page brought back from the browser's memory is old: load it fresh
+addEventListener("pageshow", (e) => { if (e.persisted) location.reload(); });
+addEventListener("focus", refreshActive);
+document.addEventListener("visibilitychange", () => { refreshActive(); watchVersion(); });
+setInterval(watchVersion, 2000);
+setInterval(refreshActive, 30_000);
+drawWorkspaces();
+start().then(watchVersion);
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Store</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+.st{max-width:860px;margin:0 auto}
+.st-uyari{margin:0 0 16px;font-size:13px;color:var(--soluk)}
+.st-satir{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-top:1px solid var(--cizgi)}
+.st-satir:first-of-type{border-top:0}
+.st-bilgi{flex:1;min-width:0}
+.st-bilgi small{display:block;font-size:12px;color:var(--soluk);margin-top:2px}
+.st-bilgi p{margin:3px 0 0;font-size:13px;color:var(--soluk)}
+.st-dugmeler{display:flex;gap:6px;flex:none}
+.st-dugmeler button{border:1px solid var(--cizgi);background:var(--yuzey);color:var(--metin);border-radius:8px;padding:5px 12px;font-size:13px}
+.st-dugmeler button.ana{background:var(--metin);color:var(--bg);border-color:var(--metin);font-weight:600}
+.st-dugmeler button:disabled{opacity:.6;cursor:default}
+.st-hata{color:var(--kirmizi);font-size:13px;margin:0 0 12px}
+</style>
+</head>
+<body>
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+let store = null, busy = "", error = "";
+
+function row(a) {
+  const installed = a.installed, update = installed && installed.commit !== a.commit;
+  const working = busy === a.id;
+  const buttons = !installed
+    ? `<button type="button" class="ana" data-install="${esc(a.id)}"${busy ? " disabled" : ""}>${esc(working ? t("Installing…") : t("Install"))}</button>`
+    : `${update ? `<button type="button" class="ana" data-install="${esc(a.id)}"${busy ? " disabled" : ""}>${esc(working ? t("Updating…") : t("Update to {version}", { version: a.version }))}</button>` : ""}
+       <button type="button" data-remove="${esc(a.id)}"${busy ? " disabled" : ""}>${esc(t("Remove"))}</button>`;
+  return `<div class="st-satir"><div class="st-bilgi"><b>${esc(a.name)}</b>
+      <small>${esc(t("by {author}", { author: a.author }))} · ${esc(installed ? t("version {version} installed", { version: installed.version }) : t("version {version}", { version: a.version }))} · <a href="${esc(a.repo)}/tree/${esc(a.commit)}" target="_blank" rel="noopener">${esc(t("Source"))}</a></small>
+      <p>${esc(a.description)}</p></div><div class="st-dugmeler">${buttons}</div></div>`;
+}
+
+function draw() {
+  if (!store) return;
+  $("#icerik").innerHTML = `<div class="st"><section class="kart"><h2>${esc(t("Store"))}</h2>
+    <p class="st-uyari">${esc(t("Applets written by other people. Every version is reviewed before it is listed, and nothing updates by itself. An applet still runs with your permissions on this computer, so install the ones you trust."))}</p>
+    ${error ? `<p class="st-hata">${esc(error)}</p>` : ""}
+    ${store.applets.map(row).join("") || `<p class="bos">${esc(t("No applets yet."))}</p>`}
+    <p class="ay-not soluk" style="font-size:12px;margin:12px 0 0">${t("Wrote one? Send it with a pull request to <code>store.json</code>; see CONTRIBUTING.md.")}</p></section></div>`;
+}
+
+async function load() {
+  store = await getJson("/api/store");
+  draw();
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || String(r.status));
+  return j;
+}
+
+async function act(id, path, done) {
+  busy = id; error = ""; draw();
+  try {
+    const j = await post(path, { id });
+    if (j.restarting) {
+      // The server restarts to run the new code: the page reloads once it is back
+      for (let i = 0; i < 40; i++) {
+        await new Promise((next) => setTimeout(next, 500));
+        if (await fetch("/api/applets", { cache: "no-store" }).then((x) => x.ok).catch(() => false)) break;
+      }
+      return parent.location.reload();
+    }
+    notify(j.restartNeeded ? t("Updated. Restart the server to run the new code.") : done);
+    await parent.refreshApplets?.();
+    await load();
+  } catch (e) { error = e.message; }
+  busy = ""; draw();
+}
+
+document.addEventListener("click", (e) => {
+  const install = e.target.closest("[data-install]");
+  if (install) {
+    const a = store.applets.find((x) => x.id === install.dataset.install);
+    if (!a.installed && !confirm(t("{name} will run with your permissions on this computer. Install it?", { name: a.name }))) return;
+    return act(a.id, "/api/store/install", t("Installed."));
+  }
+  const remove = e.target.closest("[data-remove]");
+  if (remove && confirm(t("Remove this applet? Its data in data/ stays."))) act(remove.dataset.remove, "/api/store/remove", t("Removed."));
+});
+window.addEventListener("focus", () => { if (!isHidden() && !busy) load(); });
+load();
+</script>
+</body>
+</html>

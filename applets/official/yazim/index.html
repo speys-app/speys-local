@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Typing</title>
+<link rel="stylesheet" href="/kit.css">
+</head>
+<body>
+
+<main id="content"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+
+document.title = "Typo Check";
+
+let editing = false;
+const route = () => {
+  const [, sub = ""] = decodeURIComponent(location.hash.slice(1)).split("/");
+  return { tab: "yazim", sub };
+};
+window.addEventListener("hashchange", render);
+function render() {
+  const scrollPosition = scrollY;
+  $("#content").innerHTML = renderTyping();
+  scrollTo(0, scrollPosition);
+}
+
+/** "%12,3" in Turkish, "12.3%" in English; the value is already formatted. */
+const pct = (value) => t("{value}%", { value });
+
+// A sonuc.json written before the English labels stays on disk until the next hourly run; it must still render.
+const OLD_ERROR_TYPES = {
+  "türkçe harf": "Turkish letter",
+  "yer değiştirme": "transposition",
+  "yanlış harf": "wrong letter",
+  "eksik harf": "missing letter",
+  "fazla harf": "extra letter",
+  "birden çok": "multiple",
+  "boşluk kayması": "shifted space",
+};
+const errorTypeLabel = (kind) => t(OLD_ERROR_TYPES[kind] ?? kind);
+
+// —— Typing: keyboard errors (analyze.js, at most once an hour) ——————————————————
+// Loaded only while this page is open; the analysis takes ~1 min, so the server returns
+// the old result and starts the new one in the background.
+let typing = null, typingLoading = false;
+async function loadTyping() {
+  if (typingLoading) return;
+  typingLoading = true;
+  // _fetchedAt before rendering: otherwise renderTyping thinks the data is stale and requests it again, the loop
+  // renders dozens of times a second and the buttons can't be clicked.
+  try { typing = await getJson("./api/yazim"); typing._fetchedAt = Date.now(); } finally { typingLoading = false; }
+  if (route().tab === "yazim" && !editing) render();
+}
+
+// Practice: 30 of the most often mistyped words (weighted by frequency).
+// Measured: accuracy, words/min and rhythm deviation (the coefficient of variation of the time between keys;
+// low = even rhythm). The finding is a rhythm problem, so that is the real target.
+// The 10 s refresh pauses while typing (editing); the result is written to the server.
+let practice = null;
+const PRACTICE_LENGTH = 30;
+function practiceWords() {
+  const pool = typing.kelimeler.filter(([d]) => !d.includes(" ")).slice(0, 80);
+  const total = pool.reduce((a, [, n]) => a + n, 0), out = [];
+  while (out.length < PRACTICE_LENGTH) {
+    let r = Math.random() * total, word = pool[0][0];
+    for (const [d, n] of pool) { r -= n; if (r <= 0) { word = d; break; } }
+    if (out.at(-1) !== word) out.push(word);
+  }
+  return out;
+}
+function practiceHtml() {
+  if (!practice) return `<div class="yz-alis-bas"><div><h2>${esc(t("Practice"))}</h2>
+      <p class="soluk">${esc(t("{n} of the words you most often mistype. Speed isn't the goal: press every letter at an even interval, a space when the word ends. Speed up as accuracy nears 100%.", { n: PRACTICE_LENGTH }))}</p></div>
+      <button class="yz-dugme" data-is="practice-start">${esc(t("Start"))}</button></div>`;
+  if (practice.result) {
+    const s = practice.result;
+    return `<div class="yz-alis-bas"><div><h2>${esc(t("Result"))}</h2>
+        <div class="yz-rakamlar"><div><b>${percent(s.dogru, s.kelime)}</b><small>${esc(t("accuracy"))}</small></div>
+        <div><b>${s.kdk}</b><small>${esc(t("words/min"))}</small></div><div><b>${pct(s.ritim)}</b><small>${esc(t("rhythm deviation (low = even)"))}</small></div></div>
+        ${s.hatalar.length ? `<p class="yz-not">${t("Mistakes: {list}", { list: s.hatalar.map(([d, y]) => `<b>${esc(d)}</b> → ${esc(y)}`).join(", ") })}</p>` : `<p class="yz-not">${esc(t("All correct."))}</p>`}</div>
+      <button class="yz-dugme" data-is="practice-start">${esc(t("Again"))}</button></div>`;
+  }
+  return `<h2>${esc(t("Practice"))} <small>${practice.i}/${practice.words.length} · ${esc(t("Esc: stop"))}</small></h2>
+    <div class="yz-metin">${practice.words.map((w, i) =>
+      `<span class="${i < practice.i ? (practice.typed[i] === w ? "yz-ok" : "yz-hata") : i === practice.i ? "yz-simdi" : ""}">${esc(w)}</span>`).join(" ")}</div>
+    <input id="practice-input" class="yz-girdi" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${practice.i ? "" : esc(t("start typing…"))}">`;
+}
+function renderPractice() {
+  const box = $("#practice"); if (!box) return;
+  box.innerHTML = practiceHtml();
+  $("#practice-input")?.focus();
+}
+function startPractice() {
+  practice = { words: practiceWords(), i: 0, typed: [], keyTimes: [], startedAt: null, result: null };
+  editing = true;
+  renderPractice();
+}
+function stopPractice() { practice = null; editing = false; renderPractice(); }
+async function finishPractice() {
+  const finishedAt = performance.now();
+  const correct = practice.words.filter((w, i) => practice.typed[i] === w).length;
+  const gaps = practice.keyTimes.slice(1).map((at, i) => at - practice.keyTimes[i]).filter((d) => d < 1500); // pauses don't count
+  const mean = gaps.reduce((a, b) => a + b, 0) / (gaps.length || 1);
+  const deviation = Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / (gaps.length || 1));
+  // field names match the saved practice history (alistirmalar.jsonl)
+  practice.result = {
+    kelime: practice.words.length, dogru: correct,
+    kdk: +(correct / ((finishedAt - practice.startedAt) / 60000)).toFixed(1),
+    ritim: +(100 * deviation / (mean || 1)).toFixed(1),
+    hatalar: practice.words.map((w, i) => [w, practice.typed[i]]).filter(([w, y]) => w !== y),
+  };
+  editing = false;
+  renderPractice();
+  try {
+    await fetch("./api/yazim/alistirma", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(practice.result) });
+    typing.alistirmalar = [...(typing.alistirmalar || []), { ...practice.result, zaman: new Date().toLocaleString("sv-SE").slice(0, 16) }];
+    render();
+  } catch { notify(t("Couldn't save the result.")); }
+}
+document.addEventListener("click", (e) => { if (e.target.closest('[data-is="practice-start"]')) startPractice(); });
+document.addEventListener("keydown", (e) => {
+  if (e.target.id !== "practice-input" || !practice || practice.result) return;
+  if (e.key === "Escape") return stopPractice();
+  if (e.key.length === 1) practice.keyTimes.push(performance.now());
+});
+document.addEventListener("paste", (e) => { if (e.target.id === "practice-input") e.preventDefault(); });
+document.addEventListener("input", (e) => {
+  if (e.target.id !== "practice-input" || !practice || practice.result) return;
+  const v = e.target.value, target = practice.words[practice.i], last = practice.i === practice.words.length - 1;
+  if (!practice.startedAt) practice.startedAt = performance.now();
+  if (v.endsWith(" ") || (last && v === target)) {
+    if (!v.trim()) { e.target.value = ""; return; }
+    practice.typed.push(v.trim()); practice.i++;
+    return practice.i === practice.words.length ? finishPractice() : renderPractice();
+  }
+  e.target.classList.toggle("yanlis", !target.startsWith(v));
+});
+window.addEventListener("hashchange", () => { if (practice && !practice.result) { practice = null; editing = false; } });
+// Two sub-tabs: Practice (the exercise and its progress) · Errors (analysis of the errors in
+// messages; the daily chart has each day's value and its change from the previous day).
+function renderTyping() {
+  if (!typing || Date.now() - (typing._fetchedAt || 0) > 60_000) {
+    loadTyping();
+    if (!typing) return `<p class="bos">${esc(t("Loading…"))}</p>`;
+  }
+  const sub = route().sub === "hatalar" ? "hatalar" : "practice";
+  const picker = `<div class="alt-sekmeler">${[["practice", t("Practice")], ["hatalar", t("Errors")]].map(([id, label]) =>
+    `<button class="${id === sub ? "secili" : ""}" data-yz-tab="${id}">${esc(label)}</button>`).join("")}</div>`;
+  return picker + (sub === "hatalar" ? errorsTab() : practiceTab());
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-yz-tab]");
+  if (b) goTo("yazim", b.dataset.yzTab === "hatalar" ? "hatalar" : "");
+});
+
+function practiceTab() {
+  const runs = (typing.alistirmalar || []).map((x) => ({ ...x, rate: (100 * x.dogru) / x.kelime }));
+  const points = " " + t("points");
+  const metrics = [
+    ["rate", t("Accuracy"), (v) => pct(formatDecimal(v)), points, "high"],
+    ["kdk", t("Words/min"), (v) => formatDecimal(v), "", "high"],
+    ["ritim", t("Rhythm deviation"), (v) => pct(formatDecimal(v)), points, "low"],
+  ];
+  const cards = runs.length ? metrics.map(([key, label, format, unit, good]) => {
+    const latest = runs.at(-1)[key], previous = runs.at(-2)?.[key], first = runs[0][key];
+    const chartPoints = runs.map((x, i) => ({ x: shortDay(x.zaman), y: x[key],
+      tip: `${x.zaman}: ${format(x[key])}${i ? ` · ${t("vs previous {diff}", { diff: `${x[key] - runs[i - 1][key] >= 0 ? "+" : "−"}${formatDecimal(Math.abs(x[key] - runs[i - 1][key]))}` })}` : ""}` }));
+    return `<section class="kart"><h2>${esc(label)}${good === "low" ? ` · ${esc(t("low = even rhythm"))}` : ""}</h2>
+      <div class="yz-baslik"><b>${format(latest)}</b><span>${t("last practice · vs previous {previous} · vs first {first}", { previous: diffHtml(previous == null ? null : latest - previous, unit, good), first: diffHtml(latest - first, unit, good) })}</span></div>
+      ${lineChart(chartPoints, format, good, 380, 180)}</section>`;
+  }).join("") : "";
+  const table = runs.length ? `<section class="kart"><h2>${esc(t("All practice sessions · {n}", { n: runs.length }))}</h2>
+    <table><thead><tr><th>${esc(t("When"))}</th><th>${esc(t("Accuracy"))}</th><th>${esc(t("Words/min"))}</th><th>${esc(t("Rhythm deviation"))}</th><th>${esc(t("Mistakes"))}</th></tr></thead><tbody>${[...runs].reverse().map((x, i, d) => {
+      const older = d[i + 1];
+      return `<tr><td>${esc(x.zaman)}</td><td>${percent(x.dogru, x.kelime)} ${older ? diffHtml(x.rate - older.rate, "", "high") : ""}</td>
+        <td>${formatDecimal(x.kdk)} ${older ? diffHtml(x.kdk - older.kdk, "", "high") : ""}</td><td>${pct(formatDecimal(x.ritim))} ${older ? diffHtml(x.ritim - older.ritim, "", "low") : ""}</td>
+        <td class="soluk">${(x.hatalar || []).map(([d, y]) => `${esc(d)} → ${esc(y)}`).join(", ") || "—"}</td></tr>`;
+    }).join("")}</tbody></table></section>` : "";
+  return `<section class="kart yz-alis" id="practice">${practiceHtml()}</section>
+    ${runs.length ? `<div class="yz-uclu">${cards}</div>${table}` : `<p class="bos">${esc(t("No practice yet; your progress shows up here after the first one."))}</p>`}`;
+}
+
+function errorsTab() {
+  const y = typing;
+  if (!y.kelime) return `<p class="bos">${esc(y.yenileniyor ? t("First analysis is running (~1 min)…") : t("No data."))}</p>`;
+  // daily rate: days with fewer than 200 words are noise and stay out of the chart
+  const days = y.gunluk.filter(([, k]) => k >= 200).slice(-30).map(([g, k, h]) => ({ g, k, rate: (100 * h) / k }));
+  const sumRate = (d) => { const [k, h] = d.reduce((a, [, k, h]) => [a[0] + k, a[1] + h], [0, 0]); return k ? (100 * h) / k : null; };
+  const last7 = sumRate(y.gunluk.slice(-7)), previous7 = sumRate(y.gunluk.slice(-14, -7));
+  const lastDay = days.at(-1), previousDay = days.at(-2);
+  const bestDay = days.reduce((a, b) => (b.rate < a.rate ? b : a), days[0]);
+  const typeTotal = y.turler.reduce((a, [, n]) => a + n, 0);
+  // the keys of `eller` are stored data, not shown text
+  const hands = y.eller || {}; const handTotal = (hands["iki el"] || 0) + (hands["aynı el"] || 0);
+  const swapped = (c) => c.length === 2 ? c[1] + c[0] : c;
+  const points = " " + t("points");
+  const chartPoints = days.map((d, i) => ({ x: shortDay(d.g), y: d.rate,
+    tip: `${t("{day}: {rate} wrong · {words} words", { day: shortDay(d.g), rate: pct(formatDecimal(d.rate)), words: formatNumber(d.k) })}${i ? ` · ${t("{diff} points vs the previous day", { diff: `${d.rate - days[i - 1].rate >= 0 ? "+" : "−"}${formatDecimal(Math.abs(d.rate - days[i - 1].rate))}` })}` : ""}` }));
+  return `<div class="izgara"><div class="sutun">
+    <section class="kart"><h2>${esc(t("Daily error rate · last 30 days"))}</h2>
+      <div class="yz-rakamlar">
+        <div><b>${lastDay ? pct(formatDecimal(lastDay.rate)) : "—"}</b><small>${lastDay ? t("{day} ({words} words) · vs previous day {diff}", { day: esc(shortDay(lastDay.g)), words: formatNumber(lastDay.k), diff: diffHtml(previousDay ? lastDay.rate - previousDay.rate : null, points, "low") }) : ""}</small></div>
+        <div><b>${last7 == null ? "—" : pct(formatDecimal(last7))}</b><small>${t("last 7 days · vs previous 7 days {diff}", { diff: diffHtml(last7 != null && previous7 != null ? last7 - previous7 : null, points, "low") })}</small></div>
+        <div><b>${bestDay ? pct(formatDecimal(bestDay.rate)) : "—"}</b><small>${t("best day · {day}", { day: bestDay ? esc(shortDay(bestDay.g)) : "" })}</small></div>
+      </div>
+      ${lineChart(chartPoints, (v) => pct(formatDecimal(v, v % 1 ? 1 : 0)), "low")}
+      <p class="soluk" style="font-size:12px;margin:4px 0 0">${esc(t("Lower is better. Hover a point for that day's word count and the change from the previous day; days with fewer than 200 words are left out."))}</p>
+    </section>
+    <section class="kart"><h2>${esc(t("Summary"))}</h2>
+      <div class="yz-rakamlar">
+        <div><b>${percent(y.hata, y.kelime)}</b><small>${esc(t("misspelled words across all messages"))}</small></div>
+        <div><b>${formatNumber(y.kelime)}</b><small>${esc(y.kelime === 1 ? t("word") : t("words"))}</small></div>
+        <div><b>${formatNumber(y.mesaj)}</b><small>${esc(y.mesaj === 1 ? t("message") : t("messages"))}</small></div>
+      </div>
+      ${handTotal ? `<p class="yz-not">${t("{percent} of transpositions are between letters of the two hands: one hand presses before the other's key has finished. It's a rhythm problem, not finger placement.", { percent: `<b>${percent(hands["iki el"] || 0, handTotal)}</b>` })}</p>` : ""}
+    </section>
+    <section class="kart"><h2>${esc(t("Most often misspelled words"))}</h2>
+      <table><colgroup><col style="width:28%"><col style="width:12%"><col></colgroup>
+        <thead><tr><th>${esc(t("Correct"))}</th><th>${esc(t("Times"))}</th><th>${esc(t("Written as"))}</th></tr></thead>
+        <tbody>${y.kelimeler.slice(0, 60).map(([d, n, b]) =>
+          `<tr><td><b>${esc(d)}</b></td><td>${n}</td><td class="soluk">${b.map(([w]) => esc(w)).join(", ")}</td></tr>`).join("")}</tbody></table>
+      <p class="soluk" style="font-size:12px;margin:8px 0 0">${t("Full list: {file}", { file: "<code>kelimeler.md</code>" })}</p>
+    </section>
+  </div><div class="sutun">
+    <section class="kart"><h2>${esc(t("Error types"))}</h2>
+      ${y.turler.map(([kind, n]) => `<div class="yz-tur"><span>${esc(errorTypeLabel(kind))}</span><div><i style="width:${(100 * n / y.turler[0][1]).toFixed(1)}%"></i></div><small>${percent(n, typeTotal)}</small></div>`).join("")}
+    </section>
+    <section class="kart"><h2>${esc(t("Transposed letters"))}</h2>
+      <div class="yz-ciftler">${y.ciftler.map(([c, n]) => `<span><b>${esc(c)}</b> → ${esc(swapped(c))}<small>${n}</small></span>`).join("")}</div>
+    </section>
+    <section class="kart"><h2>${esc(t("Most often skipped letters"))}</h2>
+      <div class="yz-ciftler">${y.eksik_harfler.map(([c, n]) => `<span><b>${esc(c)}</b><small>${n}</small></span>`).join("")}</div>
+    </section>
+    <p class="soluk" style="font-size:12px;margin:0">${esc(t("Source: your messages to Claude (excluding pasted text, code and paths)."))}
+      ${esc(y.yenileniyor ? t("Last analysis {time} · refreshing.", { time: y.uretildi }) : t("Last analysis {time}.", { time: y.uretildi }))} ${esc(t('Some "errors" may be correct words missing from the dictionary.'))}</p>
+  </div></div>`;
+}
+
+
+render();
+setInterval(() => { if (!isHidden() && !editing) render(); }, 10000);
+</script>
+</body>
+</html>

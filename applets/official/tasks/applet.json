@@ -1,0 +1,15 @@
+{
+  "name": "Tasks",
+  "description": "Your projects' md task lists on one screen; everything you write goes to the file.",
+  "icon": "icon.svg",
+  "order": 10,
+  "backend": "backend.js",
+  "settings": [
+    {
+      "key": "projects",
+      "label": "Projects",
+      "hint": "Each project: id, name, folder, files or pattern, finishDate, doneList, icon",
+      "type": "json"
+    }
+  ]
+}

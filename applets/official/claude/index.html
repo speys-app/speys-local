@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Sessions</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+.ses-kart{margin-bottom:16px}
+.ses-aciklama{margin:0 0 8px;font-size:13px}
+.ses-satir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--cizgi);font-size:14px}
+.ses-satir span{flex:1;min-width:200px;font-weight:600}
+.ses-satir select{border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey2);color:var(--metin);padding:6px 8px;font-size:13px;min-width:160px}
+.ses-satir button{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey);color:var(--metin)}
+.ses-satir button:disabled{opacity:.4}
+.ses-not{margin:8px 0 0;font-size:12px}
+.ses-kanca-satir{margin-top:8px}
+.ses-kanca-satir small{display:block;font-size:12px;font-weight:400;color:var(--soluk)}
+.ses-satir button.ses-anahtar{position:relative;width:34px;height:20px;border:0;border-radius:99px;background:var(--cizgi);padding:0}
+.ses-anahtar::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.ses-satir button.ses-anahtar.on{background:var(--yesil)}
+.ses-anahtar.on::after{left:16px}
+.ses-hata{color:var(--kirmizi)}
+</style>
+</head>
+<body>
+
+<main><div id="sounds"></div><div id="icerik"></div></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+const STATUS = { onay: [t("Waiting for approval"), "kirmizi"], calisiyor: [t("Running"), "mavi"], bitti: [t("Done · your turn"), "yesil"], yanitsiz: [t("No response"), "gri"], sessiz: [t("Quiet"), "gri"] };
+let sessions = [];
+// —— Claude ——————————————————————————————————————————————————————
+function sessionCard(x) {
+  const [label, color] = STATUS[x.durum];
+  return `<article class="oturum ${color}"><div class="bas"><span class="rozet ${color}">${esc(label)}</span>
+    <span class="proje">${esc(x.proje)}</span><span>${esc(x.yapilandirma)}</span><span class="zaman">${timeAgo(x.zaman)}</span></div>
+    <h3>${esc(x.baslik)}</h3>
+    ${x.onay_mesaji ? `<p class="onay">${esc(x.onay_mesaji)}</p>` : ""}
+    ${x.istek && x.istek !== x.baslik ? `<p><b>${esc(t("Request"))}</b>${esc(x.istek)}</p>` : ""}
+    ${x.cevap ? `<p><b>${esc(t("Last reply"))}</b>${esc(x.cevap)}</p>` : ""}</article>`;
+}
+function render() {
+  // "Quiet": a session from before the hooks or idle for a long time; not shown.
+  const visible = sessions.filter((x) => x.durum !== "sessiz");
+  return `<section class="kart"><h2>${esc(t("Claude sessions · last 48 hours · {n} running", { n: visible.filter((x) => x.durum === "calisiyor").length }))}</h2>
+    ${visible.map(sessionCard).join("") || `<p class="bos">${esc(t("No sessions."))}</p>`}
+    <p class="soluk" style="font-size:12px">${esc(t("Status comes from Claude hooks."))}</p></section>`;
+}
+
+// —— Sound: the point of this applet. It sits above the list and is drawn apart: the list redraws every 10 seconds.
+let sounds = null;
+const PLAY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>';
+const SOUND_EVENTS = [["done", () => t("When a session finishes")], ["approval", () => t("When it needs your approval")]];
+function soundRow([event, label]) {
+  const chosen = sounds.chosen[event];
+  const option = (s) => `<option value="${esc(s.id)}"${s.id === chosen ? " selected" : ""}>${esc(s.name)}</option>`;
+  const own = sounds.options.filter((s) => s.own), system = sounds.options.filter((s) => !s.own);
+  const group = (title, list) => (list.length ? `<optgroup label="${esc(title)}">${list.map(option).join("")}</optgroup>` : "");
+  return `<div class="ses-satir"><span>${esc(label())}</span>
+    <select data-sound="${event}"><option value="${esc(sounds.none)}"${chosen === sounds.none ? " selected" : ""}>${esc(t("No sound"))}</option>${group(t("Your sounds"), own)}${group(t("System sounds"), system)}</select>
+    ${sounds.canPlay ? `<button type="button" data-play="${event}" title="${esc(t("Play"))}" aria-label="${esc(t("Play"))}"${chosen === sounds.none ? " disabled" : ""}>${PLAY_ICON}</button>` : ""}</div>`;
+}
+function soundsHtml() {
+  return `<section class="kart ses-kart"><h2>${esc(t("Sound"))}</h2>
+    <p class="soluk ses-aciklama">${esc(t("Hear when Claude is done, without watching the tab."))}</p>
+    ${SOUND_EVENTS.map(soundRow).join("")}
+    ${sounds.canPlay ? "" : `<p class="soluk ses-not">${esc(t("Sounds and notifications work on macOS for now."))}</p>`}
+    <p class="soluk ses-not">${t("To add your own, put an audio file in <code>{folder}</code>.", { folder: esc(sounds.folder) })}</p>
+    <div class="ses-satir ses-kanca-satir"><span>${esc(t("Sound and notifications"))}<small>${esc(t("Runs through a Claude Code hook, added to its settings automatically."))}</small></span>
+      <button type="button" class="ses-anahtar${sounds.hook ? " on" : ""}" role="switch" aria-checked="${sounds.hook}" aria-label="${esc(t("Sound and notifications"))}" data-hook></button></div>
+    ${sounds.hookFailed.length ? `<p class="ses-not ses-hata">${esc(t("Could not read the settings in {folder}, so the hook wasn't added there.", { folder: sounds.hookFailed.join(", ") }))}</p>` : ""}</section>`;
+}
+async function loadSounds() {
+  sounds = await getJson("./api/sounds");
+  $("#sounds").innerHTML = soundsHtml();
+}
+const postSound = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body) });
+document.addEventListener("change", async (e) => {
+  const event = e.target.dataset?.sound;
+  if (!event) return;
+  const id = e.target.value;
+  const r = await postSound("./api/sounds", { event, id });
+  if (!r.ok) return notify(t("Could not save."));
+  await loadSounds();
+  if (id !== sounds.none) postSound("./api/sounds/play", { id });
+});
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-hook]")) return postSound("./api/sounds/hook", { on: !sounds.hook }).then(loadSounds);
+  const button = e.target.closest("[data-play]");
+  if (button) postSound("./api/sounds/play", { id: sounds.chosen[button.dataset.play] });
+});
+loadSounds().catch(() => {});
+
+async function refresh() {
+  if (isHidden()) return;
+  try {
+    sessions = await getJson("./api/oturumlar");
+    $("#icerik").innerHTML = render();
+  } catch { $("#icerik").innerHTML = `<p class="bos">${esc(t("Could not reach the server."))}</p>`; }
+}
+refresh();
+setInterval(refresh, 10000);
+window.addEventListener("focus", refresh);
+</script>
+</body>
+</html>

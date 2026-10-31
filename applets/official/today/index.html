@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+.td-bas{margin:6px 0 16px}
+.td-bas h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em}
+.td-bas p{margin:2px 0 0;color:var(--soluk);font-size:14px}
+.td-olcu{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.td-olcu button{all:unset;box-sizing:border-box;cursor:pointer;background:var(--yuzey);border:1px solid var(--cizgi);border-radius:12px;padding:14px 16px;min-width:0}
+.td-olcu button:hover{background:var(--yuzey2)}
+.td-olcu span{display:block;font-size:12px;color:var(--soluk)}
+.td-olcu b{display:block;font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td-olcu small{display:block;font-size:12px;color:var(--soluk);margin-top:2px}
+.td-olcu .uyari{color:var(--kirmizi);font-weight:600}
+.td-satir{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--cizgi);font-size:14px;cursor:pointer}
+.td-satir:first-of-type{border-top:0}
+.td-satir .govde{flex:1;min-width:0}
+.td-satir small{display:block;font-size:12px;color:var(--soluk);margin-top:1px}
+.td-satir.bitti .govde>span{text-decoration:line-through;color:var(--soluk)}
+.td-satir .sag{flex:none;font-size:12px;color:var(--soluk);font-variant-numeric:tabular-nums}
+.td-satir .sag.gec{color:var(--kirmizi);font-weight:600}
+.td-para{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.td-para span{display:block;font-size:12px;color:var(--soluk)}
+.td-para b{font-size:17px;font-variant-numeric:tabular-nums}
+.td-cubuk{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--yuzey2);margin-bottom:6px}
+.td-cubuk i{display:block;height:100%}
+.td-ekle{display:flex;gap:6px;margin-top:10px}
+.td-ekle input{flex:1;min-width:0;border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey2);color:var(--metin);padding:6px 9px;font-size:13px}
+.td-ekle button{border:1px solid var(--cizgi);border-radius:8px;background:var(--yuzey);color:var(--metin);padding:6px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+document.documentElement.style.setProperty("--ust", "0px");
+const openApplet = (id, inner) => parent.openApplet?.(id, inner);
+// A missing or unconfigured applet just hides its card.
+const read = (path) => getJson(path).then((d) => (d.not_configured ? null : d)).catch(() => null);
+const pad = (n) => String(n).padStart(2, "0");
+const money = (n) => `${formatNumber(Math.round(n))} TL`;
+const daysFromToday = (iso) => Math.round((new Date(iso + "T00:00") - new Date(isoDay(new Date()) + "T00:00")) / 864e5);
+let data = null, typing = false;
+
+// The task format: "- [ ] text #tag"; the Today tag is written "#bugün" in task files, which is data, not interface text.
+function todaysTasks(projects) {
+  const today = isoDay(new Date()), out = [];
+  for (const p of projects || []) {
+    for (const list of p.listeler) {
+      list.icerik.split("\n").forEach((raw, line) => {
+        const m = raw.match(/^\s*[-*] \[( |x|X)\] ?(.*)$/);
+        if (!m) return;
+        const tags = m[2].match(/#[\p{L}\p{N}_-]+/gu) || [];
+        const done = m[1] !== " ";
+        if (!tags.includes("#bugün") || (done && !tags.includes(`#bitti-${today}`))) return;
+        out.push({ project: p, list, line, raw, done, text: m[2].replace(/(\s+#[\p{L}\p{N}_-]+)+\s*$/u, "") });
+      });
+    }
+  }
+  return out;
+}
+
+function followUps(crm) {
+  if (!crm?.kayitlar) return [];
+  const kindOf = (k) => crm.asamalar.find((a) => a.pipeline_id === k.pipeline_id && a.key === k.stage)?.kind;
+  return crm.kayitlar.filter((k) => kindOf(k) === "open" && k.next_action_at)
+    .sort((a, b) => a.next_action_at.localeCompare(b.next_action_at));
+}
+
+async function load() {
+  const now = new Date(), month = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+  const last = isoDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const [tasks, sessions, crm, ledger, social, habits] = await Promise.all([
+    read("/a/tasks/api/gorevler"), read("/a/claude/api/oturumlar"), read("/a/crm/api/crm"),
+    read(`/a/kasa/api/kasa?from=${month}-01&to=${last}&year=${now.getFullYear()}`), read("/a/sosyal/api/sosyal"), read("./api/habits"),
+  ]);
+  data = {
+    tasks: todaysTasks(tasks?.projeler),
+    sessions: Array.isArray(sessions) ? sessions.filter((s) => s.durum !== "sessiz") : null,
+    follow: followUps(crm), ledger, habits,
+    posts: (social?.videolar || []).filter((v) => v.tarih === isoDay(now)), accounts: social?.hesaplar || [],
+  };
+  draw();
+}
+
+function statsHtml() {
+  const { tasks, sessions, follow, ledger } = data;
+  const open_ = tasks.filter((x) => !x.done).length;
+  const waiting = (sessions || []).filter((s) => s.durum === "onay").length, running = (sessions || []).filter((s) => s.durum === "calisiyor").length;
+  const due = follow.filter((k) => daysFromToday(k.next_action_at) <= 0).length;
+  const stat = (id, label, value, note, warn) => `<button type="button" data-open="${id}"><span>${esc(label)}</span><b>${esc(value)}</b><small class="${warn ? "uyari" : ""}">${esc(note)}</small></button>`;
+  return `<div class="td-olcu">
+    ${stat("tasks", t("Tasks today"), `${tasks.length - open_}/${tasks.length}`, open_ ? t("{n} left", { n: open_ }) : tasks.length ? t("All done") : t("Nothing for today"))}
+    ${sessions ? stat("claude", t("Claude sessions"), String(running), waiting ? t("{n} waiting for you", { n: waiting }) : t("running now"), waiting > 0) : ""}
+    ${stat("crm", t("Follow-ups"), String(due), due ? t("due today or late") : t("nothing due"), due > 0)}
+    ${ledger ? stat("kasa", t("Profit this month"), money(ledger.summary.profit), t("{income} in · {expense} out", { income: money(ledger.summary.income), expense: money(ledger.summary.expense) })) : ""}
+  </div>`;
+}
+
+function tasksCard() {
+  const rows = data.tasks.map((x) => `<div class="td-satir${x.done ? " bitti" : ""}" data-task="${x.line}" data-project="${esc(x.project.id)}" data-list="${esc(x.list.ad)}" data-raw="${esc(x.raw)}">
+      ${checkboxHtml(x.done, "md")}<div class="govde"><span>${inlineMd(x.text)}</span><small>${esc(x.project.ad)}</small></div></div>`).join("");
+  return `<section class="kart"><h2>${esc(t("Today's tasks"))}</h2>${rows || `<p class="bos">${esc(t("Nothing for today. Mark a task \"Today\" in Tasks."))}</p>`}</section>`;
+}
+
+function sessionsCard() {
+  if (!data.sessions?.length) return "";
+  const STATE = { onay: [t("Waiting for approval"), "kirmizi"], calisiyor: [t("Running"), "mavi"], bitti: [t("Done"), "yesil"], yanitsiz: [t("Idle"), ""] };
+  const order = { onay: 0, calisiyor: 1, bitti: 2 };
+  const rows = [...data.sessions].sort((a, b) => (order[a.durum] ?? 3) - (order[b.durum] ?? 3)).slice(0, 4).map((s) => {
+    const [label, color] = STATE[s.durum] || [s.durum, ""];
+    return `<div class="td-satir" data-open="claude"><div class="govde"><span>${esc(s.baslik)}</span><small>${esc(s.proje)} · ${esc(timeAgo(s.zaman))}</small></div><span class="rozet ${color}">${esc(label)}</span></div>`;
+  }).join("");
+  return `<section class="kart"><h2>${esc(t("Claude sessions"))}</h2>${rows}</section>`;
+}
+
+function followCard() {
+  if (!data.follow.length) return "";
+  const rows = data.follow.slice(0, 5).map((k) => {
+    const d = daysFromToday(k.next_action_at);
+    const when = d < 0 ? t("{n} days late", { n: -d }) : d === 0 ? t("today") : formatDate(k.next_action_at);
+    return `<div class="td-satir" data-open="crm"><div class="govde"><span>${esc(k.title)}</span><small>${esc(k.next_action || "")}</small></div><span class="sag${d < 0 ? " gec" : ""}">${esc(when)}</span></div>`;
+  }).join("");
+  return `<section class="kart"><h2>${esc(t("Follow-ups"))}</h2>${rows}</section>`;
+}
+
+function moneyCard() {
+  const l = data.ledger;
+  if (!l) return "";
+  const { income, expense, profit } = l.summary, total = income + expense;
+  const upcoming = (l.upcoming || []).slice(0, 3).map((u) => `<div class="td-satir" data-open="kasa"><div class="govde"><span>${esc(u.title)}</span></div><span class="sag">${esc(formatDate(u.dueDate))}</span></div>`).join("");
+  return `<section class="kart"><h2>${esc(t("This month"))}</h2>
+    <div class="td-para"><div><span>${esc(t("Income"))}</span><b>${esc(money(income))}</b></div><div><span>${esc(t("Expenses"))}</span><b>${esc(money(expense))}</b></div><div><span>${esc(t("Profit"))}</span><b>${esc(money(profit))}</b></div></div>
+    ${total ? `<div class="td-cubuk"><i style="width:${(100 * income) / total}%;background:var(--yesil)"></i><i style="width:${(100 * expense) / total}%;background:var(--vurgu)"></i></div>` : `<p class="bos">${esc(t("No entries this month."))}</p>`}
+    ${upcoming}</section>`;
+}
+
+function postsCard() {
+  if (!data.posts.length) return "";
+  const rows = data.posts.map((v) => `<div class="td-satir" data-open="sosyal"><div class="govde"><span>${esc(v.baslik)}</span><small>${esc(data.accounts.find((a) => a.id === v.hesap)?.ad || "")}</small></div><span class="rozet ${v.adimlar?.paylasildi ? "yesil" : ""}">${esc(v.adimlar?.paylasildi ? t("Posted") : t("To post"))}</span></div>`).join("");
+  return `<section class="kart"><h2>${esc(t("Posting today"))}</h2>${rows}</section>`;
+}
+
+function habitsCard() {
+  if (!data.habits) return "";
+  const { habits, done } = data.habits;
+  const rows = habits.map((h) => `<div class="td-satir${done.includes(h.id) ? " bitti" : ""}" data-habit="${esc(h.id)}">${checkboxHtml(done.includes(h.id), "md")}<div class="govde"><span>${esc(h.name)}</span></div></div>`).join("");
+  return `<section class="kart"><h2>${esc(t("Habits"))} · ${done.filter((id) => habits.some((h) => h.id === id)).length}/${habits.length}</h2>${rows}
+    <div class="td-ekle"><input id="habit-new" placeholder="${esc(t("New habit"))}" autocomplete="off"><button type="button" data-habit-add>${esc(t("Add"))}</button></div></section>`;
+}
+
+function draw() {
+  if (!data) return;
+  const day = new Date().toLocaleDateString(LOCALE, { weekday: "long", day: "numeric", month: "long" });
+  const left = tasksCard() + followCard() + postsCard(), right = sessionsCard() + moneyCard() + habitsCard();
+  $("#icerik").innerHTML = `<div class="td-bas"><h1>${esc(day)}</h1></div>${statsHtml()}
+    <div class="izgara"><div class="sutun">${left}</div><div class="sutun">${right}</div></div>`;
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(body) });
+  if (r.status === 409) notify(t("The file changed in the meantime, reloaded."));
+  else if (!r.ok) notify(t("Could not write."));
+  await load();
+}
+
+function addHabit() {
+  const input = $("#habit-new"), name = input?.value.trim();
+  if (name) { typing = false; post("./api/habits", { op: "add", name }); }
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-habit-add]")) return addHabit();
+  const habit = e.target.closest("[data-habit]");
+  if (habit) return post("./api/habits", { op: "toggle", id: habit.dataset.habit });
+  const task = e.target.closest("[data-task]");
+  if (task) {
+    if (e.target.closest('[data-is="isaretle"]')) {
+      return post("/a/tasks/api/gorevler", { proje: task.dataset.project, ad: task.dataset.list, op: { action: "toggle", line: +task.dataset.task, text: task.dataset.raw, done: !task.classList.contains("bitti") } });
+    }
+    return openApplet("tasks", `gorevler/${task.dataset.project}/${task.dataset.list}`);
+  }
+  const link = e.target.closest("[data-open]");
+  if (link) openApplet(link.dataset.open);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "habit-new") addHabit(); });
+document.addEventListener("focusin", (e) => { if (e.target.id === "habit-new") typing = true; });
+document.addEventListener("focusout", (e) => { if (e.target.id === "habit-new") typing = false; });
+load();
+window.addEventListener("focus", () => { if (!isHidden() && !typing) load().catch(() => {}); });
+</script>
+</body>
+</html>
