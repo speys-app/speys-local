@@ -12,7 +12,7 @@
 //   Words seen 5+ times across 3+ sessions in Claude's Turkish replies (applet, speys…): project terms should
 //   not raise false alarms. Quoted text doesn't count (it quotes the user's own spelling).
 //
-// Error candidate: a word not in the dictionary + a frequent word within edit distance 1 (2 at 6+ letters) (SymSpell
+// Error candidate: a word not in the dictionary + a frequent word within edit distance 1 (2 at 8+ letters) (SymSpell
 // deletion index). Transposition comes first: it is the most common error. A word that is in the dictionary but rare
 // is still an error if it has a neighbour 50 times as frequent. Spoken forms ("bakcaz", "dicem", "geliyo") are not errors.
 // Not errors either: a known stem with Turkish endings ("iconları", "fotoda"), and a neighbour only keys far apart could
@@ -33,6 +33,7 @@ const SPOKEN_YOR = /(?<=[ıiuü])yo(m|z|sun|sunuz|lar|du|dum|dun|duk|dunuz|dular
 const YOR_ENDINGS = { m: "um", z: "uz" };
 // plural, possessive, then one case ending, "ki" last
 const ENDINGS = /^(l[ae]r)?(ları|leri|[ıiuü]m|[ıiuü]n|[ıiuü]|s[ıiuü]|m[ıiuü]z|n[ıiuü]z|[ıiuü]m[ıiuü]z|[ıiuü]n[ıiuü]z)?(y?[ıiuü]|y?[ae]|n[ıiuü]|n[ae]|[dt][ae]|[dt][ae]n|nd[ae]|nd[ae]n|y?l[ae]|n?[ıiuü]n|y?s[ae]|[cç][ıiuü])?(ki)?$/;
+const PAST_OR_REPORTED = /([dt][ıiuü](m|n|k|n[ıiuü]z)?|m[ıiuü]ş)$/;
 const VOICELESS_END = /[fstkçşhp]$/; // after these a d turns into t: "girişte", not "girişde"
 const VOWEL = /[aeıioöuü]/;
 const TWO_VOWELS = /[aeıioöuü]{2}/;
@@ -41,6 +42,7 @@ const MIN_PERSON_STEM = 5; // "-cı" only after a longer stem: "bakımcı", not 
 const DOMINANT = 40; // a stem with endings doesn't save a word this many times rarer than its neighbour: "kulla" is "kullan"
 const VERY_COMMON = 20_000; // one wrong key, however far, if the word is this common and the typed form unknown: "olnn"
 const RARE_LONG_LENGTH = 8, RARE_LONG_FREQUENCY = 10; // long words are safe to suggest even when rare: "panelden"
+const SAME_LETTERS_LENGTH = 6; // the same letters in another order are a typing slip from here on: "oalrka", "ypalaım", "faklrı"
 const TWO_EDITS_LENGTH = 8; // two edits turn a shorter word into a different word: "soliter" → "splinter"
 const CLOSE_FORMS = new Set(["bp", "pb", "dt", "td", "gk", "kg", "ğk", "kğ", "ei", "ie"]); // spelled by sound, not keyed: "takib", "deniyelim"
 const KEY_ROWS = [["qwertyuıopğü", 0], ["asdfghjklşi", 0.25], ["zxcvbnmöç", 0.75]]; // Turkish Q, with each row's offset
@@ -263,13 +265,21 @@ export async function analyze(outDir, roots) {
     const base = full.replace(/[ıiuü]yor[a-zçğıöşü]*$/, "");
     return base !== full && [base, base + "e", base + "a"].some((v) => (tr.get(v) ?? 0) >= STEM_FREQUENCY);
   };
+  /** "kaldı" and "gelmiş" have a verb under them, "kedi" and "notu" don't: "kedimi" is a correct word, not "kedi mi". */
+  const isConjugated = (w) => {
+    if (isVerbForm(w)) return true;
+    const m = PAST_OR_REPORTED.exec(w);
+    if (!m) return false;
+    const root = w.slice(0, m.index);
+    return Math.max(tr.get(`${root}mak`) ?? 0, tr.get(`${root}mek`) ?? 0) >= STEM_FREQUENCY;
+  };
   /** "kaldımı" → "kaldım mı", "geliyomu" → "geliyor mu": a question particle without its space. */
   const gluedQuestion = (w) => {
     const m = /m[ıiuü]$/.exec(w);
     if (!m || m.index < 4) return null;
     const base = w.slice(0, m.index), full = fullYorForm(base);
     if (full && (tr.has(full) || isVerbForm(full))) return `${full} ${m[0]}`;
-    return (tr.get(base) ?? 0) >= 300 ? `${base} ${m[0]}` : null;
+    return (tr.get(base) ?? 0) >= 300 && isConjugated(base) ? `${base} ${m[0]}` : null;
   };
 
   const index = new Map();
@@ -287,8 +297,9 @@ export async function analyze(outDir, roots) {
   function correct(w, rare) {
     if (cache.has(w)) return cache.get(w);
     const limit = w.length >= TWO_EDITS_LENGTH ? 2 : 1;
+    const sorted = [...w].sort().join("");
     const candidates = new Set();
-    for (const s of deletions(w, limit)) for (const c of index.get(s) || []) candidates.add(c);
+    for (const s of deletions(w, w.length >= SAME_LETTERS_LENGTH ? 2 : limit)) for (const c of index.get(s) || []) candidates.add(c);
     candidates.delete(w);
     let best = null;
     for (const c of candidates) {
@@ -296,11 +307,12 @@ export async function analyze(outDir, roots) {
       if (asciiVariant(w, c)) d = 0.5;
       else {
         d = distance(w, c);
-        if (d === 1 && w.length === c.length && [...w].sort().join("") === [...c].sort().join("")) d = 0.8;
+        if (d === 1 && w.length === c.length && sorted === [...c].sort().join("")) d = 0.8;
       }
       if (c.length <= 3 && (tr.get(c) || 0) < 1000) continue; // short, rare candidates such as "gib", "ibi" give wrong corrections
       const freq = tr.get(c) || 0;
-      if (d > limit || (!isKeyboardSlip(w, c) && !(d === 1 && !rare && w.length === c.length && freq >= VERY_COMMON))) continue;
+      const sameLetters = d === 2 && w.length >= SAME_LETTERS_LENGTH && w.length === c.length && sorted === [...c].sort().join("");
+      if (!sameLetters && (d > limit || (!isKeyboardSlip(w, c) && !(d === 1 && !rare && w.length === c.length && freq >= VERY_COMMON)))) continue;
       // A swap beats another edit, unless the other word is far more common: "içn" is "için", not "çin"
       const close = best && Math.abs(d - best.d) <= 0.2;
       if (!best || (close ? freq >= best.freq * (d < best.d ? 0.1 : d > best.d ? 10 : 1) : d < best.d)) best = { d, freq, c };

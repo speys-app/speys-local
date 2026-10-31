@@ -40,6 +40,20 @@ test("spoken forms, words with endings and far-away neighbours aren't errors", a
   assert.deepEqual([...errors], []);
 });
 
+test("a possessive isn't a question without its space", async () => {
+  const errors = await errorsIn("possessive", "projemi sayfamı videomu listemi müşterimi kedimi notumu kaldımı geliyomu gelmişmi");
+  for (const word of ["projemi", "sayfamı", "videomu", "listemi", "müşterimi", "kedimi", "notumu"]) assert.ok(!(errors.get(word) ?? "").includes(" "), word);
+  assert.equal(errors.get("kaldımı"), "kaldı mı");
+  assert.equal(errors.get("geliyomu"), "geliyor mu");
+  assert.equal(errors.get("gelmişmi"), "gelmiş mi");
+});
+
+test("the same letters in another order are a typo, even with two changes", async () => {
+  const errors = await errorsIn("same-letters", "oalrka ypalaım faklrı bkalaım eşkidle soliter");
+  for (const [wrong, right] of [["oalrka", "olarak"], ["ypalaım", "yapalım"], ["faklrı", "farklı"], ["bkalaım", "bakalım"], ["eşkidle", "şekilde"]]) assert.equal(errors.get(wrong), right, wrong);
+  assert.ok(!errors.has("soliter"));
+});
+
 test("real typos are still found", async () => {
   const errors = await errorsIn("typos", "ekleyeim ayarllarız sınucu kaldırlaım gridin açlışıyo uygulamyı oyunlarada girişde kulla içn takib olnn panleden deniyelim kaldımı geliyomu kısmınıa okyu");
   for (const [wrong, right] of [["ekleyeim", "ekleyelim"], ["ayarllarız", "ayarlarız"], ["sınucu", "sonucu"], ["kaldırlaım", "kaldıralım"], ["gridin", "girdin"], ["açlışıyo", "çalışıyor"], ["uygulamyı", "uygulamayı"], ["oyunlarada", "oyunlarda"], ["kulla", "kullan"], ["içn", "için"], ["takib", "takip"], ["olnn", "olan"], ["panleden", "panelden"], ["deniyelim", "deneyelim"], ["kaldımı", "kaldı mı"], ["geliyomu", "geliyor mu"]]) {
