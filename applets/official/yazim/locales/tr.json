@@ -1,4 +1,5 @@
 {
+  "Typo Check is built for Turkish for now. In other languages it misses real typos and can flag correct words.": "Typo Check şimdilik Türkçe için yapıldı. Başka dillerde gerçek hataları kaçırır, doğru kelimeleri de işaretleyebilir.",
   "The keyboard errors you make writing to Claude, and practice built for them.": "Claude'a yazarken yaptığın klavye hataları ve onlara özel alıştırma.",
   "Data folder": "Veri klasörü",
   "Analysis results and practice sessions": "Analiz sonucu ve alıştırmalar",
