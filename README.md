@@ -43,9 +43,12 @@ With a few Claude Code sessions open, it's easy to miss the one that finished. S
 
 - **Pick your sound** for "session finished" and "needs your approval": your own audio file or a system sound, with a play button to try it.
 - **Get a notification** when a job that took a while ends, so you can leave the tab.
-- **See every session** on one screen: running, done, waiting for approval, with the last request and reply.
+- **See every session** at its desk in a little office: typing, raising a hand for approval, or done. Click a desk for the last request and reply, and pick the furniture yourself.
 
-<img src="docs/images/sessions.png" alt="Claude Sessions: a sound picker above the list of running and finished sessions">
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/office-light.png">
+  <img src="docs/images/office.png" alt="Claude Sessions: sessions at their desks in a pixel office, one waiting for approval, one working, two done">
+</picture>
 
 ## 🚀 Quick start
 
@@ -58,7 +61,7 @@ node start.js          # http://localhost:3400
 ```
 
 Start with the computer (macOS): `node start.js --install`, remove with `--uninstall`.
-Update with the button in Settings, or `git pull`.
+It checks GitHub once an hour and asks when there is an update; nothing installs without your click. Turn the check off in Settings. You can also update with `git pull`.
 
 Settings and data live in `data/` next to the code. It stays out of git and updates don't touch it, but `git clean -x` would delete it, so don't run that here and keep your own backup. The interface comes in English and Turkish; pick the language in Settings.
 
@@ -66,9 +69,13 @@ Settings and data live in `data/` next to the code. It stays out of git and upda
 
 ### Claude hook
 
-Session status, notifications and sound run on a Claude Code hook. Speys Local adds it to `~/.claude/settings.json` when you first open it: only its own entries, with a backup next to the file. Turn it off with the switch on the Claude Sessions page and it is removed.
+Session status, notifications and sound run on a Claude Code hook. Speys Local adds it to `~/.claude/settings.json` when you first open it: only its own entries, with a backup next to the file. Turn it off with the switch on the Claude Sessions page and it is removed. If you delete the folder first, the entry stays in the settings file but does nothing.
 
-Sound and notifications work on macOS for now. To add your own sounds, put audio files in `data/main/apps/claude/sounds/`.
+Speys Local is built and tested on macOS. It hasn't been tried on Windows or Linux yet, so expect rough edges there. Sound and notifications work on macOS for now. To add your own sounds, put audio files in `data/main/apps/claude/sounds/`.
+
+### Uninstall
+
+Turn the hook off on the Claude Sessions page, run `node start.js --uninstall` if you set up autostart, then delete the folder. Your data is in `data/` inside it, so move that out first if you want to keep it.
 
 ## 🧩 Applets
 
@@ -116,7 +123,7 @@ applets/custom/my-notes/
 
 ## 🏪 Store
 
-Applets written by other people, one click to install. Every version is reviewed before it's listed, and nothing updates by itself. Wrote one? [Send it in](CONTRIBUTING.md#store).
+The Store is open but still empty: applets written by other people will install from here with one click. Every version is reviewed before it's listed, and nothing updates by itself. Wrote one? [Send it in](CONTRIBUTING.md#store).
 
 ## 🗂️ Workspaces
 
@@ -124,7 +131,11 @@ A workspace is its own settings and data: keep work and personal apart, or a cli
 
 ## 🔒 Your data stays here
 
-The server binds to `127.0.0.1` and sends nothing out. It goes on the network only when you ask: the update button, and services you connect, like Search Console.
+The server binds to `127.0.0.1` and sends nothing out. It goes on the network for the hourly update check, a `git fetch` you can turn off in Settings, and when you ask: the update button, services you connect like Search Console or a GitHub repo, and the SEO applet's button that sends a page address to validator.schema.org.
+
+## 🧰 In VS Code
+
+[Speys Tools](https://github.com/speys-app/speys-vscode) is our VS Code extension for working across many repos: one key moves Source Control, the terminal and the Explorer to another project, and files go from the Explorer to Claude Code with a right click. It's a separate install, and Speys Local doesn't need it.
 
 ## 🤝 Contributing
 
