@@ -278,7 +278,7 @@ export default function create({ dataDir, settings, t, language }) {
     return true;
   }
 
-  async function preview(url, force) {
+  async function preview(url, force, askSchema) {
     let host = "";
     try {
       host = new URL(url).hostname.toLowerCase();
@@ -292,9 +292,13 @@ export default function create({ dataDir, settings, t, language }) {
     const languageCode = language();
     const key = `${languageCode} ${url}`;
     const cached = previews.get(key);
-    if (cached && !force && Date.now() / 1000 - cached.at < PREVIEW_S) return cached.data;
     const safe = (p) => p.catch((e) => ({ error: String(e.message || e).slice(0, 200) })); // if one fails, the others still come through
-    const [sayfa, google, schema] = await Promise.all([safe(readPage(url)), safe(googleView(url, property, languageCode)), safe(schemaOrg(url))]);
+    // validator.schema.org is a third party: the address only goes there when the user presses the button
+    if (cached && !force && Date.now() / 1000 - cached.at < PREVIEW_S) {
+      if (askSchema && !cached.data.schema) cached.data.schema = await safe(schemaOrg(url));
+      return cached.data;
+    }
+    const [sayfa, google, schema] = await Promise.all([safe(readPage(url)), safe(googleView(url, property, languageCode)), askSchema ? safe(schemaOrg(url)) : null]);
     const data = { url, sayfa, google, schema, alindi: isoMinute() };
     previews.set(key, { at: Date.now() / 1000, data });
     return data;
@@ -306,7 +310,7 @@ export default function create({ dataDir, settings, t, language }) {
       if (url.pathname === "/") return page(res, import.meta.dirname);
       if (url.pathname === "/api/seo") return send(res, 200, await overview(url.searchParams.get("yenile") === "1", url.searchParams.get("site")));
       if (url.pathname === "/api/seo/onizleme") {
-        const data = await preview(url.searchParams.get("url") || "", url.searchParams.get("yenile") === "1");
+        const data = await preview(url.searchParams.get("url") || "", url.searchParams.get("yenile") === "1", url.searchParams.get("schema") === "1");
         return data ? send(res, 200, data) : send(res, 400, { error: t("Invalid address") });
       }
     }
