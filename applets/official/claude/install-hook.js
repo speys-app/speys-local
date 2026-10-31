@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, readFileSync, renameSync, writeFileSync } fro
 import { join } from "node:path";
 
 const EVENTS = ["UserPromptSubmit", "Stop", "Notification"];
-const OURS = /claude[\\/]hook\.js/;
+const OURS = /applets[\\/](?:official|store|custom)[\\/]claude[\\/]hook\.js/;
 const isOurs = (h) => OURS.test(h?.command ?? "");
 
 function read(file) {
@@ -24,7 +24,11 @@ function withoutOurs(entries = []) {
   return entries.map((e) => ({ ...e, hooks: (e.hooks || []).filter((h) => !isOurs(h)) })).filter((e) => e.hooks.length);
 }
 
-const command = (hookFile) => `"${process.execPath}" "${hookFile}"`;
+// On Windows the plain form; elsewhere a deleted folder or a removed Node leaves the entry behind doing nothing, without an error on every event.
+const command = (hookFile) => {
+  const plain = `"${process.execPath}" "${hookFile}"`;
+  return process.platform === "win32" ? plain : `[ -f "${hookFile}" ] && ${plain} 2>/dev/null || true`;
+};
 
 /** A folder that doesn't exist means Claude Code isn't there: nothing is created. Returns the folders it failed on. */
 export function installHook(folders, hookFile) {
