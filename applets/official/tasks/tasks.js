@@ -1,10 +1,15 @@
 // Task file operations: they work with a line number + the expected text and return null if the file changed in
-// the meantime (Claude sessions and git write to the same files). No disk or network, text only.
+// the meantime (Claude sessions and git write to the same files). No disk or network, text only. The page sees LF;
+// a file keeps the line ending it had. Indent is counted in characters here and on the page, so a tab is one.
 const BOX_RE = /^(\s*[-*] )\[( |x|X)\] ?(.*)$/;
 const TAGS_RE = /((?:\s+#[\p{L}\p{N}_-]+)+)\s*$/u;
 const TAG_RE = /^[\p{L}\p{N}_-]+$/u;
 const DONE_TAG_RE = /^bitti-\d{4}-\d{2}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export const toLf = (content) => content.replace(/\r\n/g, "\n");
+const lines = (content) => content.split(/\r?\n/);
+const eolOf = (content) => /\r?\n/.exec(content)?.[0] ?? "\n";
 
 const indent = (s) => s.length - s.replace(/^[ \t]+/, "").length;
 const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -39,11 +44,11 @@ const shift = (block, by) =>
   block.map((t) => (!t.trim() ? t : by >= 0 ? " ".repeat(by) + t : t.slice(Math.min(-by, indent(t)))));
 
 function prepend(content, block) {
-  const s = content.split("\n");
+  const s = lines(content);
   let at = s.findIndex((t) => t.startsWith("# ")) + 1;
   while (at < s.length && !s[at].trim()) at++;
   s.splice(at, 0, ...block);
-  return s.join("\n");
+  return s.join(eolOf(content));
 }
 
 const buildLine = (m, body, tags) => `${m[1]}[${m[2]}] ` + [body, ...tags.map((t) => `#${t}`)].join(" ");
@@ -55,7 +60,7 @@ function withDoneDate(line, date) {
 }
 
 export function applyOp(content, op, finishDate = false) {
-  const s = content.split("\n");
+  const s = lines(content);
   switch (op?.action) {
     case "toggle": {
       if (!isTask(s, op.line, op.text)) return null;
@@ -122,16 +127,16 @@ export function applyOp(content, op, finishDate = false) {
     default:
       return null;
   }
-  return s.join("\n");
+  return s.join(eolOf(content));
 }
 
 /** Moves a task with its subtasks to the top of another list; returns the two changed texts, or null. */
 export function moveBetween(source, target, line, text) {
-  const s = source.split("\n");
+  const s = lines(source);
   if (!isTask(s, line, text)) return null;
   const end = blockEnd(s, line);
   const own = indent(s[line]);
   const block = s.slice(line, end).map((t) => t.slice(Math.min(own, indent(t))));
   s.splice(line, end - line);
-  return { source: s.join("\n"), target: prepend(target, block) };
+  return { source: s.join(eolOf(source)), target: prepend(target, block) };
 }

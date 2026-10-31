@@ -117,6 +117,21 @@ test("everything else is refused: these lists are read-only", async () => {
   assert.ok(calls.every((c) => c.method === "GET"));
 });
 
+test("known lists never go to the network: a list not read yet waits, a read one stays", async () => {
+  const { github, calls } = fakeGithub({ issues: [issue(1)] });
+  const before = github.known(REPO);
+  assert.deepEqual(before.map((l) => [l.ad, l.bekliyor]), [["issues", true], ["pulls", true]]);
+  assert.equal(calls.length, 0);
+  await github.lists(REPO, ["issues"]);
+  const after = github.known(REPO);
+  assert.equal(after[0].bekliyor, undefined);
+  assert.match(after[0].icerik, /Issue 1/);
+  assert.equal(after[1].bekliyor, true);
+  const seen = calls.length;
+  github.known(REPO);
+  assert.equal(calls.length, seen);
+});
+
 test("a tag isn't saved when the line isn't what the page saw", async () => {
   const { github } = fakeGithub({ issues: [issue(1)] });
   await github.lists(REPO);

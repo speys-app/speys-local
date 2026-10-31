@@ -53,27 +53,66 @@ async function loadTasks() {
   if (appletIcons || !tasksData.projeler.some((p) => p.github)) return;
   appletIcons = new Map((await getJson("/api/applets").catch(() => [])).filter((a) => a.icon).map((a) => [appletTag(a.name), a]));
 }
+// The open GitHub list comes on its own, after the screen: the other lists and Today don't wait for the network.
+let openGithub = null, pullingGithub = false;
+async function pullGithub() {
+  const open = openGithub;
+  if (!open || pullingGithub) return;
+  pullingGithub = true;
+  try {
+    const fresh = await getJson(`./api/gorevler/github?proje=${encodeURIComponent(open.project)}&ad=${encodeURIComponent(open.list)}`);
+    const lists = tasksData.projeler.find((p) => p.id === open.project)?.listeler;
+    const at = lists?.findIndex((l) => l.github && l.ad === open.list);
+    if (at >= 0) lists[at] = fresh;
+  } catch {
+    return; // the next refresh tries again
+  } finally {
+    pullingGithub = false;
+  }
+  if (!editing && !dragging) draw();
+}
 async function refresh() {
   if (isHidden() || editing || dragging) return; // the screen must not change under typing / dragging
   try {
     await loadTasks();
     $("#durum").textContent = "";
     draw();
+    pullGithub();
   } catch (e) {
     $("#durum").textContent = t("server unreachable");
   }
 }
+function addProjectPopup() {
+  const popup = openPopup({ title: t("Add project"), onClose: () => { editing = false; } });
+  editing = true;
+  popup.setBody(`<form class="proje-form"><label>${esc(t("Name"))}<input name="name" required></label>
+    <label>${esc(t("Folder"))}<input name="folder" required placeholder="~/my-project/tasks"></label>
+    <p class="fark-kotu" hidden></p>
+    <div class="dugmeler"><button type="submit" class="yz-dugme">${esc(t("Add"))}</button></div></form>`);
+  const form = popup.element.querySelector("form");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const r = await fetch("./api/proje", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    const answer = await r.json().catch(() => ({}));
+    if (!r.ok) { const line = form.querySelector(".fark-kotu"); line.hidden = false; line.textContent = answer.error || t("Could not write."); return; }
+    popup.close();
+    location.hash = `gorevler/${answer.id}`;
+    await loadTasks();
+    draw();
+  });
+  form.querySelector("input").focus();
+}
 function draw() {
   if (!tasksData) return;
   if (!tasksData.projeler.length) {
-    const path = `<b>${esc(t("Settings → Tasks → Projects"))}</b>`;
-    $("#icerik").innerHTML = `<p style="max-width:560px;color:var(--soluk)">${t("No projects yet. Add them under {path}:", { path })}</p><pre style="max-width:560px;overflow:auto;background:var(--yuzey2);padding:12px;border-radius:8px">[
-  ${esc(t('{ "id": "my-project", "name": "My project", "folder": "~/my-project/tasks", "pattern": "*.md", "finishDate": true }'))}
-]</pre>`;
+    $("#icerik").innerHTML = `<section class="kart" style="max-width:520px;margin:12vh auto"><h2>${esc(t("Add your first project"))}</h2>
+      <p class="soluk">${esc(t("A project is a folder with md task lists. Claude can read the same files."))}</p>
+      <button type="button" class="yz-dugme" data-is="proje-ekle">${esc(t("Add project"))}</button></section>`;
     return;
   }
   const scroll = scrollY;
   $("#icerik").innerHTML = tasksHtml();
+  if (openGithub?.waiting) pullGithub();
   restoreFocus();
   document.documentElement.style.setProperty("--ust", $("header.ust").offsetHeight + "px");
   scrollTo(0, scroll);
@@ -99,7 +138,7 @@ function parseList(content) {
     if (raw.startsWith("## ")) { blocks.push({ kind: "section", text: raw.slice(3).trim() }); stack.length = 0; return; }
     if (/^#{3,6} /.test(raw)) { blocks.push({ kind: "subsection", text: raw.replace(/^#+\s*/, "") }); stack.length = 0; return; }
     if (raw.trim() === "---") { blocks.push({ kind: "divider" }); stack.length = 0; return; }
-    const depth = Math.floor((raw.match(/^\s*/)[0].length) / 2);
+    const depth = raw.match(/^[ \t]*/)[0].length; // the server's rule: more indented than the task above = its subtask
     while (stack.length && stack.at(-1).depth >= depth) stack.pop();
     const siblings = stack.length ? stack.at(-1).node.children : blocks;
     const k = raw.match(/^\s*[-*] \[( |x|X)\] ?(.*)$/);
@@ -147,7 +186,7 @@ function metaHtml(d) {
   }
   return `<div class="meta">${progress}${finish}${tags.map((tag) => `<span class="pil${tag === "bugün" ? " bugun" : ""}">${esc(tagLabel(tag))}</span>`).join("")}</div>`;
 }
-const taskAttrs = (d, level) => `data-gorev data-seviye="${level}" data-satir="${d.line}" data-ham="${esc(d.raw)}" data-metin="${esc(d.body)}"`;
+const taskAttrs = (d, level) => `data-gorev data-seviye="${level}" data-satir="${d.line}" data-ham="${esc(d.raw)}" data-metin="${esc(d.body)}" data-altlar="${subtasks(d).length}"`;
 const addHtml = (place, parent, hint = t("Add subtask")) =>
   `<label class="ekle">${ICON.plus()}<input data-ekle="${esc(place)}" ${parent ? `data-ust-satir="${parent.line}" data-ust-ham="${esc(parent.raw)}"` : ""} placeholder="${esc(hint)}"></label>`;
 
@@ -239,15 +278,18 @@ function tasksHtml() {
     const open = !hiddenProjects.has(p.id);
     return `<button type="button" data-is="proje-gizle" data-proje="${esc(p.id)}">${iconImg(p)}${esc(p.ad)}<span class="goz">${open ? ICON.eye : ICON.eyeOff}</span></button>`;
   }).join("")}<hr>
+    <button type="button" data-is="proje-ekle">${esc(t("Add project"))}</button>
     <button type="button" data-is="proje-tumu" data-goster="1">${esc(t("Show all"))}<span class="goz">${ICON.eye}</span></button>
     <button type="button" data-is="proje-tumu" data-proje="${esc(project.id)}">${esc(t("Hide all"))}<span class="goz">${ICON.eyeOff}</span></button></div>` : "";
   // A tab with a single project has no project picker or hide menu.
   const tabs = thisTab !== "gorevler" ? "" : shown.map((p) =>
     `<button class="${p === project ? "secili" : ""}" data-is="proje" data-proje="${esc(p.id)}">${iconImg(p)}${esc(p.ad)}</button>`).join("")
     + `<div class="proje-menu"><button type="button" data-is="proje-menu" aria-label="${esc(t("Hide / show companies"))}">${ICON.dots}</button>${menu}</div>`;
-  const lists = project.listeler.map((f) => ({ name: f.ad, claude: f.claude, isDoneList: f.bitenler, github: !!f.github, people: f.kisiler || {}, ...parseList(f.icerik) }));
-  if (!lists.length) return `<div class="alt-sekmeler">${tabs}</div><p class="bos">${esc(t("This project has no lists."))}</p>`;
+  const lists = project.listeler.map((f) => ({ name: f.ad, claude: f.claude, isDoneList: f.bitenler, github: !!f.github, waiting: !!f.bekliyor, people: f.kisiler || {}, ...parseList(f.icerik) }));
+  if (!lists.length) return `<div class="alt-sekmeler">${tabs}</div><section class="kart" style="max-width:520px;margin:8vh auto"><h2>${esc(t("This project has no lists."))}</h2>
+    <p class="soluk">${esc(t("Lists are md files in its folder."))}</p><button type="button" class="yz-dugme" data-is="liste-olustur" data-proje="${esc(project.id)}">${esc(t("Create a list"))}</button></section>`;
   const list = lists.find((l) => l.name === file) || lists[0];
+  openGithub = list.github ? { project: project.id, list: list.name, waiting: list.waiting } : null;
   issueList = list.github;
   listPeople = list.people;
   const mainTasks = list.blocks.filter((b) => b.kind === "task");
@@ -260,7 +302,7 @@ function tasksHtml() {
   // everything in the done list is ticked, so there it is the total.
   const chip = (l) => {
     const count = l.blocks.filter((b) => b.kind === "task" && (l.isDoneList || !b.done)).length;
-    return `<button type="button" class="lst-cip${l === list ? " secili" : ""}${l.claude ? " claude" : ""}" data-is="liste" data-ad="${esc(l.name)}"${l.github ? ` title="${esc(t("Connected to {repo} on GitHub", { repo: project.github }))}"` : ""}>${l.github ? GITHUB_MARK : ""}${esc(l.title || l.name)}<span>${count}</span></button>`;
+    return `<button type="button" class="lst-cip${l === list ? " secili" : ""}${l.claude ? " claude" : ""}" data-is="liste" data-ad="${esc(l.name)}"${l.github ? ` title="${esc(t("Connected to {repo} on GitHub", { repo: project.github }))}"` : ""}>${l.github ? GITHUB_MARK : ""}${esc(l.title || l.name)}${l.waiting ? "" : `<span>${count}</span>`}</button>`;
   };
   const claudeLists = lists.filter((l) => l.claude);
   const chips = lists.filter((l) => !l.claude).map(chip).join("")
@@ -284,6 +326,7 @@ function tasksHtml() {
       <section class="lst-kart">
         <div class="lst-baslik"><h2>${esc(list.title || list.name)}</h2>${issueList ? `<a class="depo" href="https://github.com/${esc(project.github)}/${esc(list.name)}" target="_blank" rel="noopener" title="${esc(t("Open on GitHub"))}">${GITHUB_MARK}${esc(project.github)}</a>` : `<span>${mainTasks.filter((x) => x.done).length}/${mainTasks.length}</span>`}</div>
         ${issueList ? "" : addHtml("kok", null, t("Add new task"))}
+        ${list.waiting ? `<p class="bos">${esc(t("Loading…"))}</p>` : ""}
         <div data-kume="ana">${blocks}</div>
       </section>
       ${selected ? panelHtml(selected, list, issueList ? [] : lists.filter((l) => l !== list && !l.github), project.bitis_tarihi) : ""}
@@ -295,13 +338,10 @@ const activeList = () => $("[data-liste]")?.dataset.liste;
 const activeProject = () => $("[data-liste]")?.dataset.proje;
 const taskInfo = (el) => {
   const g = el?.closest("[data-gorev]");
-  return g && { el: g, level: g.dataset.seviye, line: +g.dataset.satir, text: g.dataset.ham, body: g.dataset.metin };
+  return g && { el: g, level: g.dataset.seviye, line: +g.dataset.satir, text: g.dataset.ham, body: g.dataset.metin, subtasks: +g.dataset.altlar };
 };
-const childCount = (g) => g.el.querySelectorAll?.("[data-gorev]").length || 0;
-const confirmDelete = (g, text) => {
-  const n = (view.selected && g.level === "panel") ? $(".gpanel [data-kume=panel]")?.querySelectorAll("[data-gorev]").length : childCount(g);
-  return !n || confirm(t('Delete "{text}" and its subtasks?', { text }));
-};
+// Counted from the file, not the screen: a closed subtask's own subtasks aren't drawn.
+const confirmDelete = (g, text) => !g.subtasks || confirm(t('Delete "{text}" and its subtasks?', { text }));
 const apply = (op) => write({ proje: activeProject(), ad: activeList(), op });
 function closePanel() { view.selected = null; view.moveOpen = false; draw(); }
 
@@ -359,7 +399,7 @@ function changeFinishDate(h, g) {
   };
 }
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   if (!LIST_TABS.includes(route().tab)) return;
   const h = e.target.closest("[data-is]"), action = h?.dataset.is, g = taskInfo(e.target);
   if (view.moveOpen && !e.target.closest(".tasi")) { view.moveOpen = false; if (!action) return draw(); }
@@ -369,6 +409,13 @@ document.addEventListener("click", (e) => {
     case "filtre-menu": filterMenuOpen = !filterMenuOpen; return draw();
     case "isaretle": return g && apply({ action: "toggle", line: g.line, text: g.text, done: h.getAttribute("aria-checked") !== "true" });
     case "liste": view.selected = null; return goTo(route().tab, activeProject(), h.dataset.ad);
+    case "proje-ekle": projectMenuOpen = false; return addProjectPopup();
+    case "liste-olustur": {
+      const r = await fetch("./api/liste", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ proje: h.dataset.proje }) });
+      if (!r.ok) notify((await r.json().catch(() => ({}))).error || t("Could not write."));
+      await loadTasks();
+      return draw();
+    }
     case "proje": view.selected = null; view.openSubs.clear(); return goTo("gorevler", h.dataset.proje);
     case "proje-menu": projectMenuOpen = !projectMenuOpen; return draw();
     case "proje-gizle": {

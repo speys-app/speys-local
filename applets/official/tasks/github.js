@@ -1,6 +1,6 @@
 // A repo's GitHub issues and pull requests as lists: a project with "github": "owner/repo". They are there to keep an
 // eye on, so nothing here writes to GitHub; "Today" and "This week" are personal and stay on this computer. Shown as
-// task-list text, so every page reads them the way it reads a file. Goes on the network only when such a project is read.
+// task-list text, so every page reads them the way it reads a file. Goes on the network only when one of these lists is opened.
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -157,17 +157,23 @@ export function createGithub({ dataDir, t, fetchFn = fetch, tokenFn = ghToken })
   const rendered = (repo, list, entry) => renderRows(entry.rows, allPersonal()[repo] || {}, titleOf(list));
 
   /** `shown` narrows the lists, for someone who only wants a repo's pull requests. */
-  async function lists(repo, shown) {
-    const wanted = GITHUB_LISTS.filter((list) => !Array.isArray(shown) || shown.includes(list));
-    return Promise.all(wanted.map(async (list) => {
-      const of = (icerik, kisiler = {}) => ({ ad: list, claude: false, bitenler: false, github: true, icerik, kisiler });
-      if (!REPO_RE.test(repo)) return of(`# ${titleOf(list)}\n\n## ${t("Not a repo name: {repo}", { repo })}\n`);
-      const entry = await read(repo, list);
-      if (!entry.rows) return of(`# ${titleOf(list)}\n\n## ${entry.error}\n`);
-      const { text, people } = rendered(repo, list, entry);
-      return of(text, people);
-    }));
+  const wantedLists = (shown) => GITHUB_LISTS.filter((list) => !Array.isArray(shown) || shown.includes(list));
+
+  function listOf(repo, list, entry) {
+    const of = (icerik, kisiler = {}) => ({ ad: list, claude: false, bitenler: false, github: true, icerik, kisiler });
+    if (!REPO_RE.test(repo)) return of(`# ${titleOf(list)}\n\n## ${t("Not a repo name: {repo}", { repo })}\n`);
+    if (!entry?.rows && !entry?.error) return { ...of(`# ${titleOf(list)}\n`), bekliyor: true };
+    if (!entry.rows) return of(`# ${titleOf(list)}\n\n## ${entry.error}\n`);
+    const { text, people } = rendered(repo, list, entry);
+    return of(text, people);
   }
+
+  /** What is already here, without going to GitHub: a list not read yet says so with `bekliyor`. */
+  const known = (repo, shown) => wantedLists(shown).map((list) => listOf(repo, list, entries.get(`${repo} ${list}`)));
+
+  /** Reads the lists: the page asks for the one that's open. */
+  const lists = (repo, shown) => Promise.all(wantedLists(shown).map(async (list) =>
+    listOf(repo, list, REPO_RE.test(repo) ? await read(repo, list) : null)));
 
   /** The one change these lists take: the personal tags. False (409) if the line is no longer what the page saw. */
   async function write(repo, list, op) {
@@ -183,5 +189,5 @@ export function createGithub({ dataDir, t, fetchFn = fetch, tokenFn = ghToken })
     return true;
   }
 
-  return { lists, write };
+  return { known, lists, write };
 }

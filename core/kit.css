@@ -380,6 +380,17 @@ textarea.duzenle{display:block;width:100%;resize:none;border:0;outline:none;bord
 .kuyruk ul,.arka ul{margin:0;padding:0}
 .arka li{list-style:none;display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
 .arka li.bitti span{color:var(--soluk);text-decoration:line-through}
+.arka .sos-sil{margin-left:auto;border:0;background:none;color:var(--soluk);font-size:16px;line-height:1;padding:0 4px}
+.sos-ekle{border:0;background:none;color:var(--soluk);padding:6px 0;font-size:13px}
+.proje-form{display:flex;flex-direction:column;gap:12px;min-width:min(340px,70vw)}
+.proje-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--soluk)}
+.proje-form input{font:inherit;color:var(--metin);background:var(--yuzey2);border:1px solid color-mix(in srgb,var(--metin) 15%,transparent);border-radius:8px;padding:8px 10px}
+.proje-form .dugmeler{display:flex;justify-content:flex-end}
+.sos-form{display:flex;flex-direction:column;gap:12px;min-width:min(340px,70vw)}
+.sos-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--soluk)}
+.sos-form input,.sos-form select{font:inherit;color:var(--metin);background:var(--yuzey2);border:1px solid color-mix(in srgb,var(--metin) 15%,transparent);border-radius:8px;padding:8px 10px}
+.sos-form .dugmeler{display:flex;justify-content:flex-end}
+.sos-form .ana{border:0;background:var(--vurgu);color:#fff;font-weight:600;padding:8px 18px;border-radius:99px}
 .sp video,.sp img.buyuk{width:100%;max-height:60vh;aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:14px;display:block}
 .sp h3{font-size:18px;margin:14px 0 4px}
 .sp .alt{font-size:12px;color:var(--soluk)}
