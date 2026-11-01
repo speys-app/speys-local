@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,5 +41,50 @@ test("sharing on X marks a tweet shared, and bad input is refused", async () => 
   assert.ok(tweet.adimlar.paylasildi && tweet.platformlar.x);
   for (const body of [{ op: "tweet_ekle", hesap, metin: "  " }, { op: "tweet_ekle", hesap: "nobody", metin: "x" }, { op: "tweet_ekle", hesap, metin: "x", saat: "25:00" }, { op: "tweet_ekle", hesap, metin: "x", tarih: "soon" }]) {
     assert.equal((await write(body)).status, 400, JSON.stringify(body));
+  }
+});
+
+test("a shared calendar shows next to your own, and changes go back to the file they came from", async () => {
+  const own = mkdtempSync(join(tmpdir(), "speys-social-own-"));
+  const shared = mkdtempSync(join(tmpdir(), "speys-social-shared-"));
+  const sharedFile = join(shared, "takvim.json");
+  writeFileSync(join(own, "takvim.json"), JSON.stringify({ hesaplar: [{ id: "me", ad: "Me" }], videolar: [{ id: "mine", hesap: "me", baslik: "Mine" }] }));
+  writeFileSync(sharedFile, JSON.stringify({ hesaplar: [{ id: "games", ad: "Games" }], videolar: [{ id: "theirs", hesap: "games", baslik: "Theirs", proje: "first" }] }));
+  mkdirSync(join(shared, "first", "renders"), { recursive: true });
+  writeFileSync(join(shared, "first", "renders", "cut.mp4"), "video");
+
+  const app = createServer(create({ dataDir: own, settings: () => ({ shared }), t: (s) => s }));
+  await new Promise((done) => app.listen(0, "127.0.0.1", done));
+  const url = `http://127.0.0.1:${app.address().port}`;
+  const get = () => fetch(`${url}/api/sosyal`).then((r) => r.json());
+  const post = async (body) => fetch(`${url}/api/sosyal`, { method: "POST", headers: { "X-Panel": "1" }, body: JSON.stringify({ ...body, surum: (await get()).surum }) });
+  try {
+    const all = await get();
+    assert.deepEqual(all.hesaplar.map((a) => a.id), ["me", "games"]);
+    const theirs = all.videolar.find((v) => v.id === "theirs");
+    assert.equal(theirs.video, "@shared/first/renders/cut.mp4");
+    assert.equal(await fetch(`${url}/sosyal/dosya/${encodeURIComponent(theirs.video)}`).then((r) => r.text()), "video");
+    assert.equal((await fetch(`${url}/sosyal/dosya/${encodeURIComponent("@shared/../takvim.json")}`)).status, 404);
+
+    assert.equal((await post({ op: "tarih", id: "theirs", deger: "2030-01-02" })).status, 200);
+    assert.equal((await post({ op: "video_ekle", hesap: "games", baslik: "Next" })).status, 200);
+    assert.equal((await post({ op: "tarih", id: "mine", deger: "2030-01-03" })).status, 200);
+    const onShared = JSON.parse(readFileSync(sharedFile, "utf8"));
+    const onOwn = JSON.parse(readFileSync(join(own, "takvim.json"), "utf8"));
+    assert.equal(onShared.videolar[0].tarih, "2030-01-02");
+    assert.equal(onShared.videolar.length, 2);
+    assert.equal(onShared.hesaplar.length, 1);
+    assert.equal(onOwn.videolar[0].tarih, "2030-01-03");
+    assert.equal(onOwn.videolar.length, 1);
+
+    const before = readFileSync(sharedFile, "utf8");
+    writeFileSync(sharedFile, `<<<<<<< HEAD\n${before}`);
+    const broken = await get();
+    assert.equal(broken.shared_error, true);
+    assert.deepEqual(broken.hesaplar.map((a) => a.id), ["me"]);
+  } finally {
+    app.close();
+    rmSync(own, { recursive: true, force: true });
+    rmSync(shared, { recursive: true, force: true });
   }
 });

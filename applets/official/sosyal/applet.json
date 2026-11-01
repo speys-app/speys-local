@@ -10,6 +10,12 @@
       "label": "Content folder",
       "hint": "Optional: a folder with your takvim.json; videos are under <project>/renders/. If empty, the calendar stays in data/",
       "type": "path"
+    },
+    {
+      "key": "shared",
+      "label": "Shared calendar",
+      "hint": "Optional: a second folder with a takvim.json, for example in a repo you share with someone; it shows next to your own calendar",
+      "type": "path"
     }
   ]
 }

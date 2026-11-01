@@ -25,7 +25,8 @@ document.title = "Social Media Planner";
 let isEditing = false;
 function render() {
   const scroll = scrollY;
-  $("#icerik").innerHTML = social?.not_configured ? notConfigured("Social Media Planner") : renderSocial();
+  $("#icerik").innerHTML = social?.not_configured ? notConfigured("Social Media Planner")
+    : (social?.shared_error ? `<p class="soluk">${esc(t("The shared calendar could not be read; its takvim.json may have a git conflict."))}</p>` : "") + renderSocial();
   scrollTo(0, scroll);
 }
 async function refresh() {

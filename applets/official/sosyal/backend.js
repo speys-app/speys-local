@@ -15,6 +15,7 @@ const TYPES = {
   ".svg": "image/svg+xml", ".mp4": "video/mp4", ".html": "text/html; charset=utf-8",
 };
 const FFMPEG = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"].find(existsSync) || "ffmpeg";
+const SHARED = "@shared/"; // starts the media paths that live under the shared calendar's folder
 
 const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
 const pad = (n) => String(n).padStart(2, "0");
@@ -85,20 +86,40 @@ function periods(source, t) {
 export default function create({ dataDir, settings, t }) {
   const root = () => expand(settings().root) || dataDir;
   const configured = () => root() === dataDir || existsSync(root()); // a folder named in Settings has to be there
-  const calendar = () => join(root(), "takvim.json");
+  /** A second calendar kept with someone else, usually in a shared repo: its accounts and videos appear next to yours. */
+  const sharedRoot = () => {
+    const p = expand(settings().shared);
+    return p && existsSync(p) && resolve(p) !== resolve(root()) ? p : null;
+  };
+  const calendar = (dir = root()) => join(dir, "takvim.json");
   /** Whatever the file leaves out counts as empty, so an older or hand-written calendar still opens. */
-  function readCalendar() {
-    const d = existsSync(calendar()) ? JSON.parse(readFileSync(calendar(), "utf8")) : {};
+  function readCalendar(dir = root()) {
+    const d = existsSync(calendar(dir)) ? JSON.parse(readFileSync(calendar(dir), "utf8")) : {};
     for (const key of ["hesaplar", "videolar", "kuyruk", "arka_plan"]) d[key] ??= [];
     for (const v of d.videolar) v.adimlar ??= {};
     return d;
   }
+  /** Null if the file can't be read (a git conflict, say): your own calendar has to keep opening. */
+  function readShared() {
+    try {
+      return readCalendar(sharedRoot());
+    } catch (e) {
+      console.error("sosyal: shared calendar:", e.message);
+      return null;
+    }
+  }
+  /** The folder whose calendar holds this account or video; anything else belongs to your own. */
+  function owner({ hesap, id }) {
+    const s = sharedRoot() && readShared();
+    return s && (s.hesaplar.some((a) => a.id === hesap) || s.videolar.some((v) => v.id === id)) ? sharedRoot() : root();
+  }
   const covers = join(dataDir, "kapaklar");
-  const version = () => (existsSync(calendar()) ? String(statSync(calendar(), { bigint: true }).mtimeNs) : "0"); // text: nanoseconds do not fit in a JS number
+  const stamp = (dir) => (existsSync(calendar(dir)) ? String(statSync(calendar(dir), { bigint: true }).mtimeNs) : "0"); // text: nanoseconds do not fit in a JS number
+  const version = () => [root(), sharedRoot()].filter(Boolean).map(stamp).join("-");
 
-  function latestVideo(project) {
+  function latestVideo(project, base = root()) {
     if (!project) return null;
-    const dir = join(root(), project, "renders");
+    const dir = join(base, project, "renders");
     if (!existsSync(dir)) return null;
     let best = null, bestAt = -1;
     for (const f of readdirSync(dir)) {
@@ -109,22 +130,36 @@ export default function create({ dataDir, settings, t }) {
     return best;
   }
 
-  const posix = (p) => relative(root(), p).split(sep).join("/");
+  const posix = (p, base) => relative(base, p).split(sep).join("/");
 
-  function overview() {
-    if (!configured()) return { not_configured: true };
-    const d = readCalendar();
+  function addFiles(videos, base, prefix) {
     const day = today();
-    for (const v of d.videolar) {
+    for (const v of videos) {
       // A video past its day and not shared falls among the undated; the date in the file stays, this is display only
       if (v.tarih && v.tarih < day && !v.adimlar?.paylasildi) {
         v.planlanan_tarih = v.tarih;
         v.tarih = null;
       }
-      const video = latestVideo(v.proje);
-      v.video = video ? posix(video) : "";
-      const board = v.proje ? join(root(), v.proje, "storyboard.html") : null;
-      v.storyboard = board && existsSync(board) && statSync(board).isFile() ? posix(board) : "";
+      const video = latestVideo(v.proje, base);
+      v.video = video ? prefix + posix(video, base) : "";
+      const board = v.proje ? join(base, v.proje, "storyboard.html") : null;
+      v.storyboard = board && existsSync(board) && statSync(board).isFile() ? prefix + posix(board, base) : "";
+    }
+  }
+
+  function overview() {
+    if (!configured()) return { not_configured: true };
+    const d = readCalendar();
+    addFiles(d.videolar, root(), "");
+    if (sharedRoot()) {
+      const s = readShared();
+      if (s) {
+        addFiles(s.videolar, sharedRoot(), SHARED);
+        d.hesaplar.push(...s.hesaplar);
+        d.videolar.push(...s.videolar);
+      } else {
+        d.shared_error = true;
+      }
     }
     d.surum = version();
     return d;
@@ -132,17 +167,19 @@ export default function create({ dataDir, settings, t }) {
 
   /** An image or video under the root; it cannot leave the folder. */
   function mediaFile(path) {
-    const base = resolve(root());
-    const file = resolve(base, path);
+    const fromShared = path.startsWith(SHARED) && sharedRoot();
+    const base = resolve(fromShared || root());
+    const file = resolve(base, fromShared ? path.slice(SHARED.length) : path);
     const type = TYPES[extname(file).toLowerCase()];
     if (!type || !file.startsWith(base + sep) || !existsSync(file) || !statSync(file).isFile()) return null;
     return { file, type };
   }
 
   async function cover(id) {
-    const v = readCalendar().videolar.find((x) => x.id === id);
+    const base = owner({ id });
+    const v = readCalendar(base).videolar.find((x) => x.id === id);
     if (!v) return null;
-    const video = latestVideo(v.proje);
+    const video = latestVideo(v.proje, base);
     if (video) {
       mkdirSync(covers, { recursive: true });
       const second = v.kapak_sn ?? 1;
@@ -156,7 +193,7 @@ export default function create({ dataDir, settings, t }) {
       if (existsSync(target)) return { body: readFileSync(target), type: "image/jpeg" };
     }
     if (v.kapak) {
-      const m = mediaFile(v.kapak);
+      const m = mediaFile((base === root() ? "" : SHARED) + v.kapak);
       if (m) return { body: readFileSync(m.file), type: m.type };
     }
     return null;
@@ -188,7 +225,8 @@ export default function create({ dataDir, settings, t }) {
   /** Changes one field. False (409) if the file changed in the meantime. */
   function apply(q) {
     if (q.surum && String(q.surum) !== version()) return false;
-    const d = readCalendar();
+    const base = owner(q);
+    const d = readCalendar(base);
     const { op } = q;
     const text = (s) => String(s ?? "").trim();
     if (op === "hesap_ekle") {
@@ -291,10 +329,10 @@ export default function create({ dataDir, settings, t }) {
         throw new Error(t("no such operation"));
       }
     }
-    mkdirSync(root(), { recursive: true });
-    const temp = calendar() + ".yeni";
+    mkdirSync(base, { recursive: true });
+    const temp = calendar(base) + ".yeni";
     writeFileSync(temp, JSON.stringify(d, null, 2) + "\n");
-    renameSync(temp, calendar());
+    renameSync(temp, calendar(base));
     return true;
   }
 
