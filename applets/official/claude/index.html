@@ -52,7 +52,25 @@ main.tam .sekmeler{position:absolute;left:16px;top:12px;z-index:1;margin:0}
 .kume{display:flex;align-items:flex-end;gap:20px}
 .tezgah{display:flex;justify-content:center;width:112px;padding-bottom:30px;background:linear-gradient(#7b5a3f,#7b5a3f) bottom/100% 30px no-repeat;border-bottom:6px solid #573e2b}
 .masalar{display:grid;grid-template-columns:repeat(auto-fill,200px);justify-content:center;gap:30px 18px}
-.kedi{position:absolute;right:clamp(16px,4vw,48px);bottom:24px;pointer-events:none}
+#kedi-katman{position:absolute;left:0;right:0;top:144px;bottom:0;overflow:hidden;pointer-events:none}
+.kedi{position:absolute;left:0;top:0;width:84px;height:54px;pointer-events:auto;cursor:pointer}
+.kedi-ic{display:block}
+.kedi.sag .kedi-ic{transform:scaleX(-1)}
+.kedi g{display:none}
+.kedi[data-poz=sit] .sit-a{display:block;animation:kare-a 2.4s steps(1) infinite}
+.kedi[data-poz=sit] .sit-b{display:block;animation:kare-b 2.4s steps(1) infinite}
+.kedi[data-poz=walk] .walk-a{display:block;animation:kare-a .36s steps(1) infinite}
+.kedi[data-poz=walk] .walk-b{display:block;animation:kare-b .36s steps(1) infinite}
+.kedi[data-poz=run] .walk-a{display:block;animation:kare-a .18s steps(1) infinite}
+.kedi[data-poz=run] .walk-b{display:block;animation:kare-b .18s steps(1) infinite}
+.kedi[data-poz=sleep] .sleep{display:block}
+.kedi[data-poz=sleep] svg{transform-origin:50% 100%;animation:kedi-nefes 3s ease-in-out infinite}
+@keyframes kedi-nefes{50%{transform:scaleY(1.05)}}
+.kedi.sevincli svg{animation:kedi-zipla .32s ease-out 2}
+@keyframes kedi-zipla{50%{transform:translateY(-12px)}}
+.kedi-balon{position:absolute;left:50%;bottom:calc(100% - 6px);transform:translateX(-50%);padding:2px 8px;border-radius:99px;background:#fff;color:#2b2740;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;animation:kedi-balon 1.3s ease-out forwards}
+.kedi-balon.kalp{background:none;color:#e0567f;font-size:18px}
+@keyframes kedi-balon{70%{opacity:1}100%{opacity:0;margin-bottom:18px}}
 .masa{position:relative;height:196px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:center;cursor:pointer;border-radius:12px}
 .masa:hover,.masa:focus-visible{background:rgba(43,39,64,.14);outline:0}
 .sandalye{position:absolute;left:50%;top:44px;width:76px;height:84px;margin-left:-38px;border-radius:12px 12px 0 0;background:#4a4560;box-shadow:inset 0 6px 0 #5b5575}
@@ -96,12 +114,12 @@ main.tam .sekmeler{position:absolute;left:16px;top:12px;z-index:1;margin:0}
   .bos-ofis{color:#d9d4e8}
 }
 .durgun *,.durgun *::after{animation-play-state:paused!important}
-@media (prefers-reduced-motion:reduce){.kisi,.kare,.ekran i,.balon{animation:none!important}.calisiyor .kare.b{display:none}.calisiyor .kare.a{opacity:1}}
+@media (prefers-reduced-motion:reduce){.kisi,.kare,.ekran i,.balon,.kedi g,.kedi svg{animation:none!important}.calisiyor .kare.b{display:none}.calisiyor .kare.a{opacity:1}.kedi[data-poz=sit] .sit-b{display:none}}
 </style>
 </head>
 <body>
 
-<main id="sayfa"><nav class="sekmeler" id="sekmeler" aria-label="Claude Sessions"></nav><div id="sounds" hidden></div><div id="icerik"></div></main>
+<main id="sayfa"><nav class="sekmeler" id="sekmeler" aria-label="Claude Sessions"></nav><div id="sounds" hidden></div><div id="icerik"></div><div id="kedi-katman" hidden></div></main>
 <script src="/kit.js"></script>
 <script>
 "use strict";
@@ -150,7 +168,6 @@ const SPRITES = {
   cooler: { size: 6, colors: { W: "#dfe7ef", B: "#6fb7e6", b: "#3f8fc9", K: "#55606b" }, rows: [".BBBB.", "BBBBBB", "BbBBBB", "BBBBBB", ".BBBB.", "WWWWWW", "WKWWKW", "WWWWWW", "WWWWWW", "WWWWWW", "WWWWWW", "KKKKKK"] },
   shelf: { size: 7, colors: { W: "#6d4c33", R: "#c9352a", B: "#4f86d9", G: "#49a878", Y: "#d9a93f", P: "#a66bd4" }, rows: ["WWWWWWWWWWWWWW", "W.RRBBGGYY.PPW", "W.RRBBGGYY.PPW", "W.RRBBGGYY.PPW", "WWWWWWWWWWWWWW", "W.YYPP.RRGGBBW", "W.YYPP.RRGGBBW", "W.YYPP.RRGGBBW", "WWWWWWWWWWWWWW", "W.GGRR.BB.YYPW", "W.GGRR.BB.YYPW", "WWWWWWWWWWWWWW"] },
   lamp: { size: 6, colors: { Y: "#f2d16b", y: "#d9a93f", K: "#75707f" }, rows: ["...YYYY...", "..YYYYYY..", ".YYYYYYYY.", "yYYYYYYYYy", "....KK....", "....KK....", "....KK....", "....KK....", "....KK....", "....KK....", "....KK....", "..KKKKKK.."] },
-  cat: { size: 6, colors: { O: "#d98a3f", o: "#b56a2a", E: "#2a1d17", W: "#f3efe6" }, rows: ["O...O.........", "OO.OO.........", "OOOOO.oOOo....", "OEOEO.OOOOO...", "OOOOOOOoOOOO..", ".WOOOOOOOOOOO.", "..OOOOOOOOOOOO"] },
 };
 const sprite = (id) => {
   const { rows, colors, size } = SPRITES[id], w = rows[0].length, h = rows.length;
@@ -217,21 +234,25 @@ function officeHtml() {
   const empty = inOrder.length ? "" : `<p class="bos-ofis">${esc(failed ? t("Could not reach the server.") : t("The office is empty. Start a Claude session and someone sits down."))}</p>`;
   return `<div class="ofis"><div class="ust" style="--gok:${skyNow()}"><div class="ozet">${pills}</div><button type="button" class="esya-dugme" data-esyalar>${esc(t("Office furniture"))}</button>${wall}</div>
     <div class="zemin"><div class="arka"><div class="kume">${left}</div><div class="kume">${right}</div></div>
-      <div class="masalar">${inOrder.map(deskHtml).join("")}${empty}</div>${has("cat") ? `<div class="kedi">${sprite("cat")}</div>` : ""}</div></div>`;
+      <div class="masalar">${inOrder.map(deskHtml).join("")}${empty}</div></div></div>`;
 }
-const furnitureHtml = () => `<div class="esya-liste">${FURNITURE.map(([id, label]) => `<div class="ses-satir"><span>${esc(label())}</span><button type="button" class="ses-anahtar${has(id) ? " on" : ""}" role="switch" aria-checked="${has(id)}" aria-label="${esc(label())}" data-esya="${id}"></button></div>`).join("")}</div>`;
+let furnitureError = "";
+const furnitureHtml = () => `<div class="esya-liste">${furnitureError ? `<p class="ses-not ses-hata">${esc(furnitureError)}</p>` : ""}${FURNITURE.map(([id, label]) => `<div class="ses-satir"><span>${esc(label())}</span><button type="button" class="ses-anahtar${has(id) ? " on" : ""}" role="switch" aria-checked="${has(id)}" aria-label="${esc(label())}" data-esya="${id}"></button></div>`).join("")}</div>`;
 let furniturePopup = null;
 async function toggleFurniture(id) {
   const before = furniture;
   furniture = has(id) ? furniture.filter((x) => x !== id) : [...furniture, id];
+  furnitureError = "";
   furniturePopup?.setBody(furnitureHtml());
   draw();
   const r = await postSound("./api/office", { items: furniture }).catch(() => null);
   if (r?.ok) return;
   furniture = before;
+  // shown in the window: a notice would stay behind it. A 404 is a server still running the code from before an update.
+  const reason = r ? (await r.json().catch(() => ({}))).error || `HTTP ${r.status}` : t("Could not reach the server.");
+  furnitureError = t("Could not save: {reason}", { reason: r?.status === 404 ? t("restart the dashboard, it is running an older version.") : reason });
   furniturePopup?.setBody(furnitureHtml());
   draw();
-  notify(t("Could not save."));
 }
 function openDetails(s) {
   openPopup({
@@ -244,6 +265,154 @@ function openDetails(s) {
     </div>`,
   });
 }
+// —— Cat: lives in its own layer, because the office below is redrawn every 10 seconds and would restart it.
+const CAT_WIDTH = 84, CAT_HEIGHT = 54, WALK_SPEED = 70, RUN_SPEED = 280;
+const CAT_COLORS = { O: "#d98a3f", o: "#b56a2a", E: "#2a1d17", W: "#f3efe6", P: "#e58a9b" };
+const CAT_POSES = {
+  "walk-a": ["O..O..........", "OOOO.......oo.", "EOEO.......oo.", "OPOO......oo..", "WOOOoOOOoOOo..", ".OOOOoOOOoOO..", ".OOOOOOOOOOO..", ".OO.O....O.OO.", ".WW.W....W.WW."],
+  "walk-b": ["O..O..........", "OOOO........oo", "EOEO.......oo.", "OPOO......oo..", "WOOOoOOOoOOo..", ".OOOOoOOOoOO..", ".OOOOOOOOOOO..", "..OO.O..O.OO..", "..WW.W..W.WW.."],
+  "sit-a": ["O..O..........", "OOOO..........", "EOEO..........", "OPOO..........", "WOOOOOo.......", ".OOOoOOo......", ".OOOOoOOo...oo", ".OOOOOOOOo.oo.", ".WW.WWOOOOOo.."],
+  "sit-b": ["O..O..........", "OOOO..........", "EOEO..........", "OPOO..........", "WOOOOOo.......", ".OOOoOOo.....o", ".OOOOoOOo...oo", ".OOOOOOOOo.oo.", ".WW.WWOOOOOo.."],
+  sleep: ["..............", "..............", "..............", "....oOOOoOOo..", "..OOOOOOOOOOO.", "O.OOOoOOOoOOOO", "OOOOOOOOOOOOOO", "ooOOOOOOOOOOoo", "WPOOOOOOOOooo."],
+};
+const calmCat = matchMedia("(prefers-reduced-motion:reduce)").matches;
+const cat = { element: null, x: 0, y: 0, pose: "sit", timer: 0, petting: 0 };
+const catLayer = () => $("#kedi-katman");
+const catVisible = () => tab === "office" && has("cat") && !document.hidden && !isHidden();
+const randomBetween = (low, high) => low + Math.random() * (high - low);
+const catBounds = () => ({ width: Math.max(0, catLayer().clientWidth - CAT_WIDTH), height: Math.max(0, catLayer().clientHeight - CAT_HEIGHT) });
+function catPose(pose) {
+  cat.pose = pose;
+  cat.element.dataset.poz = pose;
+}
+function catSay(text, kind = "") {
+  const bubble = document.createElement("span");
+  bubble.className = `kedi-balon ${kind}`;
+  bubble.textContent = text;
+  cat.element.append(bubble);
+  setTimeout(() => bubble.remove(), 1300);
+}
+const catPlace = (x, y, ms = 0) => {
+  cat.element.style.transition = ms ? `transform ${ms}ms linear` : "none";
+  cat.element.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
+};
+function catGo(x, y, speed, then) {
+  clearTimeout(cat.timer);
+  const { width, height } = catBounds();
+  x = Math.min(width, Math.max(0, x));
+  y = Math.min(height, Math.max(0, y));
+  const ms = (Math.hypot(x - cat.x, y - cat.y) / speed) * 1000;
+  cat.element.classList.toggle("sag", x > cat.x);
+  catPose(speed === RUN_SPEED ? "run" : "walk");
+  catPlace(x, y, ms);
+  cat.x = x;
+  cat.y = y;
+  cat.timer = setTimeout(() => { catPose("sit"); then(); }, ms);
+}
+/** Stops where it is right now, also in the middle of a walk. */
+function catStop() {
+  clearTimeout(cat.timer);
+  const now = new DOMMatrix(getComputedStyle(cat.element).transform);
+  cat.x = now.m41;
+  cat.y = now.m42;
+  catPlace(cat.x, cat.y);
+  if (cat.pose !== "sleep") catPose("sit");
+}
+const catWait = (ms) => { clearTimeout(cat.timer); cat.timer = setTimeout(catLife, ms); };
+/** What it does next: it sleeps more when nobody is working. Nothing happens while nobody can see it. */
+function catLife() {
+  if (!catVisible()) return catWait(5000);
+  if (cat.petting) return;
+  const working = sessions.some((s) => s.durum === "calisiyor"), roll = Math.random();
+  if (roll < (working ? 0.15 : 0.45)) {
+    catPose("sleep");
+    return catWait(randomBetween(20000, 60000));
+  }
+  catPose("sit");
+  if (calmCat || roll > 0.8) return catWait(randomBetween(4000, 12000));
+  const { width, height } = catBounds();
+  catGo(randomBetween(0, width), randomBetween(0, height), WALK_SPEED, () => catWait(randomBetween(4000, 12000)));
+}
+function catMeow() {
+  const Sound = window.AudioContext;
+  if (!Sound) return;
+  const audio = new Sound(), voice = audio.createOscillator(), filter = audio.createBiquadFilter(), gain = audio.createGain(), now = audio.currentTime;
+  voice.type = "sawtooth";
+  voice.frequency.setValueAtTime(520, now);
+  voice.frequency.linearRampToValueAtTime(860, now + 0.12);
+  voice.frequency.linearRampToValueAtTime(460, now + 0.4);
+  filter.frequency.value = 1500;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(0.06, now + 0.05);
+  gain.gain.linearRampToValueAtTime(0.0001, now + 0.42);
+  voice.connect(filter).connect(gain).connect(audio.destination);
+  voice.start(now);
+  voice.stop(now + 0.45);
+  voice.onended = () => audio.close();
+}
+function catClicked() {
+  catStop();
+  if (cat.pose === "sleep") {
+    catPose("sit");
+    catSay("?");
+  } else {
+    cat.element.classList.remove("sevincli");
+    void cat.element.offsetWidth; // so that the jump starts again
+    cat.element.classList.add("sevincli");
+    catSay(t("Meow!"));
+    catMeow();
+  }
+  if (!cat.petting) catWait(6000);
+}
+/** Pointing at it is petting it: it stops and purrs, unless it is asleep. */
+function catPetting(on) {
+  clearInterval(cat.petting);
+  cat.petting = 0;
+  if (!on) return catWait(2500);
+  catStop();
+  const purr = () => { if (cat.pose !== "sleep") catSay("♥", "kalp"); };
+  purr();
+  cat.petting = setInterval(purr, 900);
+}
+/** A click on the floor: it runs there. */
+function catFetch(event) {
+  if (calmCat) return;
+  const box = catLayer().getBoundingClientRect();
+  catGo(event.clientX - box.left - CAT_WIDTH / 2, event.clientY - box.top - CAT_HEIGHT, RUN_SPEED, () => catWait(8000));
+}
+/** A session waiting for approval: it runs to that desk and tells you. */
+let approvalsSeen = null;
+function catNotice() {
+  const waiting = sessions.filter((s) => s.durum === "onay").map((s) => s.oturum);
+  const fresh = approvalsSeen ? waiting.filter((id) => !approvalsSeen.has(id)) : [];
+  approvalsSeen = new Set(waiting);
+  if (!fresh.length || !cat.element || !catVisible() || cat.petting || calmCat) return;
+  const desk = document.querySelector(`[data-oturum="${CSS.escape(fresh[0])}"]`);
+  if (!desk) return;
+  const box = catLayer().getBoundingClientRect(), target = desk.getBoundingClientRect();
+  catGo(target.right - box.left - CAT_WIDTH / 2, target.bottom - box.top - CAT_HEIGHT, RUN_SPEED, () => {
+    catSay("!");
+    catWait(15000);
+  });
+}
+function catStart() {
+  const element = document.createElement("div");
+  element.className = "kedi";
+  element.title = t("Cat");
+  const frames = Object.entries(CAT_POSES).map(([pose, rows]) => `<g class="${pose}">${pixels(rows, CAT_COLORS)}</g>`).join("");
+  element.innerHTML = `<span class="kedi-ic"><svg class="piksel" width="${CAT_WIDTH}" height="${CAT_HEIGHT}" viewBox="0 0 14 9" aria-hidden="true">${frames}</svg></span>`;
+  element.addEventListener("pointerenter", () => catPetting(true));
+  element.addEventListener("pointerleave", () => catPetting(false));
+  catLayer().append(element);
+  cat.element = element;
+  const { width, height } = catBounds();
+  cat.x = width - 32;
+  cat.y = height - 16;
+  catPlace(cat.x, cat.y);
+  catPose("sit");
+  catWait(3000);
+}
+
 // Nothing moves on a tab nobody is looking at.
 document.addEventListener("visibilitychange", () => $("#sayfa").classList.toggle("durgun", document.hidden));
 
@@ -291,13 +460,15 @@ document.addEventListener("click", async (e) => {
     store("claude.tab", tab);
     return draw();
   }
+  if (e.target.closest(".kedi")) return catClicked();
   const desk = e.target.closest("[data-oturum]");
   if (desk) {
     const s = sessions.find((x) => x.oturum === desk.dataset.oturum);
     return s && openDetails(s);
   }
+  if (e.target.closest(".zemin") && cat.element && has("cat")) return catFetch(e);
   if (e.target.closest("[data-esyalar]")) {
-    furniturePopup = openPopup({ title: t("Office furniture"), body: furnitureHtml(), onClose: () => (furniturePopup = null) });
+    furniturePopup = openPopup({ title: t("Office furniture"), body: furnitureHtml(), onClose: () => { furniturePopup = null; furnitureError = ""; } });
     return;
   }
   const item = e.target.closest("[data-esya]");
@@ -331,6 +502,8 @@ function draw() {
   $("#sounds").hidden = tab !== "sound";
   $("#icerik").hidden = tab === "sound";
   if (tab === "office") $("#icerik").innerHTML = officeHtml();
+  catLayer().hidden = tab !== "office" || !has("cat");
+  if (!catLayer().hidden && !cat.element) catStart();
 }
 async function refresh() {
   if (isHidden()) return;
@@ -341,9 +514,10 @@ async function refresh() {
     failed = true;
   }
   draw();
+  catNotice();
 }
 loadSounds().catch(() => {});
-getJson("./api/office").then((d) => { furniture = d.items; draw(); }).catch(() => {});
+getJson("./api/office").then((d) => { furniture = d.items; }).catch(() => { furniture = FURNITURE.map(([id]) => id); }).finally(draw);
 draw();
 refresh();
 setInterval(refresh, 10000);

@@ -106,7 +106,7 @@ test("a project can have GitHub lists and list files; only the files can be writ
 
 test("office furniture is saved, and only known items", async () => {
   const send = (headers, body) => fetch(`${BASE}/a/claude/api/office`, { method: "POST", headers, body: JSON.stringify(body) });
-  assert.deepEqual((await (await fetch(`${BASE}/a/claude/api/office`)).json()).items, ["clock", "plant", "coffee"]);
+  assert.deepEqual((await (await fetch(`${BASE}/a/claude/api/office`)).json()).items, ["clock", "painting", "whiteboard", "plant", "coffee", "cooler", "shelf", "lamp", "cat"]);
   assert.equal((await send({}, { items: [] })).status, 403);
   assert.equal((await send({ "X-Panel": "1" }, { items: "cat" })).status, 400);
   assert.equal((await send({ "X-Panel": "1" }, { items: ["cat", "<script>", "lamp"] })).status, 200);

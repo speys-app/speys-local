@@ -52,5 +52,8 @@
   "Could not save.": "Kaydedilemedi.",
   "Sound and notifications": "Ses ve bildirim",
   "Runs through a Claude Code hook, added to its settings automatically.": "Claude Code kancasıyla çalışır, ayarlarına kendiliğinden eklenir.",
-  "Could not read the settings in {folder}, so the hook wasn't added there.": "{folder} içindeki ayarlar okunamadı, kanca oraya eklenmedi."
+  "Could not read the settings in {folder}, so the hook wasn't added there.": "{folder} içindeki ayarlar okunamadı, kanca oraya eklenmedi.",
+  "Could not save: {reason}": "Kaydedilemedi: {reason}",
+  "restart the dashboard, it is running an older version.": "paneli yeniden başlat, eski sürümle çalışıyor.",
+  "Meow!": "Miyav!"
 }

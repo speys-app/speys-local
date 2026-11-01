@@ -10,7 +10,18 @@ import { NONE, chosenSounds, listSounds, soundPath, soundsFolder } from "./sound
 
 const expand = (p) => (p?.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
 const FURNITURE = ["clock", "painting", "whiteboard", "plant", "coffee", "cooler", "shelf", "lamp", "cat"];
-const DEFAULT_FURNITURE = ["clock", "plant", "coffee"];
+
+/** On Windows a virus scanner or another reader can hold the file for a moment, and renaming over it fails. */
+export function renameWithRetry(from, to, rename = renameSync, wait = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return rename(from, to);
+    } catch (e) {
+      if (attempt >= 5 || !["EPERM", "EACCES", "EBUSY"].includes(e.code)) throw e;
+      wait(50);
+    }
+  }
+}
 
 function defaultFolders() {
   const paths = [join(homedir(), ".claude"), process.env.CLAUDE_CONFIG_DIR].filter(Boolean);
@@ -48,7 +59,7 @@ export default function create({ dataDir, settings, baseDir, t }) {
     all.claude = { ...all.claude, ...change };
     mkdirSync(home, { recursive: true });
     writeFileSync(`${baseFile}.new`, JSON.stringify(all, null, 2) + "\n");
-    renameSync(`${baseFile}.new`, baseFile);
+    renameWithRetry(`${baseFile}.new`, baseFile);
   }
   /** The real Claude folders: never the demo's made-up ones. */
   const claudeFolders = () => {
@@ -81,7 +92,7 @@ export default function create({ dataDir, settings, baseDir, t }) {
         canPlay: process.platform === "darwin", hook: hookInstalled(claudeFolders()), hookFailed: hookFailed.map((f) => f.replace(homedir(), "~")),
       });
     }
-    if (req.method === "GET" && path === "/api/office") return send(res, 200, { items: baseClaude().officeItems ?? DEFAULT_FURNITURE });
+    if (req.method === "GET" && path === "/api/office") return send(res, 200, { items: baseClaude().officeItems ?? FURNITURE });
     if (req.method === "POST" && path === "/api/office") {
       if (req.headers["x-panel"] !== "1") return send(res, 403, { error: "forbidden" });
       const { items } = JSON.parse((await readBody(req)) || "{}");
