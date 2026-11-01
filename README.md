@@ -88,7 +88,7 @@ Everything is an applet. Turn off what you don't need in Settings.
 | ✅ | **Tasks** | The md task lists in your projects, which Claude sees too; keep an eye on any repo's GitHub issues and pull requests | Project folders or a repo |
 | 💰 | **Finances** | Income, expenses, recurring payments | Nothing |
 | 🤝 | **CRM** | Deals and meetings: pipelines, stages, next steps | Nothing |
-| 🎬 | **Social Media Planner** | Content calendar: accounts, videos, posts, numbers | A folder with `takvim.json` |
+| 🎬 | **Social Media Planner** | Content calendar: accounts, videos, posts, numbers | Nothing |
 | 🔍 | **SEO** | Search Console, post checks, search previews | Your sites |
 | 📚 | **OwnLearn** | Learn SQL from your own repo's code | A repo path |
 

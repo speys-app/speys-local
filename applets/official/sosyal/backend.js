@@ -7,7 +7,8 @@ import { extname, join, relative, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 
 const STEPS = ["veri", "kesit", "render", "paylasildi"];
-const PLATFORMS = ["instagram", "tiktok", "youtube"];
+const PLATFORMS = ["instagram", "tiktok", "youtube", "x"];
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const METRICS = ["izlenme", "begeni", "yorum", "kaydetme", "paylasim", "takip"];
 const TYPES = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
@@ -58,6 +59,12 @@ function sendFile(req, res, file, type) {
   res.writeHead(code, headers);
   createReadStream(file, { start, end }).pipe(res);
 }
+
+/** A tweet has no title of its own: its first line stands in for one in the lists. */
+const tweetTitle = (s) => {
+  const first = String(s ?? "").trim().split(/\n/)[0];
+  return first.length > 60 ? `${first.slice(0, 59)}…` : first;
+};
 
 /** { "24s": {...}, "7g": {...} }: empty fields are dropped. */
 function periods(source, t) {
@@ -195,6 +202,12 @@ export default function create({ dataDir, settings, t }) {
       if (!d.hesaplar.some((x) => x.id === q.hesap)) throw new Error(t("no such account"));
       if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
       d.videolar.push({ id: randomUUID(), hesap: q.hesap, baslik: text(q.baslik), tarih: q.tarih || null, adimlar: {}, aciklama: "" });
+    } else if (op === "tweet_ekle") {
+      if (!text(q.metin)) throw new Error(t("the tweet is empty"));
+      if (!d.hesaplar.some((x) => x.id === q.hesap)) throw new Error(t("no such account"));
+      if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
+      if (q.saat && !TIME_RE.test(q.saat)) throw new Error(t("time must be HH:MM"));
+      d.videolar.push({ id: randomUUID(), tur: "tweet", hesap: q.hesap, baslik: tweetTitle(q.metin), metin: text(q.metin), tarih: q.tarih || null, saat: q.saat || "", not: text(q.not), adimlar: {} });
     } else if (op === "arka_ekle") {
       if (!text(q.is)) throw new Error(t("name is empty"));
       d.arka_plan.push({ is: text(q.is), bitti: false });
@@ -211,7 +224,13 @@ export default function create({ dataDir, settings, t }) {
     } else {
       const v = d.videolar.find((x) => x.id === q.id);
       if (!v) throw new Error(t("no such video"));
-      if (op === "video_duzenle") {
+      if (op === "tweet_duzenle") {
+        if (v.tur !== "tweet") throw new Error(t("no such video"));
+        if (!text(q.metin)) throw new Error(t("the tweet is empty"));
+        if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
+        if (q.saat && !TIME_RE.test(q.saat)) throw new Error(t("time must be HH:MM"));
+        Object.assign(v, { metin: text(q.metin), baslik: tweetTitle(q.metin), tarih: q.tarih || null, saat: q.saat || "", not: text(q.not) });
+      } else if (op === "video_duzenle") {
         if (!text(q.baslik)) throw new Error(t("title is empty"));
         v.baslik = text(q.baslik);
         for (const field of ["aciklama", "baglanti", "not"]) v[field] = text(q[field]);
