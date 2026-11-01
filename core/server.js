@@ -445,6 +445,7 @@ export async function startDashboard({ port = 3400 }) {
       }
       return send(res, 200, versionView(applets));
     }
+    if (url.pathname === "/api/new-applet" && req.method === "GET") return send(res, 200, { folder: ROOT }); // where to run Claude Code
     if (url.pathname === "/api/update/auto") {
       if (req.method !== "POST" || req.headers["x-panel"] !== "1") return send(res, 403, { error: "forbidden" });
       setAutoCheck(JSON.parse((await readBody(req)) || "{}").on !== false);

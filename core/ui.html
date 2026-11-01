@@ -27,6 +27,30 @@ nav .bad{margin-left:auto;width:7px;height:7px;flex:none;border-radius:50%;backg
 .empty{margin:0;padding:0 8px;font-size:12px;color:var(--muted)}
 code{font:12px ui-monospace,Menlo,Consolas,monospace}
 .alt{margin-top:auto}
+.new-applet{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:8px;background:none;color:var(--muted);font:inherit;text-align:left;cursor:pointer}
+.new-applet:hover{background:var(--hover);color:inherit}
+.new-applet svg{width:18px;height:18px;flex:none}
+.popup{width:min(420px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 48px));padding:0;border:1px solid var(--line);border-radius:14px;background:var(--side);color:inherit;overflow:hidden}
+.popup[open]{display:flex;flex-direction:column}
+.popup::backdrop{background:rgba(0,0,0,.5)}
+.popup-bas{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 12px 12px 16px;border-bottom:1px solid var(--line)}
+.popup-bas h2{margin:0;font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:inherit}
+.popup-kapat{flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:8px;background:none;color:var(--muted);cursor:pointer}
+.popup-ic{overflow-y:auto;overscroll-behavior:contain;padding:6px 8px 10px}
+.yeni{display:flex;flex-direction:column;gap:10px;padding:4px 8px 8px}
+.yeni textarea{width:100%;min-height:72px;resize:vertical;box-sizing:border-box;font:inherit;color:inherit;background:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.yeni small{color:var(--muted);line-height:1.45}
+.yeni p{margin:0;line-height:1.45}
+.yeni ul{margin:0;padding:0 0 0 18px;font-size:13px;line-height:1.55;color:var(--muted)}
+.yeni h3{margin:6px 0 0;font-size:13px;font-weight:600}
+.yeni pre{margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.yeni .ornekler{display:flex;flex-wrap:wrap;gap:6px}
+.yeni .ornekler button{padding:4px 10px;font-size:12px;color:var(--muted);text-align:left}
+.yeni .ornekler button:hover{color:inherit}
+.yeni .dugmeler{display:flex;justify-content:flex-end;gap:8px}
+.yeni button{border:1px solid var(--line);background:none;color:inherit;border-radius:99px;padding:7px 16px;font:inherit;cursor:pointer}
+.yeni button.ana{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.yeni button:disabled{opacity:.5;cursor:default}
 .update{margin-bottom:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--on);font-size:12px}
 .update[hidden]{display:none}
 .update p{margin:0 0 7px}
@@ -47,7 +71,7 @@ iframe[hidden]{display:none}
   <section id="dashboards-section"><h2 id="dashboards-title"></h2><nav id="dashboards"></nav></section>
   <section><h2 id="official-title"></h2><nav id="official"></nav></section>
   <section id="store-section"><h2 id="store-title"></h2><nav id="store"></nav></section>
-  <section><h2 id="custom-title"></h2><nav id="custom"></nav></section>
+  <section><h2 id="custom-title"></h2><nav id="custom"></nav><button type="button" class="new-applet" id="new-applet"></button></section>
   <section class="alt">
     <div class="update" id="update" hidden><p id="update-text"></p><div><button type="button" id="update-see"></button><button type="button" id="update-later"></button></div></div>
     <nav id="system"></nav>
@@ -295,6 +319,74 @@ addEventListener("focus", refreshActive);
 document.addEventListener("visibilitychange", () => { refreshActive(); watchVersion(); });
 setInterval(watchVersion, 2000);
 setInterval(refreshActive, 30_000);
+// —— New applet: nothing runs from here. It explains what an applet can be and hands over a prompt for Claude Code.
+const newAppletButton = document.getElementById("new-applet");
+newAppletButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="name">${esc(t("New applet"))}</span>`;
+const APPLET_IDEAS = () => [t("Track my rent and subscriptions, and warn me a week before each payment"), t("A reading list with notes on each book"), t("My clients' invoices: who has paid and who hasn't"), t("A board showing the open pull requests of my repos")];
+
+async function openNewApplet() {
+  const { folder = "" } = await fetch("/api/new-applet").then((r) => r.json()).catch(() => ({}));
+  const known = new Set(applets.map((a) => a.id));
+  let watching = null;
+  const popup = openPopup({ title: t("New applet"), onClose: () => clearInterval(watching) });
+  popup.element.style.width = "min(560px,calc(100vw - 32px))";
+  popup.element.style.maxHeight = "calc(100vh - 32px)";
+  const command = `cd "${folder}" && claude`;
+  popup.setBody(`<div class="yeni">
+    <p>${esc(t("Applets are written by Claude Code, on your computer. Tell it what you want and it shows up here in the sidebar."))}</p>
+    <ul>${[t("Its own page and its own data on this computer"), t("It can read your files and folders, or a service you connect"), t("It can use the data of your other applets, and Today can show it")].map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+    <h3>${esc(t("1. What should it do?"))}</h3>
+    <textarea data-idea placeholder="${esc(t("Write it in your own words"))}"></textarea>
+    <div class="ornekler">${APPLET_IDEAS().map((x) => `<button type="button" data-example>${esc(x)}</button>`).join("")}</div>
+    <h3>${esc(t("2. Copy the prompt"))}</h3>
+    <pre data-prompt></pre>
+    <div class="dugmeler"><button type="button" class="ana" data-copy="prompt" disabled>${esc(t("Copy prompt"))}</button></div>
+    <h3>${esc(t("3. Paste it into Claude Code in this folder"))}</h3>
+    <pre>${esc(command)}</pre>
+    <div class="dugmeler"><button type="button" data-copy="command">${esc(t("Copy command"))}</button></div>
+    <small data-ready>${esc(t("New applets show up in the sidebar by themselves. It stays out of git, and you can ask Claude to change it any time."))}</small>
+  </div>`);
+  const root = popup.element, idea = root.querySelector("[data-idea]"), prompt = root.querySelector("[data-prompt]"), copyPrompt = root.querySelector('[data-copy="prompt"]');
+  const update = () => {
+    const text = idea.value.trim();
+    prompt.textContent = `${t("Add a new Speys Local applet under applets/custom/ that does this:")}\n\n${text || t("(what you wrote above)")}\n\n${t("Follow CONTRIBUTING.md. It should work right away from an empty state, with no settings and no dependencies.")}`;
+    copyPrompt.disabled = !text;
+  };
+  update();
+  idea.addEventListener("input", update);
+  idea.focus();
+  root.addEventListener("click", async (e) => {
+    if (e.target.closest("[data-example]")) { idea.value = e.target.textContent; update(); return; }
+    const copy = e.target.closest("[data-copy]");
+    if (copy) {
+      const text = copy.dataset.copy === "prompt" ? prompt.textContent : command;
+      const label = copy.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = t("Copied");
+      } catch {
+        copy.textContent = t("Select and copy it above");
+      }
+      setTimeout(() => { copy.textContent = label; }, 1800);
+    }
+    const open = e.target.closest("[data-open-new]");
+    if (open) { popup.close(); window.openApplet(open.dataset.openNew); }
+  });
+  // Claude Code works elsewhere: when its folder appears, say so here
+  watching = setInterval(async () => {
+    const list = await fetch("/api/applets").then((r) => r.json()).catch(() => null);
+    const made = list?.find((a) => !known.has(a.id));
+    if (!made) return;
+    clearInterval(watching);
+    await window.refreshApplets();
+    root.querySelector("[data-ready]").innerHTML = `<b>${esc(t("{name} is ready", { name: made.name }))}</b> <button type="button" class="ana" data-open-new="${esc(made.id)}">${esc(t("Open"))}</button>`;
+    root.querySelector("[data-ready]").scrollIntoView({ block: "nearest" });
+  }, 3000);
+}
+newAppletButton.addEventListener("click", openNewApplet);
+// Coming back from the terminal, a new applet is already in the sidebar
+addEventListener("focus", () => window.refreshApplets().catch(() => {}));
+
 drawWorkspaces();
 start().then(watchVersion);
 </script>
