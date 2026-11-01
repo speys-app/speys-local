@@ -102,10 +102,11 @@ const notConfigured = (name) => `<section class="kart" style="max-width:520px;ma
 /**
  * A window in the middle of the dashboard; the sidebar darkens with the rest. `body` is HTML, and clicks in it reach the
  * page's own listeners. The cross, Escape and a click outside close it. Returns { element, setBody, close }.
+ * `wide` makes it as large as it can be while staying centred on the dashboard.
  */
-function openPopup({ title, body = "", onClose }) {
+function openPopup({ title, body = "", onClose, wide = false }) {
   const dialog = document.createElement("dialog");
-  dialog.className = "popup";
+  dialog.className = wide ? "popup genis" : "popup";
   dialog.innerHTML = `<div class="popup-bas"><h2>${esc(title)}</h2><button type="button" class="popup-kapat" aria-label="${esc(t("Close"))}">${ICON.close}</button></div><div class="popup-ic">${body}</div>`;
   const inner = dialog.querySelector(".popup-ic");
   const close = () => dialog.close();
@@ -130,6 +131,8 @@ function openPopup({ title, body = "", onClose }) {
   });
   document.body.append(dialog);
   dialog.showModal();
+  // A dialog can't leave its frame, so centring it on the dashboard limits how wide it can be.
+  if (wide) dialog.style.width = `${Math.max(Math.min(1100, window.innerWidth - left - 16), Math.min(420, window.innerWidth - 32))}px`;
   // Centred on the whole dashboard, as far as the frame allows.
   const room = Math.max(0, (window.innerWidth - dialog.offsetWidth) / 2 - 8);
   dialog.style.transform = `translateX(-${Math.min(left / 2, room)}px)`;
