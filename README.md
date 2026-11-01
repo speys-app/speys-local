@@ -52,12 +52,18 @@ With a few Claude Code sessions open, it's easy to miss the one that finished. S
 
 ## 🚀 Quick start
 
-Node 24 or newer is the only requirement.
+You need Node 24 or newer and git.
+
+```bash
+npx speys-local        # http://localhost:3400
+```
+
+The first run clones the repo to `~/speys-local`; run the same command to open it again. Or do it yourself:
 
 ```bash
 git clone https://github.com/speys-app/speys-local.git
 cd speys-local
-node start.js          # http://localhost:3400
+node start.js
 ```
 
 Start with the computer (macOS): `node start.js --install`, remove with `--uninstall`.

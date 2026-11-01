@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "description": "Speys Local Dashboard: your own tools, on your own computer.",
   "license": "MIT",
-  "private": true,
+  "repository": "github:speys-app/speys-local",
   "type": "module",
+  "bin": { "speys-local": "bin/speys-local.js" },
+  "files": ["bin"],
   "scripts": { "start": "node start.js", "test": "node --test \"core/**/*.test.js\" \"applets/official/**/*.test.js\"" },
   "engines": { "node": ">=24" }
 }
