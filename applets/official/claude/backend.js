@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, relative, resolve, sep } from "node:path";
+import { archiveReader } from "./archived.js";
 import { sessions } from "./sessions.js";
 import { hookInstalled, installHook, removeHook } from "./install-hook.js";
 import { NONE, chosenSounds, listSounds, soundPath, soundsFolder } from "./sounds.js";
@@ -54,6 +55,7 @@ export default function create({ dataDir, settings, baseDir, t }) {
     const own = baseClaude().folders;
     return own ? own.map((f) => expand(f.path)) : defaultFolders().map((f) => f.path);
   };
+  const archived = archiveReader();
   const hookFile = join(import.meta.dirname, "hook.js");
   // On by default; the switch on the page turns it off for good.
   let hookFailed = [];
@@ -72,7 +74,7 @@ export default function create({ dataDir, settings, baseDir, t }) {
     if (req.method === "GET" && path === "/") {
       return send(res, 200, readFileSync(join(import.meta.dirname, "index.html")), "text/html; charset=utf-8");
     }
-    if (req.method === "GET" && path === "/api/oturumlar") return send(res, 200, sessions({ ...options(), t }));
+    if (req.method === "GET" && path === "/api/oturumlar") return send(res, 200, sessions({ ...options(), t, hidden: archived() }));
     if (req.method === "GET" && path === "/api/sounds") {
       return send(res, 200, {
         options: listSounds(home), chosen: chosenSounds(home, baseClaude().sounds), none: NONE, folder: relative(resolve(import.meta.dirname, "..", "..", ".."), soundsFolder(home)).split(sep).join("/"),

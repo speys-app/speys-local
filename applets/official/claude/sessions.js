@@ -102,7 +102,7 @@ function statusOf(event, mtime, now) {
   return now - mtime < 120 ? "calisiyor" : "sessiz"; // a session from before the hooks: file time only
 }
 
-export function sessions({ folders, eventsFile, projectsRoot, t }) {
+export function sessions({ folders, eventsFile, projectsRoot, t, hidden }) {
   const now = Date.now() / 1000;
   const events = lastEvents(eventsFile);
   const list = [];
@@ -112,7 +112,7 @@ export function sessions({ folders, eventsFile, projectsRoot, t }) {
     for (const project of readdirSync(base, { withFileTypes: true })) {
       if (!project.isDirectory() || project.name.startsWith("-private-")) continue; // temporary folders of subagents
       for (const name of readdirSync(join(base, project.name))) {
-        if (!name.endsWith(".jsonl")) continue;
+        if (!name.endsWith(".jsonl") || hidden?.has(name.slice(0, -6))) continue;
         const file = join(base, project.name, name);
         const mtime = statSync(file).mtimeMs / 1000;
         if (now - mtime > WINDOW_S) continue;
