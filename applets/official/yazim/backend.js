@@ -26,6 +26,33 @@ function readBody(req) {
   });
 }
 
+/**
+ * Parse JSONL data written by savePractice(). A crash or a full disk can leave a
+ * truncated last line; that line must not take the whole applet down (issue #9),
+ * so bad lines are skipped instead of thrown.
+ */
+export function parseJsonLines(text, limit = 60) {
+  const rows = [];
+  for (const line of String(text || "").split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      rows.push(JSON.parse(line));
+    } catch {
+      // Truncated or otherwise corrupt line: ignore it, keep the rest.
+    }
+  }
+  return rows.slice(-limit);
+}
+
+/** Read a JSON file, returning {} instead of throwing when it is missing or half-written. */
+export function readJsonFile(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
 function stamp() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
@@ -55,18 +82,17 @@ export default function create({ dataDir, settings, t }) {
     mkdirSync(dir, { recursive: true });
     const result = join(dir, "sonuc.json");
     const lock = join(dir, ".calisiyor");
-    const stale = !existsSync(result) || ageMs(result) > INTERVAL_MS;
+    const data = existsSync(result) ? readJsonFile(result) : {};
+    // A half-written result is as useless as a missing one: regenerate it.
+    const stale = !existsSync(result) || ageMs(result) > INTERVAL_MS || Object.keys(data).length === 0;
     let running = existsSync(lock) && ageMs(lock) < LOCK_MAX_MS;
     if (stale && !running) {
       refresh(dir);
       running = true;
     }
-    const data = existsSync(result) ? JSON.parse(readFileSync(result, "utf8")) : {};
     data.yenileniyor = running;
     const practice = join(dir, "alistirmalar.jsonl");
-    data.alistirmalar = existsSync(practice)
-      ? readFileSync(practice, "utf8").split("\n").filter(Boolean).slice(-60).map((s) => JSON.parse(s))
-      : [];
+    data.alistirmalar = existsSync(practice) ? parseJsonLines(readFileSync(practice, "utf8")) : [];
     return data;
   }
 

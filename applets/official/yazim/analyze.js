@@ -19,7 +19,7 @@
 // produce ("widget" is not a slip of "şiddet"); this looks for keyboard errors.
 //
 // ~1 min and high memory; runs in a separate process so it doesn't stay in the server's memory.
-import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -407,7 +407,10 @@ export async function analyze(outDir, roots) {
     gunluk: [...daily.entries()].filter(([g]) => g).sort(([a], [b]) => (a < b ? -1 : 1)).map(([g, [count, errors]]) => [g, count, errors]),
   };
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "sonuc.json"), JSON.stringify(result));
+  // Write through a temp file so the server never reads a partially written result.
+  const resultFile = join(outDir, "sonuc.json");
+  writeFileSync(`${resultFile}.tmp`, JSON.stringify(result));
+  renameSync(`${resultFile}.tmp`, resultFile);
   const lines = [
     "# Words I misspell",
     "",
