@@ -85,7 +85,7 @@ function phoneCard(v, account) {
   const views = viewsOf(v);
   return `<button type="button" class="tel${state.selected === v.id ? " secili" : ""}" data-is="sos-sec" data-id="${esc(v.id)}">
       ${isTweet(v) ? `<span class="tweet-metin">${esc(v.metin)}</span>${v.saat ? `<span class="tweet-saat">${esc(v.saat)}</span>` : ""}`
-        : v.video || v.kapak ? `<img class="kapak" src="./sosyal/kapak/${esc(v.id)}?${encodeURIComponent(v.video || v.kapak)}" alt="" loading="lazy">`
+        : v.video || v.kapak || v.kapak_gorsel ? `<img class="kapak" src="./sosyal/kapak/${esc(v.id)}?${encodeURIComponent(v.video || v.kapak || v.kapak_gorsel)}" alt="" loading="lazy">`
         : `<span class="kapaksiz" style="background:${esc(account?.renk || "#444")}">${esc(v.baslik)}</span>`}
       <span class="ust">${avatar(account)}<span class="durum ${statusClass}">${esc(dueTime || status)}</span></span>
       ${views != null ? `<span class="izl">▶ ${writeNumber(views)}</span>` : ""}

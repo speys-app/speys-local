@@ -5,6 +5,7 @@
   "reads": "Its own calendar, and the folders you point it to",
   "icon": "icon.svg",
   "order": 32,
+  "storeOrder": 2,
   "backend": "backend.js",
   "settings": [
     {

@@ -8,5 +8,6 @@
   ],
   "icon": "icon.svg",
   "order": 26,
+  "storeOrder": 5,
   "backend": "backend.js"
 }

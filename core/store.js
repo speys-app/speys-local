@@ -21,6 +21,7 @@ export function manifestProblem(a) {
     return `platforms: some of ${PLATFORMS.join(", ")}`;
   }
   if (a.preinstalled !== undefined && typeof a.preinstalled !== "boolean") return "preinstalled: true or false";
+  if (a.storeOrder !== undefined && !Number.isFinite(a.storeOrder)) return "storeOrder: a number";
   if (a.url !== undefined) return "url: not allowed in the Store";
   return null;
 }

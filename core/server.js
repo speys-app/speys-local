@@ -121,8 +121,8 @@ function findApplets() {
   return [...found.values()].sort(byOrder);
 }
 
-/** Every Store applet, also one a custom copy replaces. */
-const storeApplets = () => readFolder(SOURCES[0]).sort(byOrder);
+/** Every Store applet, also one a custom copy replaces. `storeOrder` puts some first in the Store without moving them in the sidebar. */
+const storeApplets = () => readFolder(SOURCES[0]).sort((a, b) => (a.storeOrder ?? 100 + (a.order ?? 100)) - (b.storeOrder ?? 100 + (b.order ?? 100)));
 
 /**
  * A backend loads on its first request: the dashboard opens fast and an unopened applet holds no memory.

@@ -33,6 +33,7 @@ test("applet.json fields for the Store are checked", () => {
   assert.match(manifestProblem({ ...ok, category: "" }), /category/);
   assert.match(manifestProblem({ ...ok, platforms: ["amiga"] }), /platforms/);
   assert.match(manifestProblem({ ...ok, preinstalled: "yes" }), /preinstalled/);
+  assert.match(manifestProblem({ ...ok, storeOrder: "1" }), /storeOrder/);
   assert.match(manifestProblem({ ...ok, url: "https://evil.example" }), /url/);
 });
 

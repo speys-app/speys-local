@@ -5,6 +5,7 @@
   "reads": "Your Claude Code session logs (~/.claude)",
   "icon": "icon.svg",
   "order": 24,
+  "storeOrder": 4,
   "backend": "backend.js",
   "settings": [
     {

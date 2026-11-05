@@ -37,6 +37,7 @@ Personal data never goes in the repo. Paths, names and accounts belong in settin
 | `reads` | what it reads, and anything it loads from the network; shown before installing |
 | `platforms` | some of `macos`, `windows`, `linux`, when it doesn't run everywhere |
 | `preinstalled` | `true` installs it in a new workspace; keep this for the few everyone needs |
+| `storeOrder` | its place in the Store, lower first; without it the Store follows `order` after these |
 | `order` | position, lower is higher |
 | `url` | a tool running at another address, opened in the frame |
 | `page` | the page of an applet without a backend, default `index.html` |

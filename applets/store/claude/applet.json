@@ -6,6 +6,7 @@
   "preinstalled": true,
   "icon": "icon.svg",
   "order": 20,
+  "storeOrder": 1,
   "backend": "backend.js",
   "settings": [
     {

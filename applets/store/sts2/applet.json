@@ -5,6 +5,7 @@
   "reads": "The game's save folder; character art loads from spire-codex.com",
   "icon": "icon.svg",
   "order": 80,
+  "storeOrder": 3,
   "backend": "backend.js",
   "settings": [
     {
