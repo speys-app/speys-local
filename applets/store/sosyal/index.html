@@ -215,7 +215,7 @@ function detailPanel(v, account) {
   const dateText = v.tarih ? new Date(v.tarih + "T00:00").toLocaleDateString(LOCALE, { weekday: "long", day: "numeric", month: "long" }) : v.planlanan_tarih ? t("Planned for {date}, not shared", { date: new Date(v.planlanan_tarih + "T00:00").toLocaleDateString(LOCALE, { day: "numeric", month: "long" }) }) : t("no date");
   // numbers are entered per platform, the 24s / 7g above them are the totals; older records have no platform
   const platforms = metricPlatforms(v), viewed = numbers.platform?.[state.metricsView] ? state.metricsView : "";
-  const metricsTable = (source, p) => `<table><tr><th></th><th>${esc(t("24 hours"))}</th><th>${esc(t("7 days"))}</th></tr>${METRICS.map(([k, label]) => `<tr><td>${esc(label)}</td>${["24s", "7g"].map((d) =>
+  const metricsTable = (source, p) => `<table><tr><th></th><th>${esc(t("Next day"))}</th><th>${esc(t("7 days"))}</th></tr>${METRICS.map(([k, label]) => `<tr><td>${esc(label)}</td>${["24s", "7g"].map((d) =>
     `<td>${p ? `<input type="number" min="0" data-platform="${p}" data-donem="${d}" data-alan="${k}" value="${source?.[d]?.[k] ?? ""}">` : writeNumber(source?.[d]?.[k])}</td>`).join("")}</tr>`).join("")}</table>`;
   const numbersHtml = state.editing
     ? platforms.map(([p, name]) => `<div class="soluk" style="margin:10px 0 4px;font-size:12px">${name}</div>${metricsTable(numbers.platform ? numbers.platform[p] : platforms.length === 1 ? numbers : null, p)}`).join("")
