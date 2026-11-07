@@ -332,7 +332,8 @@ textarea.duzenle{display:block;width:100%;resize:none;border:0;outline:none;bord
 .seo-kontrol small.gec{color:var(--kirmizi)}
 .serit-h{display:flex;align-items:center;gap:14px;padding:12px 16px;border:1px solid var(--cizgi);border-radius:14px;background:var(--yuzey);margin-bottom:10px;flex-wrap:wrap}
 .serit-h .ad{font-weight:700;font-size:15px}.serit-h .ad small{display:block;font-weight:400;font-size:12px}
-.serit-h .sayilar{display:flex;gap:26px;margin-left:auto;flex-wrap:wrap}
+.serit-h .sayilar{display:grid;grid-template-columns:72px 88px 96px 220px;column-gap:26px;row-gap:10px;margin-left:auto;align-items:start}
+@media (max-width:760px){.serit-h .sayilar{grid-template-columns:repeat(2,minmax(0,1fr));margin-left:0;width:100%}}
 .serit-h .sayi b{display:block;font-size:20px;font-variant-numeric:tabular-nums;line-height:1.1}
 .serit-h .sayi span{font-size:11px;color:var(--soluk)}
 .serit-h .sayi .duz{cursor:pointer;border-bottom:1px dashed var(--cizgi)}
