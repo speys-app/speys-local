@@ -29,10 +29,24 @@ test("Play's data safety page: shared, collected, optional, purposes and the enc
   assert.deepEqual(parsePlayDataSafety("<html>sign in</html>"), { shared: [], collected: [], security: [], encrypted: null, read: false });
 });
 
-test("Play's details page: version, update time and description; null when they moved", () => {
-  const html = `x"141":[[["1.4.2"]],[[[36]]]],"146":[["Nov 5, 2026",[1793900382,706000000]]]x<div data-g-id="description" inert>Plan &amp; share.<br>Second line</div>`;
-  assert.deepEqual(parsePlayDetails(html), { version: "1.4.2", updated: "2026-11-05T17:39:42.000Z", description: "Plan & share.\nSecond line" });
-  assert.deepEqual(parsePlayDetails("<html></html>"), { version: null, updated: null, description: null });
+test("Play's details page: version, update time, description and the listing's look; null when they moved", () => {
+  const img = (alt, src, extra = "") => `<img src="${src}" srcset="${src} 2x" ${extra} alt="${alt}">`;
+  const html = `x"141":[[["1.4.2"]],[[[36]]]],"146":[["Nov 5, 2026",[1793900382,706000000]]]x<div data-g-id="description" inert>Plan &amp; share.<br>Second line</div>`
+    + img("Icon image", "https://play-lh.googleusercontent.com/icon=w240-h480", 'itemprop="image"')
+    + `<h1><span itemprop="name">Pocket &amp; Co</span></h1><a href="/store/apps/developer?id=Pocket"><span>Pocket Labs</span></a>`
+    + img("Screenshot image", "https://play-lh.googleusercontent.com/a=w526-h296") + img("Screenshot image", "https://play-lh.googleusercontent.com/b=w526-h296")
+    + img("Screenshot image", "https://play-lh.googleusercontent.com/a=w1052-h592") + img("Icon image", "https://play-lh.googleusercontent.com/other=s48");
+  assert.deepEqual(parsePlayDetails(html), {
+    version: "1.4.2", updated: "2026-11-05T17:39:42.000Z", description: "Plan & share.\nSecond line", title: "Pocket & Co", developer: "Pocket Labs",
+    icon: "https://play-lh.googleusercontent.com/icon", screenshots: ["https://play-lh.googleusercontent.com/a", "https://play-lh.googleusercontent.com/b"],
+  });
+  assert.deepEqual(parsePlayDetails("<html></html>"), { version: null, updated: null, description: null, title: null, developer: null, icon: null, screenshots: [] });
+});
+
+test("listing changes: a new icon and new screenshots carry both sides", () => {
+  const base = { found: true, version: "1", title: "A", icon: "i1", screenshots: ["s1", "s2"] };
+  const out = changes({ play: base, appStore: null }, { play: { ...base, icon: "i2", screenshots: ["s1", "s3"] }, appStore: null });
+  assert.deepEqual(out, [{ store: "play", field: "icon", before: "i1", after: "i2" }, { store: "play", field: "screenshots", before: ["s1", "s2"], after: ["s1", "s3"] }]);
 });
 
 test("App Store privacy label from the page's JSON, once per type", () => {

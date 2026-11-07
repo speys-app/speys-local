@@ -171,6 +171,27 @@ function seedHabits(dir) {
   });
 }
 
+// A made-up app's store look, drawn here so the screenshot of Store Check isn't empty: an icon and phone screens.
+const svgData = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+function demoIcon(from, to) {
+  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>`
+    + `<rect width="128" height="128" fill="url(#g)"/><rect x="30" y="34" width="68" height="62" rx="10" fill="#fff"/><rect x="30" y="34" width="68" height="16" rx="8" fill="#fff" opacity=".7"/>`
+    + `<g fill="${to}"><rect x="40" y="58" width="12" height="10" rx="3"/><rect x="58" y="58" width="12" height="10" rx="3"/><rect x="76" y="58" width="12" height="10" rx="3" opacity=".4"/><rect x="40" y="74" width="12" height="10" rx="3" opacity=".4"/><rect x="58" y="74" width="12" height="10" rx="3"/></g></svg>`);
+}
+function demoScreen(title, color, rows) {
+  const items = rows.map(([label, done], i) => `<rect x="24" y="${190 + i * 84}" width="342" height="68" rx="16" fill="#fff"/><circle cx="58" cy="${224 + i * 84}" r="12" fill="${done ? color : "none"}" stroke="${color}" stroke-width="3"/>`
+    + `<text x="84" y="${230 + i * 84}" font-family="Helvetica, Arial" font-size="20" fill="#1c1c1e">${label}</text>`).join("");
+  return svgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844"><rect width="390" height="844" fill="#f2f2f7"/><rect width="390" height="150" fill="${color}"/>`
+    + `<text x="24" y="118" font-family="Helvetica, Arial" font-size="34" font-weight="700" fill="#fff">${title}</text>${items}</svg>`);
+}
+const DEMO_SCREENS = [
+  ["This week", "#f97316", [["Plan the launch", true], ["Call the printer", true], ["Write the newsletter", false], ["Gym", false]]],
+  ["Today", "#7c4ddb", [["Morning walk", true], ["Review pull requests", false], ["Lunch with Ana", false]]],
+  ["Habits", "#1f9d55", [["Read 20 minutes", true], ["No sugar", true], ["Sleep by 11", false], ["Journal", true], ["Stretch", false]]],
+  ["Goals", "#2f6fe0", [["Ship version 3", false], ["Run a 10K", false], ["Save for a trip", true]]],
+  ["Shared lists", "#d93a2b", [["Groceries", false], ["Trip packing", true], ["Gift ideas", false]]],
+].map(([title, color, rows]) => demoScreen(title, color, rows));
+
 function seedAppStores(dir) {
   const at = (days) => new Date(Date.now() - days * DAY * 1000).toISOString();
   const row = (category, type, purposes, optional = false) => ({ category, type, optional, purposes });
@@ -194,16 +215,18 @@ function seedAppStores(dir) {
     apps: [{
       key: "com.example.pocketplanner", name: "Pocket Planner",
       play: { id: "com.example.pocketplanner", found: true, url: "https://play.google.com/store/apps/details?id=com.example.pocketplanner", version: play, updated: at(days + 2), description: "Plan your week in one place.",
+        title: "Pocket Planner: week & habits", developer: "Pocket Labs", icon: demoIcon("#fb923c", "#f97316"), screenshots: DEMO_SCREENS.slice(0, shots),
         dataSafety: { shared: [], collected: rows, security: security(encrypted), encrypted, read: true } },
       appStore: { id: "com.example.pocketplanner", found: true, url: "https://apps.apple.com/us/app/id1000000000", version: ios, updated: at(days + 1), releaseNotes: "", description: "Plan your week in one place.",
-        screenshots: shots, rating: { average: 4.7, count: 128 }, privacy: label(extra) },
+        title: "Pocket Planner", developer: "Pocket Labs", icon: demoIcon(days > 2 ? "#a78bfa" : "#fb923c", days > 2 ? "#7c4ddb" : "#f97316"),
+        screenshots: DEMO_SCREENS.slice(0, shots), ipadScreenshots: [], rating: { average: 4.7, count: 128 }, privacy: label(extra) },
       project: { android: { version: "2.5.0", build: "52" }, ios: { version: "2.5.0", build: "52" } },
     }],
   });
   mkdirSync(join(dir, "apps", "app-stores"), { recursive: true });
   writeJson(join(dir, "apps", "app-stores", "checks.json"), { runs: [
-    run(1, "2.4.0", "2.4.1", collected, false, ["Other User Content"], 6),
-    run(8, "2.3.2", "2.4.0", collected.slice(0, 3), false, [], 5),
+    run(1, "2.4.0", "2.4.1", collected, false, ["Other User Content"], 5),
+    run(8, "2.3.2", "2.4.0", collected.slice(0, 3), false, [], 4),
   ] });
 }
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>App Stores</title>
+<title>Store Check</title>
 <link rel="stylesheet" href="/kit.css">
 <style>
 main{max-width:1080px}
@@ -12,7 +12,21 @@ main{max-width:1080px}
 .as-ust small{flex:1}
 .as-dugme{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:8px;padding:5px 12px;font-weight:600}
 .as-dugme:disabled{opacity:.5;cursor:default}
-.as-app{margin-bottom:16px}
+.as-app{margin-bottom:22px}
+.as-iki{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+.as-magaza h2{margin-bottom:12px}
+.as-vitrin{display:flex;gap:12px;align-items:center;color:inherit;text-decoration:none;margin-bottom:12px}
+.as-vitrin b{display:block;font-size:15px}.as-vitrin small{display:block}
+.as-ikon{width:64px;height:64px;flex:none;object-fit:cover;background:var(--yuzey2)}
+.as-ikon.play{border-radius:14px}.as-ikon.appStore{border-radius:22.5%}
+.as-seritler{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px}
+.as-seritler img{height:200px;border-radius:8px;border:1px solid var(--cizgi);display:block;background:var(--yuzey2)}
+.as-alt{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--soluk);margin:16px 0 6px}
+.as-etiket{display:block;margin:6px 0 4px}
+.as-once-sonra{display:flex;align-items:center;gap:10px;margin-top:6px}
+.as-once-sonra .as-ikon{width:48px;height:48px}
+@media (max-width:900px){.as-iki{grid-template-columns:minmax(0,1fr)}}
+
 .as-app>h3{font-size:17px;margin:0 0 10px}
 .as-surumler{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
 .as-surum{border:1px solid var(--cizgi);border-radius:10px;padding:9px 12px;min-width:0}
@@ -77,7 +91,7 @@ main{max-width:1080px}
 <script src="/kit.js"></script>
 <script>
 "use strict";
-document.title = t("App Stores");
+document.title = t("Store Check");
 
 let data = null, error = "", busy = false, timer = null;
 const STORE = { play: "Google Play", appStore: "App Store" };
@@ -127,14 +141,27 @@ function finding(f) {
   return `<div class="as-bulgu nokta ${dot}"><p>${esc(text)}</p></div>`;
 }
 
-const FIELD = { version: t("Version"), description: t("Description"), screenshots: t("Screenshots"), collected: t("Data collected"), shared: t("Data shared"), security: t("Security practices"), privacy: t("Privacy label") };
+const FIELD = { version: t("Version"), title: t("Name"), icon: t("Icon"), description: t("Description"), screenshots: t("Screenshots"), collected: t("Data collected"), shared: t("Data shared"), security: t("Security practices"), privacy: t("Privacy label") };
+// Play gives an image address without a size; Apple's addresses are complete
+const imageAt = (store, url, size) => {
+  if (!/^https:/.test(url)) return url; // the demo draws its own
+  return `./img?u=${encodeURIComponent(store === "play" && /googleusercontent\.com\//.test(url) ? `${url}=${size}` : url)}`;
+};
+const shots = (store, list) => `<div class="as-seritler">${list.map((u) => `<a href="${esc(store === "play" && /^https:/.test(u) ? `${u}=h1600` : u)}" target="_blank" rel="noopener"><img src="${esc(imageAt(store, u, "h480"))}" alt="" loading="lazy"></a>`).join("")}</div>`;
 function change(c) {
-  const head = `<b>${esc(STORE[c.store])}</b> · ${esc(FIELD[c.field] || c.field)}`;
+  const head = `<b>${esc(FIELD[c.field] || c.field)}</b>`;
   if (c.added || c.removed) {
     const rows = [...c.added.map((x) => `<li class="arti">+ ${esc(x)}</li>`), ...c.removed.map((x) => `<li class="eksi">− ${esc(x)}</li>`)];
     return `<div class="as-degisim">${head}<ul>${rows.join("")}</ul></div>`;
   }
   if (c.field === "description") return `<div class="as-degisim">${head}: ${esc(t("changed"))}</div>`;
+  if (c.field === "icon") {
+    return `<div class="as-degisim">${head}<div class="as-once-sonra"><img class="as-ikon ${c.store}" src="${esc(imageAt(c.store, c.before, "s128"))}" alt=""> → <img class="as-ikon ${c.store}" src="${esc(imageAt(c.store, c.after, "s128"))}" alt=""></div></div>`;
+  }
+  if (c.field === "screenshots" && Array.isArray(c.after)) {
+    return `<div class="as-degisim">${head}<small class="as-etiket">${esc(t("Before ({n})", { n: c.before.length }))}</small>${shots(c.store, c.before)}
+      <small class="as-etiket">${esc(t("Now ({n})", { n: c.after.length }))}</small>${shots(c.store, c.after)}</div>`;
+  }
   return `<div class="as-degisim">${head}: ${esc(c.before)} → <b>${esc(c.after)}</b></div>`;
 }
 
@@ -180,30 +207,50 @@ function formEntry(app, i) {
   return `<div class="as-rehber-ac"><p>${esc(text)}</p><button class="as-dugme" type="button" data-form="${i}">${esc(t("Open the form guide"))}</button></div>`;
 }
 
+/** One store's own panel: its listing as people see it, what changed there, and its privacy form. */
+function storePanel(app, store, x) {
+  const name = STORE[store];
+  if (!x) return `<section class="kart as-magaza"><h2>${esc(name)}</h2><p class="bos">${esc(store === "play" ? t("No Google Play id in Settings.") : t("No App Store id in Settings."))}</p></section>`;
+  if (x.error || !x.found) return `<section class="kart as-magaza"><h2>${esc(name)}</h2><p class="bos">${esc(x.error ? t("could not be read") : t("not found"))}</p></section>`;
+  const mine = app.changes.filter((c) => c.store === store);
+  const changes = app.comparedWith
+    ? (mine.length ? mine.map(change).join("") : `<p class="bos">${esc(t("Nothing changed since {date}.", { date: dateOf(app.comparedWith) }))}</p>`)
+    : `<p class="bos">${esc(t("Changes show from the second check on."))}</p>`;
+  const list = Array.isArray(x.screenshots) ? x.screenshots : [];
+  const ipad = store === "appStore" && x.ipadScreenshots?.length ? `<small class="as-etiket">${esc(t("iPad"))}</small>${shots(store, x.ipadScreenshots)}` : "";
+  return `<section class="kart as-magaza">
+    <h2>${esc(name)}</h2>
+    <a class="as-vitrin" href="${esc(x.url || "#")}" target="_blank" rel="noopener">
+      ${x.icon ? `<img class="as-ikon ${store}" src="${esc(imageAt(store, x.icon, "s128"))}" alt="">` : ""}
+      <span><b>${esc(x.title || app.name)}</b><small>${esc(x.developer || "")}</small>
+      <small>${esc([x.version, x.updated && t("updated {date}", { date: dateOf(x.updated) })].filter(Boolean).join(" · "))}</small></span>
+    </a>
+    ${list.length ? shots(store, list) : `<p class="bos">${esc(t("No screenshots read."))}</p>`}${ipad}
+    <h3 class="as-alt">${esc(t("Changes"))}</h3>${changes}
+    <h3 class="as-alt">${esc(store === "play" ? t("Data safety") : t("App privacy"))}</h3>
+    <div class="as-form">${store === "play" ? playForm(x) : appForm(x)}</div>
+  </section>`;
+}
+
 function appCard(app, i) {
   const r = app.result;
   if (!r) return `<section class="kart as-app"><h3>${esc(app.name)}</h3>${formEntry(app, i)}<p class="bos">${esc(data.running ? t("Checking the stores…") : t("Not checked yet."))}</p></section>`;
   const project = r.project && !r.project.error ? r.project : null;
   const local = project?.android || project?.ios;
   const projectSub = local?.build ? t("build {n}", { n: local.build }) : "";
-  const changesHtml = app.comparedWith
-    ? (app.changes.length ? app.changes.map(change).join("") : `<p class="bos">${esc(t("Nothing changed on the stores since {date}.", { date: dateOf(app.comparedWith) }))}</p>`)
-    : `<p class="bos">${esc(t("Changes show from the second check on."))}</p>`;
-  return `<section class="kart as-app">
-    <h3>${esc(app.name)}</h3>
-    <div class="as-surumler">
-      ${versionBox(t("Project"), local?.version || (r.project ? "—" : t("not set")), projectSub)}
-      ${versionBox("Google Play", ...storeVersion(r.play), r.play?.url)}
-      ${versionBox("App Store", ...storeVersion(r.appStore), r.appStore?.url)}
-    </div>
-    ${formEntry(app, i)}
-    ${app.findings.length ? app.findings.map(finding).join("") : `<p class="bos">${esc(t("Nothing to fix."))}</p>`}
-    <h2 style="margin-top:14px">${esc(t("Changes"))}</h2>${changesHtml}
-    <div class="izgara" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:14px">
-      <div class="as-form"><h2>${esc(t("Google Play · Data safety"))}</h2>${playForm(r.play)}</div>
-      <div class="as-form"><h2>${esc(t("App Store · App privacy"))}</h2>${appForm(r.appStore)}</div>
-    </div>
-  </section>`;
+  return `<div class="as-app">
+    <section class="kart">
+      <h3>${esc(app.name)}</h3>
+      <div class="as-surumler">
+        ${versionBox(t("Project"), local?.version || (r.project ? "—" : t("not set")), projectSub)}
+        ${versionBox("Google Play", ...storeVersion(r.play), r.play?.url)}
+        ${versionBox("App Store", ...storeVersion(r.appStore), r.appStore?.url)}
+      </div>
+      ${formEntry(app, i)}
+      ${app.findings.length ? app.findings.map(finding).join("") : `<p class="bos">${esc(t("Nothing to fix."))}</p>`}
+    </section>
+    <div class="as-iki">${storePanel(app, "play", r.play)}${storePanel(app, "appStore", r.appStore)}</div>
+  </div>`;
 }
 
 function draw() {
@@ -212,10 +259,10 @@ function draw() {
   if (route) return drawGuide(root, Number(route[1]));
   if (error && !data) { root.innerHTML = `<p class="fark-kotu">${esc(error)}</p>`; return; }
   if (!data) { root.innerHTML = `<p class="bos">${esc(t("Loading…"))}</p>`; return; }
-  if (data.not_configured) { root.innerHTML = notConfigured(t("App Stores")); return; }
+  if (data.not_configured) { root.innerHTML = notConfigured(t("Store Check")); return; }
   const working = busy || data.running;
   const when = data.checkedAt ? t("Checked {when}; checks again after a week.", { when: timeAgo(Date.parse(data.checkedAt) / 1000) }) : "";
-  root.innerHTML = `<div class="as-ust"><h1>${esc(t("App Stores"))}</h1><small>${esc(when)}</small>
+  root.innerHTML = `<div class="as-ust"><h1>${esc(t("Store Check"))}</h1><small>${esc(when)}</small>
       <button class="as-dugme" type="button" data-check ${working ? "disabled" : ""}>${esc(working ? t("Checking…") : t("Check now"))}</button></div>
     ${data.error ? `<p class="fark-kotu">${esc(data.error)}</p>` : ""}
     ${data.formDrift ? `<p class="fark-kotu">${esc(t("Google's help page lists data types this guide doesn't know ({added}) or no longer lists some ({removed}): the Data safety form may have changed. Update the applet before trusting its CSV.", { added: data.formDrift.added.join(", ") || "–", removed: data.formDrift.removed.join(", ") || "–" }))}</p>` : ""}
@@ -328,14 +375,14 @@ function drawGuide(root, i) {
   if (guideApp !== i || !guide) { root.innerHTML = `<p class="bos">${esc(t("Loading…"))}</p>`; if (guideApp !== i) loadGuide(i); return; }
   const g = guide;
   if (g.error && !g.want) {
-    root.innerHTML = `<button class="fg-geri" type="button" data-back>← ${esc(t("App Stores"))}</button><section class="kart"><p class="fark-kotu">${esc(g.error)}</p></section>`;
+    root.innerHTML = `<button class="fg-geri" type="button" data-back>← ${esc(t("Store Check"))}</button><section class="kart"><p class="fark-kotu">${esc(g.error)}</p></section>`;
     return;
   }
   const tabs = [["want", t("Should be")], ["have", t("In Console now")], ["diff", t("Differences")]];
   const body = guideMode === "diff" ? diffHtml2()
     : guideMode === "have" ? (g.have ? formHtml(g.have, g.want) : `<section class="kart"><p class="bos">${esc(t("Load Console's CSV export to see it here."))}</p></section>`)
     : formHtml(g.want, g.have);
-  root.innerHTML = `<button class="fg-geri" type="button" data-back>← ${esc(t("App Stores"))}</button>
+  root.innerHTML = `<button class="fg-geri" type="button" data-back>← ${esc(t("Store Check"))}</button>
     <div class="fg-ust"><h1>${esc(t("{name} · Data safety form", { name: g.name }))}</h1>
       <div class="segment">${tabs.map(([k, label]) => `<button type="button" data-mode="${k}" class="${guideMode === k ? "secili" : ""}">${esc(label)}${k === "diff" && g.diff.length ? ` (${g.diff.length})` : ""}</button>`).join("")}</div></div>
     <p class="fg-bilgi">${esc(t("Answers: {file}", { file: g.file }))} · ${esc(g.exportedAt ? t("Console export: {date}", { date: dateOf(g.exportedAt) }) : t("No Console export loaded"))}</p>

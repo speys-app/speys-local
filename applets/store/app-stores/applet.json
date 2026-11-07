@@ -1,6 +1,6 @@
 {
-  "name": "App Stores",
-  "description": "What Google Play and the App Store show about your apps: versions, privacy forms, and what changed since last week.",
+  "name": "Store Check",
+  "description": "What Google Play and the App Store show about your apps: icons, screenshots, versions, privacy forms, and what changed since last week.",
   "category": "Developer",
   "reads": "The public Google Play and App Store pages of the apps you list, and the version in your project folder",
   "icon": "icon.svg",

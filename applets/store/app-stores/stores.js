@@ -24,15 +24,28 @@ const text = (html) => decode(String(html ?? "").replace(/<br\s*\/?>/gi, "\n").r
 
 // ---- Google Play ----
 
-/** Version and last update from the details page; the description too. Null fields when Play moved them. */
+/** Play's image address without its size ("=w526-h296"), so the page asks for the size it needs. */
+const playImage = (src) => decode(src).split("=")[0];
+
+/** Version, last update, description and the listing's look (title, developer, icon, screenshots). Null when Play moved them. */
 export function parsePlayDetails(html) {
   const version = html.match(/"141":\[\[\["([^"]+)"\]\]/)?.[1] ?? null;
   const seconds = html.match(/"146":\[\["[^"]*",\[(\d+),/)?.[1];
   const description = html.match(/data-g-id="description"[^>]*>([\s\S]*?)<\/div>/)?.[1];
+  const icon = html.match(/<img[^>]*itemprop="image"[^>]*>/)?.[0].match(/src="([^"]+)"/)?.[1];
+  const screenshots = [];
+  for (const [img] of html.matchAll(/<img[^>]*alt="Screenshot image"[^>]*>/g)) {
+    const src = img.match(/src="([^"]+)"/)?.[1];
+    if (src && !screenshots.includes(playImage(src))) screenshots.push(playImage(src));
+  }
   return {
     version,
     updated: seconds ? new Date(Number(seconds) * 1000).toISOString() : null,
     description: description ? text(description) : null,
+    title: text(html.match(/itemprop="name"[^>]*>([\s\S]*?)<\//)?.[1]) || null,
+    developer: text(html.match(/href="\/store\/apps\/dev(?:eloper)?\?id=[^"]*"[^>]*>([\s\S]*?)<\/a>/)?.[1]) || null,
+    icon: icon ? playImage(icon) : null,
+    screenshots,
   };
 }
 
@@ -114,7 +127,8 @@ export async function readAppStore(id, country) {
   return {
     id, found: true, url: a.trackViewUrl?.split("?")[0] ?? null,
     version: a.version ?? null, updated: a.currentVersionReleaseDate ?? null, releaseNotes: a.releaseNotes ?? null,
-    description: a.description ?? null, screenshots: (a.screenshotUrls || []).length,
+    description: a.description ?? null, title: a.trackName ?? null, developer: a.artistName ?? null, icon: a.artworkUrl512 ?? null,
+    screenshots: a.screenshotUrls || [], ipadScreenshots: a.ipadScreenshotUrls || [],
     rating: a.userRatingCount ? { average: a.averageUserRating, count: a.userRatingCount } : null,
     privacy: page ? parseAppPrivacy(page) : null,
   };
@@ -216,9 +230,18 @@ export function changes(before, after) {
     const d = setDiff(x, y);
     if (d.added.length || d.removed.length) out.push({ store, field: name, ...d });
   };
+  // the look of a listing: the icon and title as before → after, screenshots as both lists (older checks kept only a count)
+  const look = (store, x, y) => {
+    field(store, "title", x.title, y.title);
+    field(store, "icon", x.icon, y.icon);
+    const a = Array.isArray(x.screenshots) ? x.screenshots : null, b = Array.isArray(y.screenshots) ? y.screenshots : null;
+    if (a && b && a.join() !== b.join()) out.push({ store, field: "screenshots", before: a, after: b });
+    else if (!a || !b) field(store, "screenshots", a?.length ?? x.screenshots, b?.length ?? y.screenshots);
+  };
   const p0 = before.play, p1 = after.play;
   if (p0?.found && p1?.found) {
     field("play", "version", p0.version, p1.version);
+    look("play", p0, p1);
     field("play", "description", p0.description, p1.description);
     if (p0.dataSafety?.read && p1.dataSafety?.read) {
       list("play", "collected", p0.dataSafety.collected.map(playKey), p1.dataSafety.collected.map(playKey));
@@ -229,8 +252,8 @@ export function changes(before, after) {
   const a0 = before.appStore, a1 = after.appStore;
   if (a0?.found && a1?.found) {
     field("appStore", "version", a0.version, a1.version);
+    look("appStore", a0, a1);
     field("appStore", "description", a0.description, a1.description);
-    field("appStore", "screenshots", a0.screenshots, a1.screenshots);
     if (a0.privacy && a1.privacy) list("appStore", "privacy", appKeys(a0.privacy), appKeys(a1.privacy));
   }
   return out;

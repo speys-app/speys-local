@@ -1,6 +1,4 @@
 {
-  "App Stores": "App Stores",
-  "What Google Play and the App Store show about your apps: versions, privacy forms, and what changed since last week.": "Uygulamaların hakkında Google Play ve App Store'da görünenler: sürümler, gizlilik formları ve geçen haftadan beri değişenler.",
   "Developer": "Geliştirici",
   "The public Google Play and App Store pages of the apps you list, and the version in your project folder": "Yazdığın uygulamaların herkese açık Google Play ve App Store sayfaları, bir de proje klasöründeki sürüm",
   "Apps": "Uygulamalar",
@@ -37,13 +35,10 @@
   "Checking the stores…": "Mağazalara bakılıyor…",
   "Not checked yet.": "Henüz kontrol edilmedi.",
   "build {n}": "derleme {n}",
-  "Nothing changed on the stores since {date}.": "{date} tarihinden beri mağazalarda bir şey değişmedi.",
   "Changes show from the second check on.": "Değişiklikler ikinci kontrolden itibaren görünür.",
   "Project": "Proje",
   "Nothing to fix.": "Düzeltilecek bir şey yok.",
   "Changes": "Değişenler",
-  "Google Play · Data safety": "Google Play · Veri güvenliği",
-  "App Store · App privacy": "App Store · Uygulama gizliliği",
   "Checked {when}; checks again after a week.": "Son kontrol: {when}; bir hafta sonra yeniden bakar.",
   "Loading…": "Yükleniyor…",
   "Checking…": "Bakılıyor…",
@@ -185,5 +180,15 @@
   "Could not load it.": "Yüklenemedi.",
   "No such app.": "Böyle bir uygulama yok.",
   "android is the Google Play package name; ios is the bundle id or the number in the App Store link; project is optional, the folder whose version is compared with the stores; playForm is optional, your answers to Google Play's Data safety form, in the project or anywhere": "android: Google Play paket adı; ios: bundle id ya da App Store bağlantısındaki sayı; project isteğe bağlı: sürümü mağazalarla karşılaştırılacak klasör; playForm isteğe bağlı: Google Play Veri güvenliği formuna cevapların, projenin içinde ya da başka bir yerde",
-  "[{\"name\": \"My App\", \"android\": \"com.example.app\", \"ios\": \"com.example.app\", \"project\": \"~/code/my-app\", \"playForm\": \"store/play-data-safety.json\"}]": "[{\"name\": \"Uygulamam\", \"android\": \"com.example.app\", \"ios\": \"com.example.app\", \"project\": \"~/code/uygulamam\", \"playForm\": \"store/play-data-safety.json\"}]"
+  "[{\"name\": \"My App\", \"android\": \"com.example.app\", \"ios\": \"com.example.app\", \"project\": \"~/code/my-app\", \"playForm\": \"store/play-data-safety.json\"}]": "[{\"name\": \"Uygulamam\", \"android\": \"com.example.app\", \"ios\": \"com.example.app\", \"project\": \"~/code/uygulamam\", \"playForm\": \"store/play-data-safety.json\"}]",
+  "Store Check": "Store Check",
+  "What Google Play and the App Store show about your apps: icons, screenshots, versions, privacy forms, and what changed since last week.": "Uygulamaların hakkında Google Play ve App Store'da görünenler: ikonlar, ekran görüntüleri, sürümler, gizlilik formları ve geçen haftadan beri değişenler.",
+  "Icon": "İkon",
+  "Before ({n})": "Önce ({n})",
+  "Now ({n})": "Şimdi ({n})",
+  "iPad": "iPad",
+  "Nothing changed since {date}.": "{date} tarihinden beri değişen bir şey yok.",
+  "No screenshots read.": "Ekran görüntüsü okunamadı.",
+  "Data safety": "Veri güvenliği",
+  "App privacy": "Uygulama gizliliği"
 }

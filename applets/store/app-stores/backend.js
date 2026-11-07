@@ -1,6 +1,7 @@
-// App Stores: what Google Play and the App Store show about your apps, checked once a week or with the button.
+// Store Check: what Google Play and the App Store show about your apps, checked once a week or with the button.
 // The check runs when the page asks for it (never at startup); its results go to checks.json, newest first, so each
 // check is compared with the one before. Network: only the public store pages and Apple's lookup service.
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { expand, handleWrite, page, readJson, send, writeJson } from "../../../lib/common.js";
@@ -10,6 +11,9 @@ import { changes, checkApp, findings } from "./stores.js";
 const HELP_PAGE = "https://support.google.com/googleplay/android-developer/answer/10787469?hl=en";
 
 const WEEK_MS = 7 * 86400_000;
+// Store images go through the backend: Chrome blocks Play's images on another page (ORB), and a kept copy still shows
+// a screenshot after the store replaced it. Only the two stores' image hosts are fetched.
+const IMAGE_HOST = /^https:\/\/(play-lh\.googleusercontent\.com|is\d+-ssl\.mzstatic\.com)\//;
 const KEEP = 12;
 
 export default function create({ dataDir, settings, t }) {
@@ -115,12 +119,31 @@ export default function create({ dataDir, settings, t }) {
     };
   }
 
+  const imageDir = join(dataDir, "images");
+  async function image(url) {
+    if (!IMAGE_HOST.test(url)) return null;
+    const file = join(imageDir, createHash("sha1").update(url).digest("hex"));
+    if (existsSync(file)) return { body: readFileSync(file), type: readFileSync(`${file}.type`, "utf8") };
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; speys-local)" }, signal: AbortSignal.timeout(20_000) });
+    const type = r.headers.get("content-type") || "";
+    if (!r.ok || !type.startsWith("image/")) return null;
+    const body = Buffer.from(await r.arrayBuffer());
+    mkdirSync(imageDir, { recursive: true });
+    writeFileSync(file, body);
+    writeFileSync(`${file}.type`, type);
+    return { body, type };
+  }
+
   return async (req, res) => {
     const path = req.url.split("?")[0];
     if (req.method === "GET" && path === "/") return page(res, import.meta.dirname);
     if (req.method === "GET" && path === "/api/stores") return send(res, 200, overview());
     const query = new URL(req.url, "http://x").searchParams;
     const appAt = (i) => apps()[Number(i)] ?? null;
+    if (req.method === "GET" && path === "/img") {
+      const img = await image(String(query.get("u") || "")).catch(() => null);
+      return img ? send(res, 200, img.body, img.type, "max-age=31536000, immutable") : send(res, 404, { error: "not found" });
+    }
     if (req.method === "GET" && path === "/api/play") {
       const a = appAt(query.get("app"));
       return a ? send(res, 200, playForm(a)) : send(res, 404, { error: "not found" });
