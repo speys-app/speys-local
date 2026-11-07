@@ -171,6 +171,42 @@ function seedHabits(dir) {
   });
 }
 
+function seedAppStores(dir) {
+  const at = (days) => new Date(Date.now() - days * DAY * 1000).toISOString();
+  const row = (category, type, purposes, optional = false) => ({ category, type, optional, purposes });
+  const collected = [
+    row("Personal info", "Name", ["App functionality", "Account management"]),
+    row("Personal info", "Email address", ["App functionality", "Account management"]),
+    row("App activity", "App interactions", ["Analytics"]),
+    row("Photos and videos", "Photos", ["App functionality"], true),
+  ];
+  const security = (encrypted) => [
+    encrypted ? { title: "Data is encrypted in transit", detail: "" } : { title: "Data isn’t encrypted", detail: "Your data isn’t transferred over a secure connection" },
+    { title: "You can request that data be deleted", detail: "" },
+  ];
+  const label = (extra) => [{ id: "DATA_LINKED_TO_YOU", title: "Data Linked to You", purposes: [{ id: "APP_FUNCTIONALITY", title: "App Functionality", categories: [
+    { id: "CONTACT_INFO", title: "Contact Info", dataTypes: ["Email Address", "Name"] },
+    { id: "USER_CONTENT", title: "User Content", dataTypes: ["Photos or Videos", ...extra] },
+    { id: "IDENTIFIERS", title: "Identifiers", dataTypes: ["User ID"] },
+  ] }] }];
+  const run = (days, play, ios, rows, encrypted, extra, shots) => ({
+    at: at(days), country: "us",
+    apps: [{
+      key: "com.example.pocketplanner", name: "Pocket Planner",
+      play: { id: "com.example.pocketplanner", found: true, url: "https://play.google.com/store/apps/details?id=com.example.pocketplanner", version: play, updated: at(days + 2), description: "Plan your week in one place.",
+        dataSafety: { shared: [], collected: rows, security: security(encrypted), encrypted, read: true } },
+      appStore: { id: "com.example.pocketplanner", found: true, url: "https://apps.apple.com/us/app/id1000000000", version: ios, updated: at(days + 1), releaseNotes: "", description: "Plan your week in one place.",
+        screenshots: shots, rating: { average: 4.7, count: 128 }, privacy: label(extra) },
+      project: { android: { version: "2.5.0", build: "52" }, ios: { version: "2.5.0", build: "52" } },
+    }],
+  });
+  mkdirSync(join(dir, "apps", "app-stores"), { recursive: true });
+  writeJson(join(dir, "apps", "app-stores", "checks.json"), { runs: [
+    run(1, "2.4.0", "2.4.1", collected, false, ["Other User Content"], 6),
+    run(8, "2.3.2", "2.4.0", collected.slice(0, 3), false, [], 5),
+  ] });
+}
+
 /** Writes the whole demo into a workspace folder: the applets it has data for are installed, and `disabled` hides this computer's own. */
 export async function seedDemo(dir, { disabled = [], language } = {}) {
   const root = resolve(import.meta.dirname, "..");
@@ -181,12 +217,14 @@ export async function seedDemo(dir, { disabled = [], language } = {}) {
   await seedLedger(dir, root);
   const social = seedSocial(dir);
   seedHabits(dir);
+  seedAppStores(dir);
   writeJson(join(dir, "settings.json"), {
-    _dashboard: { installed: LEGACY, disabled, autoUpdateCheck: false, ...(language ? { language } : {}) },
+    _dashboard: { installed: [...LEGACY, "app-stores"], disabled, autoUpdateCheck: false, ...(language ? { language } : {}) },
     tasks: { projects },
     claude: { folders: [{ path: claude, label: "Claude" }], projectsRoot: join(dir, "projects") },
     yazim: { claudeFolders: [claude] },
     sosyal: { root: social },
     seo: { sites: [{ id: "studio", name: "My Studio", domain: "example.com", file: join(dir, "apps", "seo", "studio.json") }] },
+    "app-stores": { apps: [{ name: "Pocket Planner", android: "com.example.pocketplanner", ios: "com.example.pocketplanner" }] },
   });
 }

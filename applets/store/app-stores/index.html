@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Stores</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+main{max-width:1080px}
+.as-ust{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.as-ust h1{font-size:20px;margin:0}
+.as-ust small{flex:1}
+.as-dugme{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:8px;padding:5px 12px;font-weight:600}
+.as-dugme:disabled{opacity:.5;cursor:default}
+.as-app{margin-bottom:16px}
+.as-app>h3{font-size:17px;margin:0 0 10px}
+.as-surumler{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.as-surum{border:1px solid var(--cizgi);border-radius:10px;padding:9px 12px;min-width:0}
+.as-surum small{display:block}
+.as-surum b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.as-surum a{color:inherit;text-decoration:none}.as-surum a:hover b{text-decoration:underline}
+.as-bulgu{padding:6px 0 6px 16px}
+.as-bulgu p{margin:0}
+.as-degisim{padding:4px 0}
+.as-degisim .arti{color:var(--yesil)}.as-degisim .eksi{color:var(--kirmizi)}
+.as-degisim ul{margin:2px 0 0;padding-left:18px;font-size:13px}
+.as-form h4{font-size:13px;margin:12px 0 4px}
+.as-form h4:first-of-type{margin-top:0}
+.as-satir{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:5px 0;border-bottom:1px solid var(--cizgi);font-size:13px}
+.as-satir:last-child{border-bottom:0}
+.as-satir span:last-child{color:var(--soluk)}
+.as-guvenlik{padding:5px 0;font-size:13px}
+.as-guvenlik.kotu{color:var(--kirmizi);font-weight:600}
+@media (max-width:760px){.as-surumler{grid-template-columns:minmax(0,1fr)}}
+.as-rehber-ac{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--cizgi);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.as-rehber-ac p{margin:0;flex:1;min-width:220px}
+.fg-ust{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.fg-ust h1{font-size:19px;margin:0;flex:1}
+.fg-geri{border:0;background:none;color:var(--soluk);padding:4px 0;font-weight:600}
+.fg-bilgi{font-size:12.5px;color:var(--soluk);margin:0 0 12px}
+.fg-bilgi code{font-size:11.5px}
+.fg-bolum{margin-bottom:14px}
+.fg-bolum>h2{margin-bottom:12px}
+.fg-soru{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px 24px;padding:12px 0 12px 12px;border-top:1px solid var(--cizgi)}
+.fg-soru:first-of-type{border-top:0;padding-top:0}
+.fg-soru>p{margin:0;font-size:13.5px}
+.fg-secenek{display:flex;gap:10px;align-items:flex-start;padding:4px 0;font-size:13.5px;color:var(--soluk)}
+.fg-secenek.on{color:var(--metin)}
+.fg-isaret{flex:none;width:18px;height:18px;margin-top:1px;border:2px solid var(--gri);display:grid;place-items:center}
+.fg-isaret.daire{border-radius:50%}.fg-isaret.kare{border-radius:4px}
+.on>.fg-isaret{border-color:var(--mavi)}
+.on>.fg-isaret.daire:after{content:"";width:8px;height:8px;border-radius:50%;background:var(--mavi)}
+.on>.fg-isaret.kare{background:var(--mavi)}
+.on>.fg-isaret.kare:after{content:"";width:9px;height:5px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.fg-metin{border:1px solid var(--cizgi);border-radius:6px;padding:6px 10px;font-size:13px;overflow-wrap:anywhere}
+.fg-neden{grid-column:1/-1;margin:2px 0 0;font-size:12px;color:var(--soluk)}
+.fg-farkli{box-shadow:inset 3px 0 0 var(--turuncu);padding-left:12px}
+.fg-farkli .fg-console{display:block;font-size:12px;color:var(--turuncu);margin-top:4px}
+.fg-kategori{padding:10px 0;border-top:1px solid var(--cizgi)}
+.fg-kategori:first-of-type{border-top:0;padding-top:0}
+.fg-kategori h3{font-size:13.5px;margin:0 0 4px}
+.fg-turler{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 16px}
+.fg-tur-kart{border:1px solid var(--cizgi);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.fg-tur-kart h3{font-size:14.5px;margin:0 0 2px}
+.fg-tur-kart>small{display:block;margin-bottom:8px}
+.fg-tur-kart.cikar{opacity:.7;border-style:dashed}
+.fg-fark{padding:8px 0;border-top:1px solid var(--cizgi);font-size:13.5px}
+.fg-fark:first-of-type{border-top:0}
+.fg-fark b{font-weight:600}
+.fg-fark .eski{color:var(--kirmizi);text-decoration:line-through}.fg-fark .yeni{color:var(--yesil);font-weight:600}
+@media (max-width:760px){.fg-soru{grid-template-columns:minmax(0,1fr)}}
+
+</style>
+</head>
+<body>
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+document.title = t("App Stores");
+
+let data = null, error = "", busy = false, timer = null;
+const STORE = { play: "Google Play", appStore: "App Store" };
+
+async function load() {
+  try {
+    data = await getJson("./api/stores");
+    error = "";
+  } catch (e) {
+    error = String(e.message || e);
+  }
+  draw();
+  clearTimeout(timer);
+  if (data?.running) timer = setTimeout(load, 2000);
+}
+
+async function checkNow() {
+  busy = true;
+  draw();
+  try {
+    const r = await fetch("./api/check", { method: "POST", headers: { "X-Panel": "1", "Content-Type": "application/json" }, body: "{}" });
+    const body = await r.json();
+    if (!r.ok) notify(body.error || t("The check failed."));
+  } catch (e) {
+    notify(String(e.message || e));
+  }
+  busy = false;
+  load();
+}
+
+const dateOf = (iso) => (iso ? formatDate(iso.slice(0, 10)) : "");
+
+function finding(f) {
+  const v = { ...f.values, store: STORE[f.values.store] || f.values.store };
+  const text = {
+    "not-encrypted": t("Google Play tells people your data isn't encrypted in transit. If the app only talks HTTPS, answer Yes to “Is all of the user data collected by your app encrypted in transit?” in the Data safety form."),
+    unreadable: t("{store} could not be read this time; the next check tries again.", v),
+    "not-found": t("{store} has no app with the id {id}.", v),
+    "no-data-safety": t("Google Play's Data safety section could not be read."),
+    "nothing-declared": t("{store} lists no collected data. For an app with accounts that is almost never right.", v),
+    "play-version-hidden": t("Google Play doesn't show the version number for this app."),
+    "no-privacy-label": t("The App Store privacy label could not be read."),
+    ahead: t("Your project is at {local}; {store} still has {live}.", v),
+    "project-unreadable": t("The project folder could not be read."),
+  }[f.code] || f.code;
+  const dot = { bad: "kirmizi", warn: "turuncu", info: "" }[f.level];
+  return `<div class="as-bulgu nokta ${dot}"><p>${esc(text)}</p></div>`;
+}
+
+const FIELD = { version: t("Version"), description: t("Description"), screenshots: t("Screenshots"), collected: t("Data collected"), shared: t("Data shared"), security: t("Security practices"), privacy: t("Privacy label") };
+function change(c) {
+  const head = `<b>${esc(STORE[c.store])}</b> · ${esc(FIELD[c.field] || c.field)}`;
+  if (c.added || c.removed) {
+    const rows = [...c.added.map((x) => `<li class="arti">+ ${esc(x)}</li>`), ...c.removed.map((x) => `<li class="eksi">− ${esc(x)}</li>`)];
+    return `<div class="as-degisim">${head}<ul>${rows.join("")}</ul></div>`;
+  }
+  if (c.field === "description") return `<div class="as-degisim">${head}: ${esc(t("changed"))}</div>`;
+  return `<div class="as-degisim">${head}: ${esc(c.before)} → <b>${esc(c.after)}</b></div>`;
+}
+
+function versionBox(label, v, sub, url) {
+  const inner = `<small>${esc(label)}</small><b>${esc(v || "—")}</b><small>${esc(sub || "")}</small>`;
+  return `<div class="as-surum">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${inner}</a>` : inner}</div>`;
+}
+
+function storeVersion(s) {
+  if (!s) return [t("not set"), ""];
+  if (s.error) return ["—", t("could not be read")];
+  if (!s.found) return ["—", t("not found")];
+  return [s.version, s.updated ? t("updated {date}", { date: dateOf(s.updated) }) : ""];
+}
+
+function playForm(p) {
+  if (!p) return `<p class="bos">${esc(t("No Google Play id in Settings."))}</p>`;
+  const d = p.dataSafety;
+  if (!p.found || !d?.read) return `<p class="bos">${esc(t("Not read."))}</p>`;
+  const rows = (list) => list.length
+    ? list.map((x) => `<div class="as-satir"><span>${esc(x.category)} → ${esc(x.type)}${x.optional ? ` <small>(${esc(t("optional"))})</small>` : ""}</span><span>${esc(x.purposes.join(", "))}</span></div>`).join("")
+    : `<p class="bos">${esc(t("None."))}</p>`;
+  return `<h4>${esc(t("Data collected"))}</h4>${rows(d.collected)}
+    <h4>${esc(t("Data shared"))}</h4>${rows(d.shared)}
+    <h4>${esc(t("Security practices"))}</h4>${d.security.map((s) => `<div class="as-guvenlik${/(isn.t|not) encrypted/i.test(s.title) ? " kotu" : ""}">${esc(s.title)}</div>`).join("") || `<p class="bos">${esc(t("None."))}</p>`}`;
+}
+
+function appForm(a) {
+  if (!a) return `<p class="bos">${esc(t("No App Store id in Settings."))}</p>`;
+  if (!a.found || !a.privacy) return `<p class="bos">${esc(t("Not read."))}</p>`;
+  if (!a.privacy.length) return `<p class="bos">${esc(t("None."))}</p>`;
+  return a.privacy.map((type) => `<h4>${esc(type.title)}</h4>${type.purposes.flatMap((u) => u.categories.map((c) =>
+    `<div class="as-satir"><span>${esc(c.title)}: ${esc(c.dataTypes.join(", "))}</span><span>${esc(u.title || "")}</span></div>`)).join("")}`).join("");
+}
+
+function formEntry(app, i) {
+  if (!app.form) return "";
+  const f = app.form;
+  const text = f.error ? t("The answers file could not be read: {error}", { error: f.error })
+    : !f.exportedAt ? t("Google Play's Data safety form: load Console's CSV export to see what to change.")
+    : f.diff ? t("Google Play's Data safety form: {n} answers differ from your Console export of {date}.", { n: f.diff, date: dateOf(f.exportedAt) })
+    : t("Google Play's Data safety form matches your Console export of {date}.", { date: dateOf(f.exportedAt) });
+  return `<div class="as-rehber-ac"><p>${esc(text)}</p><button class="as-dugme" type="button" data-form="${i}">${esc(t("Open the form guide"))}</button></div>`;
+}
+
+function appCard(app, i) {
+  const r = app.result;
+  if (!r) return `<section class="kart as-app"><h3>${esc(app.name)}</h3>${formEntry(app, i)}<p class="bos">${esc(data.running ? t("Checking the stores…") : t("Not checked yet."))}</p></section>`;
+  const project = r.project && !r.project.error ? r.project : null;
+  const local = project?.android || project?.ios;
+  const projectSub = local?.build ? t("build {n}", { n: local.build }) : "";
+  const changesHtml = app.comparedWith
+    ? (app.changes.length ? app.changes.map(change).join("") : `<p class="bos">${esc(t("Nothing changed on the stores since {date}.", { date: dateOf(app.comparedWith) }))}</p>`)
+    : `<p class="bos">${esc(t("Changes show from the second check on."))}</p>`;
+  return `<section class="kart as-app">
+    <h3>${esc(app.name)}</h3>
+    <div class="as-surumler">
+      ${versionBox(t("Project"), local?.version || (r.project ? "—" : t("not set")), projectSub)}
+      ${versionBox("Google Play", ...storeVersion(r.play), r.play?.url)}
+      ${versionBox("App Store", ...storeVersion(r.appStore), r.appStore?.url)}
+    </div>
+    ${formEntry(app, i)}
+    ${app.findings.length ? app.findings.map(finding).join("") : `<p class="bos">${esc(t("Nothing to fix."))}</p>`}
+    <h2 style="margin-top:14px">${esc(t("Changes"))}</h2>${changesHtml}
+    <div class="izgara" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:14px">
+      <div class="as-form"><h2>${esc(t("Google Play · Data safety"))}</h2>${playForm(r.play)}</div>
+      <div class="as-form"><h2>${esc(t("App Store · App privacy"))}</h2>${appForm(r.appStore)}</div>
+    </div>
+  </section>`;
+}
+
+function draw() {
+  const root = $("#icerik");
+  const route = location.hash.match(/^#form\/(\d+)/);
+  if (route) return drawGuide(root, Number(route[1]));
+  if (error && !data) { root.innerHTML = `<p class="fark-kotu">${esc(error)}</p>`; return; }
+  if (!data) { root.innerHTML = `<p class="bos">${esc(t("Loading…"))}</p>`; return; }
+  if (data.not_configured) { root.innerHTML = notConfigured(t("App Stores")); return; }
+  const working = busy || data.running;
+  const when = data.checkedAt ? t("Checked {when}; checks again after a week.", { when: timeAgo(Date.parse(data.checkedAt) / 1000) }) : "";
+  root.innerHTML = `<div class="as-ust"><h1>${esc(t("App Stores"))}</h1><small>${esc(when)}</small>
+      <button class="as-dugme" type="button" data-check ${working ? "disabled" : ""}>${esc(working ? t("Checking…") : t("Check now"))}</button></div>
+    ${data.error ? `<p class="fark-kotu">${esc(data.error)}</p>` : ""}
+    ${data.formDrift ? `<p class="fark-kotu">${esc(t("Google's help page lists data types this guide doesn't know ({added}) or no longer lists some ({removed}): the Data safety form may have changed. Update the applet before trusting its CSV.", { added: data.formDrift.added.join(", ") || "–", removed: data.formDrift.removed.join(", ") || "–" }))}</p>` : ""}
+    ${data.apps.map((a, i) => appCard(a, i)).join("")}`;
+}
+
+// ---- The Data safety form guide: Console's order, with the answers from the app's repo and Console's last export ----
+let guide = null, guideApp = null, guideMode = null;
+async function loadGuide(i) {
+  guideApp = i;
+  try {
+    guide = await getJson(`./api/play?app=${i}`);
+  } catch (e) {
+    guide = { error: String(e.message || e) };
+  }
+  guideMode ??= guide.have && guide.diff?.length ? "diff" : "want";
+  draw();
+}
+
+const YESNO = (v) => (v === true ? t("Yes") : v === false ? t("No") : t("Not answered"));
+function option(on, label, round) {
+  return `<div class="fg-secenek${on ? " on" : ""}"><span class="fg-isaret ${round ? "daire" : "kare"}"></span><span>${esc(label)}</span></div>`;
+}
+function nameOf(id) {
+  const s = guide.schema;
+  for (const c of s.categories) { if (c.id === id) return t(c.name); const x = c.types.find((tp) => tp.id === id); if (x) return t(x.name); }
+  const p = s.purposes.find(([pid]) => pid === id);
+  if (p) return t(p[1]);
+  for (const g of s.general) { const o = g.options?.find(([oid]) => oid === id); if (o) return t(o[1]); }
+  return id;
+}
+function valueText(v) {
+  if (Array.isArray(v)) return v.length ? v.map(nameOf).join(", ") : t("None");
+  if (typeof v === "boolean" || v === null || v === undefined) return YESNO(v ?? null);
+  return v ? (/^[A-Z_]+$/.test(v) ? nameOf(v) : v) : t("Empty");
+}
+const REQ_TEXT = (v) => (v === true ? t("Required") : v === false ? t("Users can choose") : t("Not answered"));
+
+function generalControl(g, v) {
+  if (g.kind === "bool") return option(v === true, t("Yes"), true) + option(v === false, t("No"), true);
+  if (g.kind === "single") return g.options.map(([id, label]) => option(v === id, t(label), true)).join("");
+  if (g.kind === "multi") return g.options.map(([id, label]) => option((v || []).includes(id), t(label), false)).join("");
+  return `<div class="fg-metin">${esc(v || "—")}</div>`;
+}
+
+function question(label, control, why, differs, consoleText) {
+  return `<div class="fg-soru${differs ? " fg-farkli" : ""}"><p>${esc(label)}</p><div>${control}${differs ? `<span class="fg-console">${esc(consoleText)}</span>` : ""}</div>
+    ${why ? `<p class="fg-neden">${esc(why)}</p>` : ""}</div>`;
+}
+
+function typeCard(c, tp, side, other) {
+  const d = side.types[tp.id], o = other?.types[tp.id];
+  const mark = (field) => other && JSON.stringify(d?.[field] ?? null) !== JSON.stringify(o?.[field] ?? null);
+  const inConsole = (text) => (guideMode === "want" ? t("In Console: {v}", { v: text }) : t("Should be: {v}", { v: text }));
+  const purposes = (list) => guide.schema.purposes.map(([id, label]) => option((list || []).includes(id), t(label), false)).join("");
+  return `<div class="fg-tur-kart"><h3>${esc(t(tp.name))}</h3><small>${esc(t(c.name))}</small>
+    ${question(t("Is this data collected, shared, or both?"), option(d.collected, t("Collected"), false) + option(d.shared, t("Shared"), false), "",
+      mark("collected") || mark("shared"), inConsole([o?.collected && t("Collected"), o?.shared && t("Shared")].filter(Boolean).join(", ") || t("None")))}
+    ${question(t("Is this data processed ephemerally?"), option(d.ephemeral === true, t("Yes, this collected data is processed ephemerally"), true) + option(d.ephemeral === false, t("No, this collected data is not processed ephemerally"), true), "",
+      mark("ephemeral"), inConsole(YESNO(o?.ephemeral ?? null)))}
+    ${question(t("Is this data required for your app, or can users choose whether it's collected?"), option(d.required === true, t("Data collection is required (users can't turn off this data collection)"), true) + option(d.required === false, t("Users can choose whether this data is collected"), true), "",
+      mark("required"), inConsole(REQ_TEXT(o?.required ?? null)))}
+    ${question(t("Why is this user data collected? Select all that apply."), purposes(d.collectedFor), "", mark("collectedFor"), inConsole(valueText(o?.collectedFor || [])))}
+    ${d.shared || o?.shared ? question(t("Why is this user data shared? Select all that apply."), purposes(d.sharedFor), "", mark("sharedFor"), inConsole(valueText(o?.sharedFor || []))) : ""}
+    ${guide.why[tp.id] ? `<p class="fg-neden">${esc(guide.why[tp.id])}</p>` : ""}</div>`;
+}
+
+function formHtml(side, other) {
+  const s = guide.schema;
+  const general = s.general.filter((g) => {
+    const v = side.general[g.key], o = other?.general[g.key];
+    const empty = (x) => x === null || x === undefined || x === "" || (Array.isArray(x) && !x.length);
+    return !(empty(v) && empty(o)) || ["PSL_DATA_COLLECTION_COLLECTS_PERSONAL_DATA", "PSL_DATA_COLLECTION_ENCRYPTED_IN_TRANSIT"].includes(g.id);
+  }).map((g) => {
+    const v = side.general[g.key], o = other?.general[g.key];
+    const differs = other && JSON.stringify(v ?? null) !== JSON.stringify(o ?? null);
+    return question(t(g.label), generalControl(g, v), guideMode === "want" ? guide.why[g.key] : "", differs,
+      (guideMode === "want" ? t("In Console: {v}", { v: valueText(o) }) : t("Should be: {v}", { v: valueText(o) })));
+  }).join("");
+  const categories = s.categories.map((c) => `<div class="fg-kategori"><h3>${esc(t(c.name))}</h3><div class="fg-turler">${c.types.map((tp) => {
+    const on = !!side.types[tp.id], differs = other && on !== !!other.types[tp.id];
+    const note = guideMode === "want" ? (on ? t("Not selected in Console") : t("Selected in Console: remove it")) : (on ? t("Should not be selected") : t("Should be selected"));
+    return `<div class="${differs ? "fg-farkli" : ""}">${option(on, t(tp.name), false)}${differs ? `<span class="fg-console">${esc(note)}</span>` : ""}</div>`;
+  }).join("")}</div></div>`).join("");
+  const cards = s.categories.flatMap((c) => c.types.filter((tp) => side.types[tp.id]).map((tp) => typeCard(c, tp, side, other))).join("");
+  return `<section class="kart fg-bolum"><h2>${esc(t("Data collection and security"))}</h2>${general}</section>
+    <section class="kart fg-bolum"><h2>${esc(t("Data types"))}</h2>${categories}</section>
+    <section class="kart fg-bolum"><h2>${esc(t("Data usage and handling"))}</h2>${cards || `<p class="bos">${esc(t("No data types selected."))}</p>`}</section>`;
+}
+
+function diffHtml2() {
+  if (!guide.have) return `<section class="kart"><p class="bos">${esc(t("Load Console's CSV export to see the differences."))}</p></section>`;
+  if (!guide.diff.length) return `<section class="kart"><p>${esc(t("Console matches the answers. Nothing to change."))}</p></section>`;
+  const FIELD = { collected: t("Collected"), shared: t("Shared"), ephemeral: t("Processed ephemerally"), required: t("Required or optional"),
+    collectedFor: t("Why it is collected"), sharedFor: t("Why it is shared") };
+  const general = guide.schema.general;
+  const rows = guide.diff.map((d) => {
+    const fmt = d.field === "required" ? REQ_TEXT : valueText;
+    if (d.area === "general") {
+      const g = general.find((x) => x.key === d.id);
+      return `<div class="fg-fark"><b>${esc(t(g.label))}</b><br><span class="eski">${esc(valueText(d.have))}</span> → <span class="yeni">${esc(valueText(d.want))}</span></div>`;
+    }
+    if (d.field === "selected") return `<div class="fg-fark"><b>${esc(nameOf(d.id))}</b>: ${esc(d.want ? t("select it in Data types and answer its questions") : t("remove it from Data types"))}</div>`;
+    return `<div class="fg-fark"><b>${esc(nameOf(d.id))} · ${esc(FIELD[d.field] || d.field)}</b><br><span class="eski">${esc(fmt(d.have ?? null))}</span> → <span class="yeni">${esc(fmt(d.want ?? null))}</span></div>`;
+  });
+  return `<section class="kart fg-bolum"><h2>${esc(t("{n} things to change in Console", { n: guide.diff.length }))}</h2>${rows.join("")}</section>`;
+}
+
+function drawGuide(root, i) {
+  if (guideApp !== i || !guide) { root.innerHTML = `<p class="bos">${esc(t("Loading…"))}</p>`; if (guideApp !== i) loadGuide(i); return; }
+  const g = guide;
+  if (g.error && !g.want) {
+    root.innerHTML = `<button class="fg-geri" type="button" data-back>← ${esc(t("App Stores"))}</button><section class="kart"><p class="fark-kotu">${esc(g.error)}</p></section>`;
+    return;
+  }
+  const tabs = [["want", t("Should be")], ["have", t("In Console now")], ["diff", t("Differences")]];
+  const body = guideMode === "diff" ? diffHtml2()
+    : guideMode === "have" ? (g.have ? formHtml(g.have, g.want) : `<section class="kart"><p class="bos">${esc(t("Load Console's CSV export to see it here."))}</p></section>`)
+    : formHtml(g.want, g.have);
+  root.innerHTML = `<button class="fg-geri" type="button" data-back>← ${esc(t("App Stores"))}</button>
+    <div class="fg-ust"><h1>${esc(t("{name} · Data safety form", { name: g.name }))}</h1>
+      <div class="segment">${tabs.map(([k, label]) => `<button type="button" data-mode="${k}" class="${guideMode === k ? "secili" : ""}">${esc(label)}${k === "diff" && g.diff.length ? ` (${g.diff.length})` : ""}</button>`).join("")}</div></div>
+    <p class="fg-bilgi">${esc(t("Answers: {file}", { file: g.file }))} · ${esc(g.exportedAt ? t("Console export: {date}", { date: dateOf(g.exportedAt) }) : t("No Console export loaded"))}</p>
+    <div class="fg-ust" style="margin-bottom:14px">
+      <a class="as-dugme" href="./api/play.csv?app=${i}" download style="text-decoration:none;color:inherit">${esc(t("Download the CSV to import"))}</a>
+      <label class="as-dugme" style="cursor:pointer">${esc(t("Load Console's export…"))}<input type="file" accept=".csv,text/csv" data-export hidden></label>
+      <small style="flex:1">${esc(t("In Play Console: Policy and programs → App content → Data safety → Export to CSV / Import from CSV."))}</small>
+    </div>
+    ${body}`;
+}
+
+document.addEventListener("click", (e) => {
+  const open = e.target.closest("[data-form]");
+  if (open) { guideMode = null; guide = null; guideApp = null; location.hash = `form/${open.dataset.form}`; return; }
+  if (e.target.closest("[data-back]")) { location.hash = ""; return; }
+  const mode = e.target.closest("[data-mode]");
+  if (mode) { guideMode = mode.dataset.mode; draw(); }
+});
+document.addEventListener("change", async (e) => {
+  const input = e.target.closest("[data-export]");
+  if (!input?.files?.[0]) return;
+  const csv = await input.files[0].text();
+  const r = await fetch("./api/play-export", { method: "POST", headers: { "X-Panel": "1", "Content-Type": "application/json" }, body: JSON.stringify({ app: guideApp, csv }) });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) { notify(body.error === "not a Data safety CSV export" ? t("That isn't Play Console's Data safety export.") : body.error || t("Could not load it.")); return; }
+  guideMode = null;
+  await loadGuide(guideApp);
+  load();
+});
+window.addEventListener("hashchange", () => { if (!location.hash.startsWith("#form/")) { guide = null; guideApp = null; } draw(); });
+
+document.addEventListener("click", (e) => { if (e.target.closest("[data-check]")) checkNow(); });
+window.addEventListener("focus", () => { if (isHidden()) return; load(); if (guideApp !== null) loadGuide(guideApp); });
+load();
+</script>
+</body>
+</html>

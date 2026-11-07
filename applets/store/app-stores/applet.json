@@ -1,0 +1,25 @@
+{
+  "name": "App Stores",
+  "description": "What Google Play and the App Store show about your apps: versions, privacy forms, and what changed since last week.",
+  "category": "Developer",
+  "reads": "The public Google Play and App Store pages of the apps you list, and the version in your project folder",
+  "icon": "icon.svg",
+  "order": 38,
+  "backend": "backend.js",
+  "settings": [
+    {
+      "key": "apps",
+      "label": "Apps",
+      "type": "json",
+      "placeholder": "[{\"name\": \"My App\", \"android\": \"com.example.app\", \"ios\": \"com.example.app\", \"project\": \"~/code/my-app\", \"playForm\": \"store/play-data-safety.json\"}]",
+      "hint": "android is the Google Play package name; ios is the bundle id or the number in the App Store link; project is optional, the folder whose version is compared with the stores; playForm is optional, your answers to Google Play's Data safety form, in the project or anywhere"
+    },
+    {
+      "key": "country",
+      "label": "Store country",
+      "type": "text",
+      "placeholder": "us",
+      "hint": "Two-letter country of the storefront to read, e.g. us or tr; if empty: us"
+    }
+  ]
+}
