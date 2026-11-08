@@ -19,6 +19,42 @@ const SESSIONS = [
   ["landing-page", "Fix the mobile header", "the header overlaps the hero on small screens", "Fixed: the header now collapses below 720px. Checked on an iPhone viewport.", 240, "Stop"],
   ["mobile-app", "Offline task sync", "make tasks work offline and sync when back online", "Tasks now queue locally and sync on reconnect. 14 tests pass.", 1500, "Stop"],
 ];
+// What the demo sessions did, for the panel beside the office: [tool, input, result]. Paths are inside the project
+// unless they start with "../". The call marked `running` has no result yet: the session is busy with it.
+const patch = (start, lines) => ({ structuredPatch: [{ oldStart: start, oldLines: lines.filter((l) => !l.startsWith("+")).length, newStart: start, newLines: lines.filter((l) => !l.startsWith("-")).length, lines }] });
+const STEPS = {
+  "shop-api": [
+    ["Read", { file_path: "src/payments/stripe.js" }],
+    ["Grep", { pattern: "invoice.payment_failed", path: "src" }],
+    ["WebFetch", { url: "https://docs.stripe.com/webhooks/handling-payment-events", prompt: "Which events mean a payment failed?" }],
+    ["WebSearch", { query: "stripe webhook signature verification express raw body" }],
+    ["Read", { file_path: "src/server.js" }],
+    ["Write", { file_path: "src/payments/webhooks.js", content: "x\n".repeat(64) }, { type: "create" }],
+    ["Edit", { file_path: "src/server.js", old_string: "a", new_string: "b" }, patch(12, [" import express from \"express\";", "-app.use(express.json());", "+import { webhooks } from \"./payments/webhooks.js\";", "+", "+// Stripe signs the raw body: the webhook route reads it before the JSON parser does", "+app.post(\"/webhooks/stripe\", express.raw({ type: \"application/json\" }), webhooks);", "+app.use(express.json());", " app.use(\"/api\", api);"])],
+    ["Read", { file_path: "../mobile-app/src/api/payments.ts" }],
+    ["Bash", { command: "npm test -- payments", description: "Run the payment tests" }, { output: "> shop-api@2.4.0 test\n> node --test test/payments\n\n✔ charges a saved card (41ms)\n✔ refunds a partial amount (12ms)\n✖ marks an invoice unpaid when the payment fails\n  Expected status 200, got 400: No signatures found matching the expected signature\n\nℹ tests 3\nℹ pass 2\nℹ fail 1" }],
+    ["Edit", { file_path: "src/payments/webhooks.js", old_string: "a", new_string: "b" }, patch(28, ["   switch (event.type) {", "-    case \"invoice.payment_failed\":", "-      await markUnpaid(event.data.object);", "-      break;", "+    case \"invoice.payment_failed\": {", "+      const invoice = event.data.object;", "+      await markUnpaid(invoice);", "+      // try again in 1, 3 and 7 days before the account is paused", "+      await scheduleRetry(invoice.id, [1, 3, 7]);", "+      break;", "+    }", "   }"])],
+    ["Write", { file_path: "test/webhooks.test.js", content: "x\n".repeat(41) }, { type: "create" }],
+    ["Bash", { command: "npm test -- webhooks", description: "Run the webhook tests" }, "running"],
+  ],
+  blog: [
+    ["Read", { file_path: "db/schema.sql" }],
+    ["Write", { file_path: "db/migrations/0012_add_slug.sql", content: "x\n".repeat(12) }, { type: "create" }],
+    ["Edit", { file_path: "src/posts.js", old_string: "a", new_string: "b" }, patch(40, ["-export const postUrl = (post) => `/posts/${post.id}`;", "+export const postUrl = (post) => `/posts/${post.slug ?? post.id}`;"])],
+    ["Bash", { command: "npm run migrate -- --dry-run", description: "Check the migration" }, { output: "Would apply 1 migration:\n  0012_add_slug.sql  ALTER TABLE posts ADD COLUMN slug text UNIQUE\nNothing was changed (dry run)." }],
+    ["Bash", { command: "psql \"$PRODUCTION_DATABASE_URL\" -f db/migrations/0012_add_slug.sql", description: "Run the migration on production" }, "running"],
+  ],
+  "landing-page": [
+    ["Read", { file_path: "src/components/Header.css" }],
+    ["WebSearch", { query: "css header collapse menu below 720px" }],
+    ["Edit", { file_path: "src/components/Header.css", old_string: "a", new_string: "b" }, patch(31, ["-.header { position: fixed; height: 96px; }", "+.header { position: sticky; top: 0; min-height: 64px; }", "+@media (max-width: 720px) {", "+  .header nav { display: none; }", "+  .header .menu-button { display: flex; }", "+}"])],
+    ["Edit", { file_path: "src/components/Header.jsx", old_string: "a", new_string: "b" }, patch(18, ["   <nav>{links}</nav>", "+  <button className=\"menu-button\" onClick={toggle} aria-label=\"Menu\">", "+    <MenuIcon />", "+  </button>"])],
+    ["Bash", { command: "npx playwright test header --project=iphone", description: "Check the header on a phone" }, { output: "Running 4 tests using 2 workers\n  ✓ header collapses below 720px (1.2s)\n  ✓ menu button opens the nav (0.9s)\n  ✓ hero is not covered (0.7s)\n  ✓ header stays on top while scrolling (1.1s)\n\n  4 passed (3.4s)" }],
+    ["Bash", { command: "git commit -am \"Collapse the header below 720px\"", description: "Commit the fix" }],
+    ["Bash", { command: "git push origin main", description: "Push" }, { output: "To github.com:example/landing-page.git\n   4e1a9c2..b7d03f1  main -> main" }],
+  ],
+};
+
 const SENTENCES = [
   "please check the database migration and fix the error in the deploy script",
   "can you update the readme with the install instructions and the screenshots",
@@ -39,10 +75,23 @@ function seedClaude(dir) {
     mkdirSync(folder, { recursive: true });
     const logs = join(claude, "projects", `demo-${project}`);
     mkdirSync(logs, { recursive: true });
+    mkdirSync(join(folder, ".git"), { recursive: true }); // where the project ends, for what counts as outside it
     const id = `demo-${i}`, stamp = new Date((now - age) * 1000).toISOString(), file = join(logs, `${id}.jsonl`);
+    const steps = STEPS[project] ?? [], done = [], running = [];
+    steps.forEach(([name, input, result], n) => {
+      const at = new Date((now - age - (steps.length - n) * 35) * 1000).toISOString(), call = `${id}-${n}`;
+      if (input.file_path) input = { ...input, file_path: resolve(folder, input.file_path) };
+      const base = { sessionId: id, cwd: folder, timestamp: at };
+      const use = { ...base, type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: call, name, input }] } };
+      if (result === "running") return running.push(use);
+      done.push(use, { ...base, type: "user", toolUseResult: result ?? {}, message: { role: "user", content: [{ type: "tool_result", tool_use_id: call, content: result?.output ?? "ok", is_error: false }] } });
+    });
     write(file, jsonl([
-      { type: "user", sessionId: id, cwd: folder, timestamp: stamp, message: { role: "user", content: ask } },
+      // the request comes before the work it started
+      { type: "user", sessionId: id, cwd: folder, timestamp: new Date((now - age - (steps.length + 1) * 35) * 1000).toISOString(), message: { role: "user", content: ask } },
+      ...done,
       { type: "assistant", sessionId: id, cwd: folder, timestamp: stamp, message: { role: "assistant", content: [{ type: "text", text: reply }] } },
+      ...running,
       { type: "ai-title", sessionId: id, aiTitle: title },
       { type: "last-prompt", sessionId: id, lastPrompt: ask },
     ]));

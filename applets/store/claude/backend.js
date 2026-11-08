@@ -1,10 +1,11 @@
-// Claude: the status of sessions. Settings: settings.json → "claude" (folders, eventsFile, projectsRoot); defaults when empty.
+// Claude: the status of sessions and what each one did. Settings: settings.json → "claude" (folders, eventsFile, projectsRoot); defaults when empty.
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { archiveReader } from "./archived.js";
-import { sessions } from "./sessions.js";
+import { activity, findTranscript, stepDetail } from "./activity.js";
+import { allSessions, sessions } from "./sessions.js";
 import { hookInstalled, installHook, removeHook } from "./install-hook.js";
 import { NONE, chosenSounds, listSounds, soundPath, soundsFolder } from "./sounds.js";
 
@@ -86,6 +87,18 @@ export default function create({ dataDir, settings, baseDir, t }) {
       return send(res, 200, readFileSync(join(import.meta.dirname, "index.html")), "text/html; charset=utf-8");
     }
     if (req.method === "GET" && path === "/api/oturumlar") return send(res, 200, sessions({ ...options(), t, hidden: archived() }));
+    if (req.method === "GET" && path === "/api/gecmis") return send(res, 200, allSessions({ ...options(), t }));
+    if (req.method === "GET" && path === "/api/etkinlik") {
+      const q = new URL(req.url, "http://x").searchParams;
+      const file = findTranscript(options().folders, q.get("oturum"));
+      return file ? send(res, 200, activity(file, Math.min(Number(q.get("son")) || 300, 4000))) : send(res, 404, { error: t("Not found") });
+    }
+    if (req.method === "GET" && path === "/api/adim") {
+      const q = new URL(req.url, "http://x").searchParams;
+      const file = findTranscript(options().folders, q.get("oturum"));
+      const step = file && stepDetail(file, q.get("id"));
+      return step ? send(res, 200, step) : send(res, 404, { error: t("Not found") });
+    }
     if (req.method === "GET" && path === "/api/sounds") {
       return send(res, 200, {
         options: listSounds(home), chosen: chosenSounds(home, baseClaude().sounds), none: NONE, folder: relative(resolve(import.meta.dirname, "..", "..", ".."), soundsFolder(home)).split(sep).join("/"),

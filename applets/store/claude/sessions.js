@@ -1,6 +1,7 @@
 // Claude sessions: the transcripts of the last 48 hours + the events written by the hook. Files run to many MB; only the tail is read.
 import { existsSync, openSync, closeSync, readFileSync, readSync, readdirSync, statSync } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
+import { currentStep } from "./activity.js";
 
 const WINDOW_S = 48 * 3600;
 const RUNNING_S = 15 * 60;
@@ -50,8 +51,8 @@ export function lastEvents(file) {
   return out;
 }
 
-/** The folder the session was opened in (the one on the last lines can drift with `cd`). */
-function startFolder(file) {
+/** The folder the session was opened in (the one on the last lines can drift with `cd`) and its first request. */
+function head(file) {
   const size = Math.min(statSync(file).size, 200_000);
   const buffer = Buffer.alloc(size);
   const fd = openSync(file, "r");
@@ -60,15 +61,23 @@ function startFolder(file) {
   } finally {
     closeSync(fd);
   }
+  let cwd = "", prompt = "";
   for (const line of buffer.toString("utf8").split("\n")) {
     if (!line.includes('"cwd"')) continue;
+    let entry;
     try {
-      return JSON.parse(line).cwd ?? "";
+      entry = JSON.parse(line);
     } catch {
-      // truncated line
+      continue; // truncated line
     }
+    cwd ||= entry.cwd ?? "";
+    if (!prompt && entry.type === "user" && !entry.isMeta) {
+      const text = clean(textOf(entry.message?.content), 220);
+      if (text && !text.startsWith("<")) prompt = text;
+    }
+    if (cwd && prompt) break;
   }
-  return "";
+  return { cwd, prompt };
 }
 
 function textOf(content) {
@@ -124,7 +133,7 @@ export function sessions({ folders, eventsFile, projectsRoot, t, hidden }) {
           else if (!prompt && s.type === "last-prompt") prompt = s.lastPrompt ?? "";
           else if (!reply && s.type === "assistant" && !s.isSidechain) reply = textOf(s.message?.content);
         }
-        const cwd = startFolder(file);
+        const cwd = head(file).cwd;
         const id = name.slice(0, -6);
         const event = events.get(id) || {};
         const status = statusOf(event, mtime, now);
@@ -138,10 +147,69 @@ export function sessions({ folders, eventsFile, projectsRoot, t, hidden }) {
           durum: status,
           zaman: mtime,
           onay_mesaji: status === "onay" ? event.mesaj ?? "" : "",
+          ...(status === "calisiyor" || status === "onay" ? { simdi: currentStep(tail) } : {}),
         });
       }
     }
   }
   list.sort((a, b) => ORDER[a.durum] - ORDER[b.durum] || b.zaman - a.zaman);
   return list.slice(0, 30);
+}
+
+/** How many days Claude Code keeps a session's file: `cleanupPeriodDays` in its settings, 30 when it isn't set. */
+function keptDays(root) {
+  try {
+    const days = JSON.parse(readFileSync(join(root, "settings.json"), "utf8")).cleanupPeriodDays;
+    return Number.isFinite(days) ? days : 30;
+  } catch {
+    return 30;
+  }
+}
+
+const summaries = new Map();
+/** A session's title and folder, read again only when its file changes. */
+function summary(file, size, mtime) {
+  const key = `${size}:${mtime}`;
+  const known = summaries.get(file);
+  if (known?.key === key) return known;
+  let title = "";
+  const tail = readTail(file, 128_000);
+  for (let i = tail.length - 1; i >= 0 && !title; i--) {
+    if (tail[i].type === "ai-title") title = tail[i].aiTitle ?? "";
+    else if (tail[i].type === "last-prompt") title = tail[i].lastPrompt ?? "";
+  }
+  const { cwd, prompt } = head(file);
+  const out = { key, title: title || prompt, cwd };
+  summaries.set(file, out);
+  return out;
+}
+
+/** Every session Claude Code still keeps, the newest first: the ones the office no longer shows too. */
+export function allSessions({ folders, projectsRoot, t }) {
+  const list = [];
+  let kept = null;
+  for (const { path: root, label } of folders) {
+    const base = join(root, "projects");
+    if (!existsSync(base)) continue;
+    kept ??= keptDays(root);
+    for (const project of readdirSync(base, { withFileTypes: true })) {
+      if (!project.isDirectory() || project.name.startsWith("-private-")) continue;
+      for (const name of readdirSync(join(base, project.name))) {
+        if (!name.endsWith(".jsonl")) continue;
+        const file = join(base, project.name, name);
+        const { size, mtimeMs } = statSync(file);
+        if (size < 200) continue; // opened and closed without a word
+        const { title, cwd } = summary(file, size, mtimeMs);
+        list.push({
+          oturum: name.slice(0, -6),
+          yapilandirma: label,
+          proje: cwd ? projectName(cwd, projectsRoot) : project.name,
+          baslik: clean(title || t("(untitled)"), 90),
+          zaman: mtimeMs / 1000,
+        });
+      }
+    }
+  }
+  list.sort((a, b) => b.zaman - a.zaman);
+  return { oturumlar: list.slice(0, 500), saklama: kept ?? 30 };
 }

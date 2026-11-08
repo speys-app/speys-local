@@ -68,7 +68,7 @@ applets/store/mac-time/
 | | Applet | What it does | Needs |
 |---|---|---|---|
 | ✅ | **Tasks** | Reads the tasks you write in md files in any folder, so a company's tasks can live in that company's repo. Comes with a GitHub issues integration; more syncs are welcome as contributions | Project folders or a repo |
-| 🔔 | **Claude Sessions** | Your sessions at their desks in a little office; a sound when one finishes or needs your approval | Claude hook |
+| 🔔 | **Claude Sessions** | Your sessions at their desks in a little office; a sound when one finishes or needs your approval; what each one read, changed and opened | Claude hook, session logs |
 | ☀️ | **Today** | Your day on one screen: tasks, the session waiting for you, follow-ups, this month's numbers | Nothing |
 | 🎬 | **Social Media Planner** | Content calendar: accounts, videos and their covers, posts, numbers | Nothing |
 | 🤝 | **CRM** | Deals and meetings: pipelines, stages, next steps | Nothing |

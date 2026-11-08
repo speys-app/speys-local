@@ -1,6 +1,6 @@
 {
   "name": "Claude Sessions",
-  "description": "Your running Claude sessions: which one is done, which one is waiting for approval.",
+  "description": "Your running Claude sessions: which one is done, which one is waiting for approval, and what each one touched.",
   "category": "Claude Code",
   "reads": "Claude Code's session logs; adds its own hook to Claude Code's settings",
   "preinstalled": true,
