@@ -5,6 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SEO</title>
 <link rel="stylesheet" href="/kit.css">
+<style>
+.seo-nav{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:8px 0 10px;margin:-8px 0 12px;border-bottom:1px solid var(--cizgi)}
+.seo-nav .alt-sekmeler{margin:0}
+.seo-ust>div[data-is]{cursor:pointer}.seo-ust>div[data-is]:hover b{color:var(--vurgu)}
+.pa-ust{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 10px;font-size:13px}
+.pa-ust .soluk{font-size:12px}
+.pa-haritalar{margin:0 0 12px;font-size:12px;color:var(--soluk);overflow-wrap:anywhere}
+.pa-izgara{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.pa-oge{min-width:0;display:grid;gap:6px;align-content:start}
+.pa-kart{display:block;border:1px solid var(--cizgi);border-radius:10px;overflow:hidden;background:var(--yuzey2);color:inherit;text-decoration:none}
+.pa-kart:hover{border-color:var(--soluk)}
+.pa-gorsel{aspect-ratio:1.91/1;background:color-mix(in srgb,var(--metin) 6%,transparent);display:flex;align-items:center;justify-content:center;color:var(--soluk);font-size:12px}
+.pa-gorsel img{width:100%;height:100%;object-fit:cover;display:block}
+.pa-metin{padding:8px 10px 10px;display:grid;gap:2px}
+.pa-metin small{font-size:11px;color:var(--soluk);text-transform:lowercase}
+.pa-metin b{font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pa-metin p{margin:0;font-size:12px;color:var(--soluk);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pa-yol{font-size:11px;color:var(--soluk);overflow-wrap:anywhere}
+.pa-sorunlar{display:grid;gap:2px;font-size:12px;line-height:1.35}
+.pa-sorunlar .error{color:var(--kirmizi)}.pa-sorunlar .warning{color:var(--turuncu)}.pa-sorunlar .info{color:var(--soluk)}
+.pa-alt{margin:12px 0 0;font-size:12px;color:var(--soluk)}
+.pa-sablonlar{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1100px){.pa-sablonlar{grid-template-columns:1fr}}
+.pa-sablon.acik{grid-column:1/-1}
+.pa-sablon{border:1px solid var(--cizgi);border-radius:10px;padding:12px;display:grid;gap:12px;grid-template-columns:minmax(0,200px) minmax(0,1fr);align-content:start}
+@media (max-width:700px){.pa-sablon{grid-template-columns:1fr}}
+.pa-sablon .bilgi{display:grid;gap:6px;align-content:start;min-width:0}
+.pa-sablon .bilgi b{font-size:14px;overflow-wrap:anywhere}
+.pa-sablon .bilgi small{font-size:12px;color:var(--soluk)}
+.pa-sablon .pa-izgara{grid-column:1/-1}
+.pa-sablon .bilgi button{justify-self:start;border:1px solid var(--cizgi);background:var(--yuzey2);color:var(--metin);border-radius:8px;padding:4px 12px;font-size:12px}
+.pa-ust button,.pa-alt button{border:1px solid var(--cizgi);background:var(--yuzey2);color:var(--metin);border-radius:8px;padding:4px 12px;font-size:12px}
+.pa-ust button:hover,.pa-alt button:hover{border-color:var(--soluk)}
+.pa-ust button:disabled{color:var(--soluk);cursor:default}
+.pa-ust .segment button{border:0;background:none;padding:4px 10px;border-radius:6px}
+.pa-ust .segment button.secili{background:color-mix(in srgb,var(--metin) 8%,transparent)}
+</style>
 </head>
 <body>
 
@@ -214,6 +251,153 @@ function previewHtml(url) {
     <p class="serp-alt">${esc(t("The title and description we provide; Google sometimes rewrites them. Google's report only covers rich result types (breadcrumbs, reviews…); the format of the menu, restaurant, FAQ and company blocks comes from schema.org."))}
       · ${esc(t("fetched {time}", { time: (v.alindi || "").slice(11, 16) }))} <button type="button" data-is="seo-onizleme-yenile" data-url="${esc(url)}">${esc(t("Refresh"))}</button></p>`;
 }
+// —— Link previews ————————————————————————————————————————————
+// What WhatsApp, LinkedIn and X show when a page is shared: the last check per site (previews.js on the backend),
+// a check runs in the background and the page polls it. Pages with a problem first, as the cards the apps draw.
+let shareData = null, shareRequested = false, shareAll = false, sharePoll = null, shareMode = "canli";
+const openTemplates = new Set();
+async function loadShare() {
+  const site = seoData?.site;
+  if (!site) return;
+  shareData = await getJson(`./api/seo/paylasim?site=${encodeURIComponent(site)}`);
+  clearTimeout(sharePoll);
+  if (shareData.running || shareData.yerel_running) sharePoll = setTimeout(() => loadShare().then(render).catch(() => {}), 2000);
+}
+async function startShare(local) {
+  const r = await fetch("./api/seo/paylasim", { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ site: seoData.site, yerel: !!local }) });
+  if (!r.ok) notify(t("Could not start the check."));
+  await loadShare(); render();
+}
+const SEO_TABS = [["", t("Overview")], ["performans", t("Performance")], ["yapilacaklar", t("To do")], ["icerik", t("Content")], ["denetim", t("Site audit")]];
+const LEVEL_ORDER = { error: 0, warning: 1, info: 2 };
+const worstLevel = (p) => Math.min(3, ...(p.problems || []).map((x) => LEVEL_ORDER[x.level] ?? 3));
+function problemText(x, p) {
+  if (x.code === "page") return t("Page answers {code}", { code: p.status || "—" });
+  if (x.code === "no-image") return t("No share image");
+  if (x.code === "image-broken") return t("Share image does not open");
+  if (x.code === "image-small") return t("Image smaller than 600×315: shown as a small thumbnail");
+  if (x.code === "image-ratio") return t("Image not 1.91:1: cropped in the card");
+  if (x.code === "image-heavy") return t("Image over 1 MB: slow, some apps skip it");
+  if (x.code === "no-title") return t("No og:title: apps use the page title");
+  if (x.code === "no-description") return t("No description");
+  if (x.code === "no-twitter") return t("No twitter:card: X shows a small card");
+  if (x.code === "shared-image") return p.sharedWith === 1 ? t("Same image as {n} other page", { n: 1 }) : t("Same image as {n} other pages", { n: p.sharedWith });
+  return x.code;
+}
+function shareItem(p) {
+  const tags = p.tags || {}, u = new URL(p.url);
+  const title = tags.ogTitle || tags.title || p.url, text = tags.ogDescription || tags.description || "";
+  const image = tags.ogImage ? `<img src="${esc(tags.ogImage)}" alt="" loading="lazy" data-hata="${esc(t("does not open"))}" onerror="this.parentNode.textContent=this.dataset.hata">` : esc(t("no image"));
+  const problems = (p.problems || []).slice().sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
+  return `<div class="pa-oge"><a class="pa-kart" href="${esc(p.url)}" target="_blank" rel="noopener">
+      <div class="pa-gorsel">${image}</div>
+      <div class="pa-metin"><small>${esc(u.host)}</small><b>${esc(title)}</b>${text ? `<p>${esc(text)}</p>` : ""}</div></a>
+    <span class="pa-yol">${esc(decodeURIComponent(u.pathname + u.search))}</span>
+    ${problems.length ? `<div class="pa-sorunlar">${problems.map((x) => `<span class="${esc(x.level)}">${esc(problemText(x, p))}</span>`).join("")}</div>` : ""}</div>`;
+}
+/** The overview's box for the link preview check; opens the Site audit tab. */
+function shareBox() {
+  if (!shareData || shareData.site !== seoData.site) {
+    if (!shareRequested) {
+      shareRequested = true;
+      loadShare().then(() => { shareRequested = false; render(); }, () => { shareRequested = false; });
+    }
+    return `<div data-is="seo-sekme" data-sekme="denetim"><b>—</b><span>${esc(t("link previews"))}</span></div>`;
+  }
+  const pages = shareData.pages || [];
+  if (!shareData.at) return `<div data-is="seo-sekme" data-sekme="denetim"><b>—</b><span>${esc(t("link previews"))}</span><small>${esc(t("not checked yet"))}</small></div>`;
+  const broken = pages.filter((p) => worstLevel(p) === 0).length, improve = pages.filter((p) => worstLevel(p) === 1).length;
+  return `<div data-is="seo-sekme" data-sekme="denetim"><b class="${broken ? "fark-kotu" : "fark-iyi"}">${formatNumber(broken)}</b><span>${esc(broken === 1 ? t("broken link preview") : t("broken link previews"))}</span>
+    <small>${esc(t("{n} to improve", { n: improve }))} · ${esc(pages.length === 1 ? t("{n} page", { n: 1 }) : t("{n} pages", { n: pages.length }))}</small></div>`;
+}
+function shareCard() {
+  const head = `<h2>${esc(t("Link previews · what WhatsApp, LinkedIn and X show"))}</h2>`;
+  if (!shareData || shareData.site !== seoData.site) {
+    if (!shareRequested) {
+      shareRequested = true;
+      loadShare().then(() => { shareRequested = false; render(); }, () => { shareRequested = false; });
+    }
+    return `<section class="kart">${head}<p class="bos">${esc(t("Loading…"))}</p></section>`;
+  }
+  const local = shareMode === "yerel";
+  const live = shareData, mine = local ? { ...(shareData.yerel || {}), running: shareData.yerel_running } : shareData;
+  const d = mine, pages = d.pages || [], run = d.running;
+  // Live or the local dev server: the same pages, so a fix can be seen before it is published.
+  const modes = `<div class="segment">${[["canli", t("Live")], ["yerel", live.local ? t("Local · {address}", { address: live.local.replace(/^https?:\/\//, "") }) : t("Local")]].map(([id, label]) =>
+    `<button type="button" class="${shareMode === id ? "secili" : ""}" data-is="seo-paylasim-mod" data-mod="${id}">${esc(label)}</button>`).join("")}</div>`;
+  if (local && !live.local) return `<section class="kart">${head}<div class="pa-ust">${modes}</div><p class="bos">${esc(t("Set a local address for this site to check your dev server: Settings → SEO → Sites → \"local\": \"http://localhost:5000\"."))}</p></section>`;
+  const button = run
+    ? `<button type="button" disabled>${esc(run.total ? t("Checking… {done}/{total} pages", { done: run.done, total: run.total }) : t("Reading the sitemaps…"))}</button>`
+    : `<button type="button" data-is="seo-paylasim-tara" data-yerel="${local ? "1" : ""}">${esc(d.at ? t("Check again") : t("Check now"))}</button>`;
+  const note = `<span class="soluk">${esc(local
+    ? t("Reads the same pages from your dev server, a few per sitemap; the dev server has to be running.")
+    : t("Reads every page in the sitemaps the way a link preview bot does, and opens every share image once."))}</span>`;
+  if (!d.at) return `<section class="kart">${head}<div class="pa-ust">${modes}${button}${note}</div>${d.error ? `<p class="fark-kotu">${esc(d.error)}</p>` : ""}</section>`;
+  const broken = pages.filter((p) => worstLevel(p) === 0).length, improve = pages.filter((p) => worstLevel(p) === 1).length;
+  const checked = new Date(d.at).toLocaleString(LOCALE, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  const summary = `<b>${esc(pages.length === 1 ? t("{n} page", { n: 1 }) : t("{n} pages", { n: pages.length }))}</b>
+    <span class="${broken ? "fark-kotu" : "fark-iyi"}">${esc(broken === 1 ? t("{n} broken preview", { n: 1 }) : t("{n} broken previews", { n: broken }))}</span>
+    <span${improve ? ' style="color:var(--turuncu)"' : ""}>${esc(improve === 1 ? t("{n} to improve", { n: 1 }) : t("{n} to improve", { n: improve }))}</span>
+    <span class="soluk">${esc(t("checked {when}", { when: checked }))}</span>${button}`;
+  // The other side's state per template (live ↔ local), when both have been checked
+  const otherData = local ? live : live.yerel;
+  const host = seoData.siteler?.find((x) => x.id === d.site)?.alan || seoData.siteler?.find((x) => x.id === live.site)?.alan;
+  const others = otherData?.at ? new Map(templatesOf(otherData.pages || [], host).map((g) => [g.key, g])) : null;
+  const maps = (d.sitemaps || []).filter((m) => !m.index).map((m) => `${esc(m.url.replace(/^https:\/\//, ""))} ${m.status === 200 ? (m.checked != null && m.checked < m.pages ? `${formatNumber(m.checked)}/${formatNumber(m.pages)}` : formatNumber(m.pages)) : `<span class="fark-kotu">${esc(m.error || `HTTP ${m.status}`)}</span>`}`).join(" · ");
+  const groups = templatesOf(pages, host);
+  const problemGroups = groups.filter((g) => g.level <= 1);
+  const shown = shareAll ? groups : problemGroups;
+  const toggle = shareAll
+    ? `<button type="button" data-is="seo-paylasim-hepsi">${esc(t("Only problems"))}</button>`
+    : `<button type="button" data-is="seo-paylasim-hepsi">${esc(t("Show all {n} templates", { n: groups.length }))}</button>`;
+  const count = esc(problemGroups.length === 1 ? t("{n} template with a problem", { n: 1 }) : t("{n} templates with a problem", { n: problemGroups.length }));
+  return `<section class="kart">${head}<div class="pa-ust">${modes}</div><div class="pa-ust">${summary}</div>
+    ${maps ? `<p class="pa-haritalar">${esc(t("Sitemaps:"))} ${maps}${(d.sitemaps || []).some((m) => m.checked != null && m.checked < m.pages) ? ` · ${esc(t("a big sitemap is checked by a spread sample of its pages"))}` : ""}</p>` : ""}${d.error ? `<p class="fark-kotu">${esc(d.error)}</p>` : ""}
+    <p class="pa-alt" style="margin:0 0 10px">${count} · ${esc(t("pages are grouped by template: fix one and its pages follow"))}</p>
+    ${shown.length ? `<div class="pa-sablonlar">${shown.map((g) => templateHtml(g, others?.get(g.key), local)).join("")}</div>` : `<p class="bos">${esc(t("Every page has a working share image."))}</p>`}
+    <p class="pa-alt">${toggle}</p></section>`;
+}
+/** Pages that share a path but its last part (every game, every place) are one template. The main site's own top-level
+    pages (speys.app/startups…) are separate landings and stay one by one; a "template" of one page is that page. */
+function templatesOf(pages, mainHost) {
+  const map = new Map();
+  for (const p of pages) {
+    const u = new URL(p.url), parts = u.pathname.split("/").filter(Boolean);
+    const main = u.host === mainHost || u.host === `www.${mainHost}`;
+    const key = !parts.length || (main && parts.length === 1) ? `${u.host}${u.pathname}` : `${u.host}/${[...parts.slice(0, -1), "…"].join("/")}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(p);
+  }
+  return [...map].map(([key, list]) => {
+    const name = list.length === 1 ? `${new URL(list[0].url).host}${decodeURIComponent(new URL(list[0].url).pathname)}` : key;
+    const codes = new Map();
+    for (const p of list) for (const x of p.problems || []) {
+      const c = codes.get(x.code) || { ...x, n: 0, page: p };
+      c.n++;
+      codes.set(x.code, c);
+    }
+    const sorted = list.slice().sort((a, b) => worstLevel(a) - worstLevel(b));
+    return { key, name, pages: list, sample: sorted[0], level: Math.min(...list.map(worstLevel)), problems: [...codes.values()].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] || b.n - a.n) };
+  }).sort((a, b) => a.level - b.level || b.pages.length - a.pages.length);
+}
+/** The other side of a template in one line: "Live: no share image 41/41" or "Local: no problem". */
+function otherLine(o, local) {
+  if (!o) return "";
+  const label = local ? t("Live") : t("Local");
+  const bad = o.problems.filter((x) => x.level !== "info");
+  const text = bad.length ? bad.map((x) => `${problemText(x, x.page)}${o.pages.length > 1 ? ` ${x.n}/${o.pages.length}` : ""}`).join(" · ") : t("no problem");
+  return `<small class="${bad.some((x) => x.level === "error") ? "fark-kotu" : bad.length ? "" : "fark-iyi"}">${esc(label)}: ${esc(text)}</small>`;
+}
+function templateHtml(g, other, local) {
+  const n = g.pages.length, open = openTemplates.has(g.key);
+  const problems = g.problems.map((x) => `<span class="${esc(x.level)}">${esc(problemText(x, x.page))}${n > 1 ? ` · ${esc(t("{n}/{total} pages", { n: x.n, total: n }))}` : ""}</span>`).join("");
+  return `<div class="pa-sablon${open ? " acik" : ""}">${shareItem({ ...g.sample, problems: [] })}
+    <div class="bilgi"><b>${esc(g.name)}</b><small>${esc(n === 1 ? t("one page") : t("{n} pages from the same template", { n }))}</small>
+      ${problems ? `<div class="pa-sorunlar">${problems}</div>` : `<small class="fark-iyi">${esc(t("no problem"))}</small>`}
+      ${otherLine(other, local)}
+      ${n > 1 ? `<button type="button" data-is="seo-sablon" data-key="${esc(g.key)}">${esc(open ? t("Hide the pages") : t("Show the {n} pages", { n }))}</button>` : ""}</div>
+    ${open ? `<div class="pa-izgara">${g.pages.map(shareItem).join("")}</div>` : ""}</div>`;
+}
 async function fetchPreview(url, refresh) {
   previews[url] = "loading"; render();
   try { previews[url] = await getJson(`./api/seo/onizleme?url=${encodeURIComponent(url)}${refresh ? "&yenile=1" : ""}`); }
@@ -229,15 +413,24 @@ async function checkSchema(url) {
 document.addEventListener("click", (e) => {
   if (route().tab !== "seo") return;
   const b = e.target.closest('[data-is="seo-site"]');
-  if (b) return goTo("seo", b.dataset.site === seoData?.siteler?.[0]?.id ? "" : b.dataset.site);
+  if (b) return goTo("seo", b.dataset.site === seoData?.siteler?.[0]?.id && !route().file ? "" : b.dataset.site, route().file);
+  const tab = e.target.closest('[data-is="seo-sekme"]');
+  if (tab) {
+    const site = seoData?.site || seoData?.siteler?.[0]?.id;
+    return tab.dataset.sekme ? goTo("seo", site, tab.dataset.sekme) : goTo("seo", site === seoData?.siteler?.[0]?.id ? "" : site);
+  }
   const task = e.target.closest('[data-is="seo-sr-ac"]');
   if (task && !e.target.closest("a")) parent.openApplet?.("tasks", `gorevler/${task.dataset.proje}/${task.dataset.liste}`);
 });
 /** The same screen for every site: a card shows whatever data there is. */
 function renderSeo() {
   const sites = seoData?.siteler || [], site = sites.find((x) => x.id === route().sub) || sites[0];
-  const picker = sites.length > 1 ? `<div class="alt-sekmeler">${sites.map((x) =>
-    `<button class="${x.id === site.id ? "secili" : ""}" data-is="seo-site" data-site="${esc(x.id)}"><img src="/a/tasks/ikon/${esc(x.proje || x.id)}" alt="">${esc(x.ad)}</button>`).join("")}</div>` : "";
+  // Sections like Search Console's menu and Semrush's project tools (9 November 2026, user: "this much scrolling to
+  // get here"): a short overview, the rest in its own tab. The tab is in the address: #seo/<site>/<tab>.
+  const tab = SEO_TABS.some(([id]) => id === route().file) ? route().file : "";
+  const picker = `<nav class="seo-nav">${sites.length > 1 ? `<div class="alt-sekmeler">${sites.map((x) =>
+    `<button class="${x.id === site.id ? "secili" : ""}" data-is="seo-site" data-site="${esc(x.id)}"><img src="/a/tasks/ikon/${esc(x.proje || x.id)}" alt="">${esc(x.ad)}</button>`).join("")}</div>` : "<span></span>"}
+    <div class="segment" role="tablist">${SEO_TABS.map(([id, label]) => `<button type="button" role="tab" class="${id === tab ? "secili" : ""}" aria-selected="${id === tab}" data-is="seo-sekme" data-sekme="${id}">${esc(label)}</button>`).join("")}</div></nav>`;
   if (!seoData || seoData.site !== site.id) {
     if (!seoRequested) {
       seoRequested = true;
@@ -260,9 +453,10 @@ function renderSeo() {
   const doneOpportunities = v.firsatlar.filter((f) => f.durum === "bitti").length;
   const allWork = tasks.length + v.firsatlar.length, doneWork = tasks.length - openTasks.length + doneOpportunities, openWork = allWork - doneWork;
   const top = `${scCard(sc, summary, dayName)}<div class="seo-ust">${sitemapBox(v, summary, site.alan, dayName)}
-    <div><b>${doneWork}/${allWork}</b><span>${esc(t("SEO tasks done"))}</span><small>${esc(openWork === 1 ? t("{n} open task", { n: openWork }) : t("{n} open tasks", { n: openWork }))}${v.liste_ad ? ` · ${esc(v.liste_ad)}` : ""}</small></div>
-    <div><b>${v.yazilar.length ? `${passingPosts}/${v.yazilar.length}` : "—"}</b><span>${esc(t("blog posts pass every check"))}</span><small>${esc(v.yazilar.length ? t("weakest: {title}", { title: v.yazilar[0].baslik }) : t("blog folder not set"))}</small></div>
-    <div><b>${lastCheck ? esc(dayName(lastCheck)) : "—"}</b><span>${esc(t("last SEO check"))}${lastCheck ? ` · ${esc(daysAgoText(daysSince(lastCheck)))}` : ""}</span><small>${esc(v.son_rapor?.dosya || t("no report yet"))}</small></div>
+    ${shareBox()}
+    <div data-is="seo-sekme" data-sekme="yapilacaklar"><b>${doneWork}/${allWork}</b><span>${esc(t("SEO tasks done"))}</span><small>${esc(openWork === 1 ? t("{n} open task", { n: openWork }) : t("{n} open tasks", { n: openWork }))}${v.liste_ad ? ` · ${esc(v.liste_ad)}` : ""}</small></div>
+    <div data-is="seo-sekme" data-sekme="icerik"><b>${v.yazilar.length ? `${passingPosts}/${v.yazilar.length}` : "—"}</b><span>${esc(t("blog posts pass every check"))}</span><small>${esc(v.yazilar.length ? t("weakest: {title}", { title: v.yazilar[0].baslik }) : t("blog folder not set"))}</small></div>
+    <div data-is="seo-sekme" data-sekme="yapilacaklar"><b>${lastCheck ? esc(dayName(lastCheck)) : "—"}</b><span>${esc(t("last SEO check"))}${lastCheck ? ` · ${esc(daysAgoText(daysSince(lastCheck)))}` : ""}</span><small>${esc(v.son_rapor?.dosya || t("no report yet"))}</small></div>
   </div>`;
   const daily = v.gunluk.map((g) => `<div class="seo-is" data-seo-is="${esc(g.id)}">${checkboxHtml(doneToday.has(g.id), "md").replace('data-is="isaretle"', 'data-is="seo-gunluk"')}
       <div class="govde"><b>${esc(g.ad)}</b><p>${esc(g.nasil)}</p>
@@ -295,18 +489,21 @@ function renderSeo() {
   }).join("");
   const queries = scList(summary?.sorgular, "sorgu");
   // Every site has the same cards in the same order; a card without data shows its empty text.
-  return `${picker}<div class="seo">${top}<div class="izgara"><div class="sutun">
-      <section class="kart"><h2>${esc(t("Today · {done}/{total}", { done: doneToday.size, total: v.gunluk.length }))}</h2>${daily || `<p class="bos">${esc(t("Nothing to do today."))}</p>`}${analysisHtml}</section>
-      <section class="kart"><h2>${esc(t("To do"))}</h2>
+  const todayCard = `<section class="kart"><h2>${esc(t("Today · {done}/{total}", { done: doneToday.size, total: v.gunluk.length }))}</h2>${daily || `<p class="bos">${esc(t("Nothing to do today."))}</p>`}${analysisHtml}</section>`;
+  const todoCard = `<section class="kart"><h2>${esc(t("To do"))}</h2>
         ${openHtml ? `<ul class="liste">${openHtml}</ul><p class="soluk" style="font-size:12px;margin:6px 0 10px">${esc(t("{list} · opens in Tasks when clicked.", { list: v.liste_ad }))}</p>` : ""}
         ${opportunities || (openHtml ? "" : `<p class="bos">${esc(t("No tasks yet."))}</p>`)}
-        <div class="seo-ekle"><input id="seo-yeni" placeholder="${esc(t("New task: title"))}"><button type="button" data-is="seo-ekle">${esc(t("Add"))}</button></div></section>
-      <section class="kart"><h2>${esc(t("Blog posts · SEO checks"))}</h2>${posts || `<p class="bos">${esc(t("Blog folder not set."))}</p>`}</section>
-    </div><div class="sutun">
-      <section class="kart"><h2>${esc(t("Search queries · by impressions"))}</h2><ul class="liste">${queries || `<li class="bos">${esc(t("No data."))}</li>`}</ul></section>
-      <section class="kart"><h2>${esc(t("Pages · by impressions · how they look in search"))}</h2><ul class="liste">${scPages(summary?.sayfalar, 15) || `<li class="bos">${esc(t("No data."))}</li>`}</ul></section>
-      <section class="kart"><h2>${esc(t("Weekly checks"))}</h2>${checks || `<p class="bos">${esc(t("No checks."))}</p>`}</section>
-    </div></div></div>`;
+        <div class="seo-ekle"><input id="seo-yeni" placeholder="${esc(t("New task: title"))}"><button type="button" data-is="seo-ekle">${esc(t("Add"))}</button></div></section>`;
+  const postsCard = `<section class="kart"><h2>${esc(t("Blog posts · SEO checks"))}</h2>${posts || `<p class="bos">${esc(t("Blog folder not set."))}</p>`}</section>`;
+  const queriesCard = `<section class="kart"><h2>${esc(t("Search queries · by impressions"))}</h2><ul class="liste">${queries || `<li class="bos">${esc(t("No data."))}</li>`}</ul></section>`;
+  const pagesCard = `<section class="kart"><h2>${esc(t("Pages · by impressions · how they look in search"))}</h2><ul class="liste">${scPages(summary?.sayfalar, 15) || `<li class="bos">${esc(t("No data."))}</li>`}</ul></section>`;
+  const checksCard = `<section class="kart"><h2>${esc(t("Weekly checks"))}</h2>${checks || `<p class="bos">${esc(t("No checks."))}</p>`}</section>`;
+  const body = tab === "performans" ? `<div class="izgara"><div class="sutun">${queriesCard}</div><div class="sutun">${pagesCard}</div></div>`
+    : tab === "yapilacaklar" ? `<div class="izgara"><div class="sutun">${todoCard}</div><div class="sutun">${checksCard}</div></div>`
+    : tab === "icerik" ? postsCard
+    : tab === "denetim" ? shareCard()
+    : `${top}${todayCard}`;
+  return `${picker}<div class="seo">${body}</div>`;
 }
 document.addEventListener("click", async (e) => {
   if (route().tab !== "seo" || !seoData) return;
@@ -330,6 +527,10 @@ document.addEventListener("click", async (e) => {
   }
   if (action === "seo-kontrol") return writeSeo({ op: "kontrol", no: +el.dataset.no, geri: !!el.dataset.geri });
   if (action === "seo-onizleme-yenile") return fetchPreview(el.dataset.url, true);
+  if (action === "seo-paylasim-tara") { el.disabled = true; return startShare(!!el.dataset.yerel); }
+  if (action === "seo-paylasim-mod") { shareMode = el.dataset.mod; return render(); }
+  if (action === "seo-paylasim-hepsi") { shareAll = !shareAll; return render(); }
+  if (action === "seo-sablon") { const k = el.dataset.key; openTemplates.has(k) ? openTemplates.delete(k) : openTemplates.add(k); return render(); }
   if (action === "seo-schema") return checkSchema(el.dataset.url);
   const pageRow = e.target.closest("[data-seo-sayfa]");
   if (pageRow) {
@@ -349,7 +550,7 @@ document.addEventListener("keydown", (e) => {
 
 
 render();
-window.addEventListener("focus", () => { if (!isHidden() && !editing) loadSeo().then(render).catch(() => {}); });
+window.addEventListener("focus", () => { if (!isHidden() && !editing) loadSeo().then(() => (shareData?.running ? null : loadShare())).then(render).catch(() => {}); });
 </script>
 </body>
 </html>

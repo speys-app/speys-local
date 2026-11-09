@@ -182,6 +182,7 @@ const WEEKLY = [
   "Titles and descriptions (missing, duplicate, length)",
   "Structured data (schema.org validator)",
   "Search Console: pages not indexed and errors",
+  "Link previews: share images and texts of every page",
 ].map((ad, i) => ({ no: i + 1, ad, son: null }));
 
 export default function create({ dataDir, settings, t, language }) {
@@ -192,6 +193,8 @@ export default function create({ dataDir, settings, t, language }) {
   const sites = () => (settings().sites || []).map((x) => ({
     ...x, list: expand(x.list), blog: expand(x.blogFolder), reports: expand(x.reportsFolder),
     file: expand(x.file) || join(dataDir, `${x.id}.json`),
+    sitemaps: Array.isArray(x.sitemaps) ? x.sitemaps.filter((u) => typeof u === "string" && u.startsWith("https://")) : [],
+    local: typeof x.local === "string" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(x.local) ? x.local.replace(/\/$/, "") : null,
   }));
   const siteOf = (id) => {
     const all = sites();
@@ -200,6 +203,10 @@ export default function create({ dataDir, settings, t, language }) {
   const load = (site) => ({ ...emptySite(), ...(existsSync(site.file) ? readJson(site.file) : {}) });
   const sitemaps = new Map();
   const previews = new Map();
+  // Link previews (previews.js, loaded on first use): the last check per site and target (the live site, or the local
+  // dev server to see a fix before it is published) is kept in a file; one check at a time per site and target.
+  const shareFile = (site, local) => join(dataDir, `paylasim-${site.id}${local ? "-yerel" : ""}.json`);
+  const sharing = new Map();
 
   /** The site's sitemap: page count per section. Without a network, the last known one. */
   async function sitemap(force, domain) {
@@ -278,6 +285,41 @@ export default function create({ dataDir, settings, t, language }) {
     return true;
   }
 
+  /** The last link preview check of a site and, while one runs, how far it got. */
+  function shareStatus(id) {
+    const site = siteOf(id);
+    if (!site) return { not_configured: true };
+    const file = shareFile(site, false), localFile = shareFile(site, true);
+    return {
+      site: site.id, ...(existsSync(file) ? readJson(file) : {}), running: sharing.get(site.id) || null,
+      local: site.local, yerel: existsSync(localFile) ? readJson(localFile) : null, yerel_running: sharing.get(`${site.id} yerel`) || null,
+    };
+  }
+
+  /** Starts a check in the background; the page polls shareStatus. */
+  function startShareCheck(q) {
+    const site = siteOf(q.site);
+    if (!site?.domain) throw new Error(t("No such site"));
+    const local = q.yerel ? site.local : null;
+    if (q.yerel && !local) throw new Error(t("No local address for this site"));
+    const key = local ? `${site.id} yerel` : site.id;
+    if (sharing.has(key)) return true;
+    const state = { done: 0, total: 0 };
+    sharing.set(key, state);
+    const file = shareFile(site, !!local);
+    import("./previews.js")
+      .then((m) => m.scan({ domain: site.domain, extra: site.sitemaps, local, progress: (done, total) => Object.assign(state, { done, total }) }))
+      .then((result) => {
+        mkdirSync(dataDir, { recursive: true });
+        writeJson(file, result);
+      })
+      .catch((e) => {
+        writeJson(file, { ...(existsSync(file) ? readJson(file) : {}), error: String(e.message || e).slice(0, 200), errorAt: new Date().toISOString() });
+      })
+      .finally(() => sharing.delete(key));
+    return true;
+  }
+
   async function preview(url, force, askSchema) {
     let host = "";
     try {
@@ -313,8 +355,10 @@ export default function create({ dataDir, settings, t, language }) {
         const data = await preview(url.searchParams.get("url") || "", url.searchParams.get("yenile") === "1", url.searchParams.get("schema") === "1");
         return data ? send(res, 200, data) : send(res, 400, { error: t("Invalid address") });
       }
+      if (url.pathname === "/api/seo/paylasim") return send(res, 200, shareStatus(url.searchParams.get("site")));
     }
     if (req.method === "POST" && url.pathname === "/api/seo") return handleWrite(req, res, apply);
+    if (req.method === "POST" && url.pathname === "/api/seo/paylasim") return handleWrite(req, res, startShareCheck);
     send(res, 404, { error: t("Not found") });
   };
 }

@@ -2,7 +2,7 @@
   "name": "SEO",
   "description": "Daily SEO task, post checks, Search Console and search preview.",
   "category": "Marketing",
-  "reads": "Your sites' files; Search Console and validator.schema.org when you use them",
+  "reads": "Your sites' files; Search Console and validator.schema.org when you use them; the pages and share images in your sitemaps when you check link previews",
   "icon": "icon.svg",
   "order": 36,
   "backend": "backend.js",
@@ -10,7 +10,7 @@
     {
       "key": "sites",
       "label": "Sites",
-      "hint": "The first one shows in Today. Each site: id, name, domain; optionally property, file (daily task and ideas; if empty data/seo/<id>.json), blogFolder (each post in its own folder as post.md), reportsFolder (kontrol-*.md), project and list (SEO task list)",
+      "hint": "The first one shows in Today. Each site: id, name, domain; optionally property, file (daily task and ideas; if empty data/seo/<id>.json), blogFolder (each post in its own folder as post.md), reportsFolder (kontrol-*.md), project and list (SEO task list); sitemaps (extra sitemap addresses for the link preview check; robots.txt is read too); local (your dev server, e.g. http://localhost:5000, to check link previews before publishing; subdomains open as <sub>.localhost)",
       "type": "json"
     },
     {
