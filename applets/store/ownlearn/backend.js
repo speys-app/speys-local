@@ -1,6 +1,7 @@
 // OwnLearn's Speys Local connection: takes the repo to scan from the settings, asks for it on first open.
 // Progress stays in this applet's data folder; as long as the repo path stays the same, earlier progress carries on.
 import { existsSync, statSync } from "node:fs";
+import os from "node:os";
 import { join, resolve } from "node:path";
 import { dataDir, writeJson } from "./src/learn.js";
 import { scan } from "./src/scan.js";
@@ -21,6 +22,7 @@ function readBody(req) {
 export default function create({ dataDir: appletData, settings, saveSettings, t, language }) {
   process.env.OWNLEARN_HOME = appletData;
   let open = null;
+  let openedRepo = null;
 
   /** Lessons exist in en and tr only. Asked on every request, so the scan stays and the language follows the setting. */
   const lessonLanguage = () => (language() === "tr" ? "tr" : "en");
@@ -39,12 +41,15 @@ ${problem ? `<p class="bad">${esc(problem)}</p>` : ""}
 
   /** A scan can take a while on a big repo; it only runs when the applet opens and when the repo changes. */
   function load(repo) {
-    const root = resolve(repo);
+    const expanded = repo.startsWith("~") && (repo.length === 1 || repo[1] === "/" || repo[1] === "\\")
+      ? join(os.homedir(), repo.slice(2)) : repo;
+    const root = resolve(expanded);
     if (!existsSync(root) || !statSync(root).isDirectory()) return t("Folder not found: {root}", { root });
     const scanned = modules.map((mod) => ({ mod, map: scan(root, mod) })).filter(({ map }) => map.files > 0);
     if (!scanned.length) return t("This folder has no supported files ({names}).", { names: modules.map((m) => m.name).join(", ") });
     for (const { mod, map } of scanned) writeJson(join(dataDir(root), `map-${mod.id}.json`), map);
     open = handler({ root, scanned, lang: lessonLanguage });
+    openedRepo = repo;
     return null;
   }
 
@@ -64,10 +69,10 @@ ${problem ? `<p class="bad">${esc(problem)}</p>` : ""}
       res.writeHead(303, { Location: "./" });
       return res.end();
     }
-    if (!open) {
-      const { repo } = settings();
+    const { repo } = settings();
+    if (!repo || repo !== openedRepo) {
       const problem = repo ? load(repo) : null;
-      if (!open) return page(res, 200, repoPage(repo, problem));
+      if (!open || repo !== openedRepo) return page(res, 200, repoPage(repo, problem));
     }
     open(req, res);
   };
