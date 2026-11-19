@@ -64,6 +64,7 @@ iframe{flex:1;width:100%;height:100%;border:0;background:var(--bg)}
 iframe[hidden]{display:none}
 .message{margin:auto;max-width:440px;padding:24px;text-align:center;color:var(--muted)}
 .message b{display:block;margin-bottom:6px;color:var(--text);font-size:16px}
+body.no-side aside{display:none}
 @media (max-width:720px){aside{width:58px;padding:12px 8px}.kaydir,.alt{margin:0 -8px;padding-left:8px;padding-right:8px}.brand{justify-content:center;padding:0}.brand div,h2,.empty,.update,nav .name{display:none}nav a{justify-content:center}}
 </style>
 </head>
@@ -124,6 +125,14 @@ function follow(id, frame) {
   if (location.hash !== next) history.replaceState(null, "", next);
 }
 
+/** An applet hides the sidebar while it is shown (a reader, say); it comes back on any other applet. */
+const sideHidden = new Set();
+window.setSidebarHidden = (on) => {
+  if (!shown) return;
+  on ? sideHidden.add(shown) : sideHidden.delete(shown);
+  document.body.classList.toggle("no-side", !!on);
+};
+
 /** One applet opens another (and a place inside it). */
 window.openApplet = (id, inner) => {
   const next = `#/${id}${inner ? `/${inner}` : ""}`;
@@ -177,6 +186,7 @@ function render() {
     return;
   }
   shown = applet.id;
+  document.body.classList.toggle("no-side", sideHidden.has(applet.id));
   if (applet.error) return show(t("{name} could not be opened", { name: applet.name }), applet.error);
   // An opened frame stays and is only hidden: switching is instant and its work is not lost
   let frame = frames.get(applet.id);
@@ -186,6 +196,9 @@ function render() {
     frame.src = applet.url + (place ? `#${place}` : "");
     delete pendingHash[applet.id];
     frame.title = applet.name;
+    // An applet's page may go full screen and keep the screen on (Meal Planner's cooking mode); only this address's
+    // pages, not a tool from another address
+    frame.allow = "fullscreen 'self'; screen-wake-lock 'self'";
     const id = applet.id;
     frame.addEventListener("load", () => {
       follow(id, frame);
@@ -246,10 +259,11 @@ window.refreshApplets = async () => {
   render();
 };
 
-/** A page is not reloaded under a user who is typing or playing a video. */
+/** A page is not reloaded under a user who is typing or playing a video, or while it says it is busy (`data-mesgul` on its body, e.g. a long send). */
 function busy(frame) {
   try {
     const doc = frame.contentDocument;
+    if (doc.body?.dataset.mesgul) return true;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(doc.activeElement?.tagName || "")) return true;
     return [...doc.querySelectorAll("video")].some((v) => !v.paused);
   } catch {
