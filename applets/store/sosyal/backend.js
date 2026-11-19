@@ -7,7 +7,7 @@ import { extname, join, relative, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 
 const STEPS = ["veri", "kesit", "render", "paylasildi"];
-const PLATFORMS = ["instagram", "tiktok", "youtube", "x"];
+const PLATFORMS = ["instagram", "tiktok", "youtube", "x", "reddit"];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const METRICS = ["izlenme", "begeni", "yorum", "kaydetme", "paylasim", "takip"];
 const TYPES = {
@@ -81,6 +81,35 @@ function periods(source, t) {
     if (Object.keys(fields).length) clean[period] = fields;
   }
   return clean;
+}
+
+/**
+ * A paid boost of a video (Instagram / Meta ad): what was spent and what came of it, as the ad's insights page
+ * shows them. Money may have decimals; counts are whole. The ratios (cost per result, 3-second rate, cost per
+ * 1,000 views) are worked out on the page, not stored. Empty fields are dropped; nothing left removes the ad.
+ */
+const AD_MONEY = ["butce", "harcama"];
+const AD_COUNTS = ["sure_gun", "sonuc", "gosterim", "erisim", "ilk_oynatma", "oynatma_3sn", "begeni"];
+const AD_TEXT = ["hedef", "kitle", "baslangic", "not"];
+function adOf(source, t) {
+  const ad = {};
+  for (const k of [...AD_MONEY, ...AD_COUNTS]) {
+    const raw = source?.[k];
+    if (raw == null || !String(raw).trim()) continue;
+    // "1.500", "170,65" (Turkish) and "170.65" all read: a comma is the decimal point and dots group thousands;
+    // without a comma, a dot followed by one or two digits at the end is the decimal point.
+    let x = String(raw).trim().replace(/[\s₺$€]/g, "");
+    x = x.includes(",") ? x.replace(/\./g, "").replace(",", ".") : /\.\d{1,2}$/.test(x) ? x : x.replace(/\./g, "");
+    const n = Number(x);
+    if (!Number.isFinite(n) || n < 0) throw new Error(t("not a number: {value}", { value: raw }));
+    ad[k] = AD_MONEY.includes(k) ? Math.round(n * 100) / 100 : Math.trunc(n);
+  }
+  for (const k of AD_TEXT) {
+    const x = String(source?.[k] ?? "").trim();
+    if (x) ad[k] = x;
+  }
+  if (ad.baslangic && !/^\d{4}-\d{2}-\d{2}$/.test(ad.baslangic)) throw new Error(t("invalid date"));
+  return Object.keys(ad).length ? ad : null;
 }
 
 export default function create({ dataDir, settings, t }) {
@@ -162,6 +191,8 @@ export default function create({ dataDir, settings, t }) {
         d.shared_error = true;
       }
     }
+    // Row order: file order, own accounts before shared ones; an account's `sira` (number, default 0) moves it, larger lower.
+    d.hesaplar = d.hesaplar.map((a, i) => [a, i]).sort(([a, i], [b, k]) => (a.sira ?? 0) - (b.sira ?? 0) || i - k).map(([a]) => a);
     d.surum = version();
     return d;
   }
@@ -250,6 +281,13 @@ export default function create({ dataDir, settings, t }) {
     const d = readCalendar(base);
     const { op } = q;
     const text = (s) => String(s ?? "").trim();
+    /** A Reddit post: where it goes (r/…), its title and text, the link it carries. */
+    const post = (q) => {
+      if (!text(q.baslik)) throw new Error(t("title is empty"));
+      if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
+      if (q.saat && !TIME_RE.test(q.saat)) throw new Error(t("time must be HH:MM"));
+      return { yer: text(q.yer), baslik: text(q.baslik), metin: text(q.metin), baglanti: text(q.baglanti), tarih: q.tarih || null, saat: q.saat || "", not: text(q.not) };
+    };
     if (op === "hesap_ekle") {
       if (!text(q.ad)) throw new Error(t("name is empty"));
       d.hesaplar.push({ id: randomUUID(), ad: text(q.ad), kullanici: text(q.kullanici), takipci: null });
@@ -268,6 +306,9 @@ export default function create({ dataDir, settings, t }) {
       if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
       if (q.saat && !TIME_RE.test(q.saat)) throw new Error(t("time must be HH:MM"));
       d.videolar.push({ id: randomUUID(), tur: "tweet", hesap: q.hesap, baslik: tweetTitle(q.metin), metin: text(q.metin), tarih: q.tarih || null, saat: q.saat || "", not: text(q.not), adimlar: {} });
+    } else if (op === "gonderi_ekle") {
+      if (!d.hesaplar.some((x) => x.id === q.hesap)) throw new Error(t("no such account"));
+      d.videolar.push({ id: randomUUID(), tur: "reddit", hesap: q.hesap, ...post(q), adimlar: {} });
     } else if (op === "arka_ekle") {
       if (!text(q.is)) throw new Error(t("name is empty"));
       d.arka_plan.push({ is: text(q.is), bitti: false });
@@ -290,6 +331,9 @@ export default function create({ dataDir, settings, t }) {
         if (q.tarih && !/^\d{4}-\d{2}-\d{2}$/.test(q.tarih)) throw new Error(t("invalid date"));
         if (q.saat && !TIME_RE.test(q.saat)) throw new Error(t("time must be HH:MM"));
         Object.assign(v, { metin: text(q.metin), baslik: tweetTitle(q.metin), tarih: q.tarih || null, saat: q.saat || "", not: text(q.not) });
+      } else if (op === "gonderi_duzenle") {
+        if (v.tur !== "reddit") throw new Error(t("no such video"));
+        Object.assign(v, post(q));
       } else if (op === "video_duzenle") {
         if (!text(q.baslik)) throw new Error(t("title is empty"));
         if (q.saat && !TIME_RE.test(q.saat)) throw new Error(t("time must be HH:MM"));
@@ -345,6 +389,10 @@ export default function create({ dataDir, settings, t }) {
           clean = periods(q.deger, t);
         }
         v.rakamlar = clean;
+      } else if (op === "reklam") {
+        const ad = adOf(q.deger, t);
+        if (ad) v.reklam = ad;
+        else delete v.reklam;
       } else if (op === "tarih") {
         const date = q.deger || null;
         if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(t("invalid date"));

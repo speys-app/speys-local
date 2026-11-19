@@ -44,6 +44,21 @@ test("sharing on X marks a tweet shared, and bad input is refused", async () => 
   }
 });
 
+test("a Reddit post keeps where it goes, its title, text and link, and is shared on Reddit", async () => {
+  const hesap = (await read()).hesaplar[0].id;
+  const body = { op: "gonderi_ekle", hesap, yer: "r/music", baslik: "Which song should be first?", metin: "Rate a few", baglanti: "https://example.com/top", tarih: "", saat: "21:00", not: "" };
+  assert.equal((await write(body)).status, 200);
+  const post = onDisk().videolar.at(-1);
+  assert.deepEqual([post.tur, post.yer, post.baslik, post.metin, post.baglanti, post.tarih, post.saat], ["reddit", "r/music", "Which song should be first?", "Rate a few", "https://example.com/top", null, "21:00"]);
+  assert.equal((await write({ op: "platform", id: post.id, platform: "reddit", deger: true })).status, 200);
+  assert.ok(onDisk().videolar.at(-1).platformlar.reddit);
+  assert.equal((await write({ op: "gonderi_duzenle", id: post.id, yer: "r/other", baslik: "New title" })).status, 200);
+  assert.deepEqual((({ yer, baslik, metin }) => [yer, baslik, metin])(onDisk().videolar.at(-1)), ["r/other", "New title", ""]);
+  assert.equal((await write({ op: "gonderi_duzenle", id: post.id, baslik: " " })).status, 400);
+  assert.equal((await write({ op: "gonderi_ekle", hesap, baslik: "x", saat: "soon" })).status, 400);
+  assert.equal((await write({ op: "video_sil", id: post.id })).status, 200);
+});
+
 test("a video keeps its planned time, and a bad time is refused", async () => {
   const hesap = (await read()).hesaplar[0].id;
   assert.equal((await write({ op: "video_ekle", hesap, baslik: "Clip", tarih: "2030-01-02", saat: "18:00" })).status, 200);
@@ -122,4 +137,19 @@ test("a shared calendar shows next to your own, and changes go back to the file 
     rmSync(own, { recursive: true, force: true });
     rmSync(shared, { recursive: true, force: true });
   }
+});
+
+test("an ad keeps money with decimals, counts whole, and empties away", async () => {
+  const hesap = (await read()).hesaplar[0].id;
+  assert.equal((await write({ op: "video_ekle", hesap, baslik: "Boosted" })).status, 200);
+  const id = (await read()).videolar.find((x) => x.baslik === "Boosted").id;
+  const deger = { butce: "1.500", harcama: "170,65", sure_gun: "5", hedef: "messages", sonuc: "1", gosterim: "1.467", ilk_oynatma: "1353", oynatma_3sn: "229", kitle: "" };
+  assert.equal((await write({ op: "reklam", id, deger })).status, 200);
+  const ad = (await read()).videolar.find((x) => x.id === id).reklam;
+  assert.deepEqual(ad, { butce: 1500, harcama: 170.65, sure_gun: 5, sonuc: 1, gosterim: 1467, ilk_oynatma: 1353, oynatma_3sn: 229, hedef: "messages" });
+  assert.equal((await write({ op: "reklam", id, deger: { harcama: "170.65" } })).status, 200);
+  assert.equal((await read()).videolar.find((x) => x.id === id).reklam.harcama, 170.65);
+  assert.notEqual((await write({ op: "reklam", id, deger: { harcama: "abc" } })).status, 200);
+  assert.equal((await write({ op: "reklam", id, deger: {} })).status, 200);
+  assert.equal((await read()).videolar.find((x) => x.id === id).reklam, undefined);
 });
