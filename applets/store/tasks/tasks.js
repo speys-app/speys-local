@@ -124,6 +124,21 @@ export function applyOp(content, op, finishDate = false) {
       s.splice(at, 0, ...block);
       break;
     }
+    case "place": {
+      // Within the same list: "top" goes under the title, "bottom" after the last open task, above the ticked ones.
+      if (!isTask(s, op.line, op.text) || !["top", "bottom"].includes(op.where)) return null;
+      const end = blockEnd(s, op.line);
+      const block = shift(s.slice(op.line, end), -indent(s[op.line]));
+      s.splice(op.line, end - op.line);
+      const eol = eolOf(content);
+      if (op.where === "top") return prepend(s.join(eol), block);
+      const tops = s.map((t, i) => (indent(t) === 0 && BOX_RE.test(t) ? i : -1)).filter((i) => i >= 0);
+      if (!tops.length) return prepend(s.join(eol), block);
+      let k = tops.length;
+      while (k > 0 && /^[-*] \[[xX]\]/.test(s[tops[k - 1]])) k--;
+      s.splice(k < tops.length ? tops[k] : blockEnd(s, tops.at(-1)), 0, ...block);
+      break;
+    }
     default:
       return null;
   }

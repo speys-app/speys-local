@@ -69,3 +69,12 @@ test("moving between lists keeps each file's own line endings", () => {
   const back = moveBetween("# Other\n\n- [ ] Old\n  - [ ] Sub\n", CRLF, 2, "- [ ] Old");
   assert.equal(back.target, "# List\r\n\r\n- [ ] Old\r\n  - [ ] Sub\r\n- [ ] One\r\n  - [ ] Sub\r\n- [ ] Two\r\n");
 });
+
+test("a task goes to the top or to the end of its own list, above the ticked ones", () => {
+  const list = "# L\n\n- [ ] A\n- [ ] B\n  - [ ] B1\n- [ ] C\n- [x] D\n- [x] E\n";
+  const b = { action: "place", line: 3, text: "- [ ] B" };
+  assert.equal(applyOp(list, { ...b, where: "top" }), "# L\n\n- [ ] B\n  - [ ] B1\n- [ ] A\n- [ ] C\n- [x] D\n- [x] E\n");
+  assert.equal(applyOp(list, { ...b, where: "bottom" }), "# L\n\n- [ ] A\n- [ ] C\n- [ ] B\n  - [ ] B1\n- [x] D\n- [x] E\n");
+  assert.equal(applyOp("# L\n\n- [ ] A\n- [ ] B\n", { action: "place", line: 2, text: "- [ ] A", where: "bottom" }), "# L\n\n- [ ] B\n- [ ] A\n");
+  assert.equal(applyOp(list, { ...b, where: "middle" }), null);
+});

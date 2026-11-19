@@ -6,6 +6,7 @@
 <title>Tasks</title>
 <link rel="stylesheet" href="/kit.css">
 <style>
+.gpanel .tasi-menu hr{border:0;border-top:1px solid var(--cizgi);margin:4px 6px}
 .issue-applet{display:inline-flex;vertical-align:-.2em;margin-right:6px;color:var(--soluk)}
 .issue-applet svg{width:1.15em;height:1.15em}
 .issue-kisi{flex:none;width:22px;height:22px;margin-right:2px;border-radius:50%;background:var(--yuzey2)}
@@ -242,8 +243,11 @@ function panelHtml(d, list, others, hasFinishDate) {
     <div class="bar">
       <button type="button" class="yuvarlak" data-is="kapat" aria-label="${esc(t("Close"))}">${ICON.close}</button>
       <span class="liste-adi">${esc(list.title || list.name)}</span>
-      ${others.length ? `<div class="tasi${view.moveOpen ? " acik" : ""}"><button type="button" data-is="tasi-ac">${ICON.arrow()}${esc(t("Move"))}</button>${
-        view.moveOpen ? `<div class="tasi-menu">${others.map((l) => `<button type="button" data-is="tasi" data-hedef="${esc(l.name)}">${ICON.arrow()}${esc(l.title || l.name)}</button>`).join("")}</div>` : ""}</div>` : ""}
+      ${issueList ? "" : `<div class="tasi${view.moveOpen ? " acik" : ""}"><button type="button" data-is="tasi-ac">${ICON.arrow()}${esc(t("Move"))}</button>${
+        view.moveOpen ? `<div class="tasi-menu">
+          <button type="button" data-is="yerlestir" data-yer="top">${ICON.arrow()}${esc(t("Top of the list"))}</button>
+          <button type="button" data-is="yerlestir" data-yer="bottom">${ICON.arrow()}${esc(t("End of the list"))}</button>
+          ${others.length ? `<hr>${others.map((l) => `<button type="button" data-is="tasi" data-hedef="${esc(l.name)}">${ICON.arrow()}${esc(l.title || l.name)}</button>`).join("")}` : ""}</div>` : ""}</div>`}
       ${issueList ? githubLinkHtml(d) : `<button type="button" class="yuvarlak sil" data-is="sil-ana" aria-label="${esc(t("Delete task"))}">${ICON.trash()}</button>`}
     </div>
     <div class="p-baslik" ${taskAttrs(d, "panel")}>
@@ -441,6 +445,11 @@ document.addEventListener("click", async (e) => {
       const p = taskInfo($(".gpanel .p-baslik"));
       view.selected = null; view.moveOpen = false;
       return write({ proje: activeProject(), tasi: { kaynak: activeList(), hedef: h.dataset.hedef, satir: p.line, metin: p.text } });
+    }
+    case "yerlestir": {
+      const p = taskInfo($(".gpanel .p-baslik"));
+      view.moveOpen = false;
+      return apply({ action: "place", line: p.line, text: p.text, where: h.dataset.yer });
     }
     case "sil-ana": {
       const p = taskInfo($(".gpanel .p-baslik"));
