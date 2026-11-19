@@ -1,0 +1,17 @@
+{
+  "name": "Address Bar",
+  "description": "What Chrome fills in as you type, and changing it: remove a suggestion, put one first, add your own.",
+  "category": "Browser",
+  "reads": "Chrome's address bar shortcuts (what you typed and which suggestion you picked) and the addresses in its history you typed in by hand, in each profile; changes are written there once Chrome is closed, with a backup",
+  "icon": "icon.svg",
+  "order": 27,
+  "backend": "backend.js",
+  "settings": [
+    {
+      "key": "folder",
+      "label": "Browser folder",
+      "hint": "If empty, Chrome's own folder. Another Chromium browser works too, e.g. ~/Library/Application Support/BraveSoftware/Brave-Browser",
+      "type": "path"
+    }
+  ]
+}

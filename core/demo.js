@@ -1,6 +1,6 @@
 // The demo workspace: made-up data for trying the dashboard and taking screenshots. It is rebuilt every time it is
 // opened, with dates around today. Nothing here reads the real Claude folders or any real data.
-import { mkdirSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { LEGACY } from "./store.js";
@@ -279,6 +279,61 @@ function seedAppStores(dir) {
   ] });
 }
 
+/** A made-up Chrome folder with two profiles, for Address Bar: what was typed and which suggestion was picked. */
+async function seedAddressBar(dir, root) {
+  const { createHistory, createShortcuts } = await import(pathToFileURL(join(root, "applets", "store", "address-bar", "chrome.js")).href);
+  const folder = join(dir, "demo-chrome"), now = Date.now(), ago = (days) => now - days * DAY * 1000;
+  rmSync(folder, { recursive: true, force: true });
+  const search = (text, hits, days) => ({ text, url: `https://www.google.com/search?q=${encodeURIComponent(text)}`, keyword: "google.com", hits, last: ago(days) });
+  const page = (text, url, description, hits, days) => ({ text, url, description, hits, last: ago(days) });
+  const profiles = {
+    Default: [
+      page("git", "https://github.com/pocket-labs/pocket-planner/pulls", "Pull requests · pocket-planner", 140, 0.1),
+      page("gi", "https://github.com/pocket-labs/pocket-planner/pulls", "Pull requests · pocket-planner", 12, 3),
+      page("gith", "https://github.com/notifications", "Notifications", 6, 9),
+      page("cal", "https://calendar.google.com/calendar/r/week", "Week · Calendar", 88, 0.3),
+      page("fig", "https://www.figma.com/files/team/recent", "Recent · Figma", 41, 1),
+      page("figm", "https://www.figma.com/design/landing-v3", "Landing v3 · Figma", 3, 20),
+      page("loc", "http://localhost:3000/", "Pocket Planner (dev)", 64, 0.05),
+      page("lo", "http://localhost:5173/", "Landing (dev)", 9, 4),
+      page("not", "https://www.notion.so/pocket-labs/Roadmap", "Roadmap · Notion", 27, 2),
+      page("stri", "https://dashboard.stripe.com/payments", "Payments · Stripe", 15, 6),
+      page("st", "https://dashboard.stripe.com/test/webhooks", "Webhooks · Stripe", 4, 32),
+      search("github actions cache", 2, 12), search("git rebase onto", 1, 45), search("calendar api quota", 1, 60),
+      search("figma auto layout wrap", 1, 38), search("css container queries", 3, 5), search("stripe webhook retries", 1, 70),
+      search("local first sync", 1, 90), search("notion api databases", 1, 33),
+    ],
+    "Profile 1": [
+      page("mai", "https://mail.google.com/mail/u/0/#inbox", "Inbox", 52, 0.2),
+      page("yo", "https://www.youtube.com/feed/subscriptions", "Subscriptions · YouTube", 37, 1),
+      search("weekend hiking trails", 1, 14), search("sourdough starter ratio", 2, 8),
+    ],
+  };
+  // Addresses typed in by hand: these complete in place before any shortcut.
+  const typed = (url, title, typedCount, visits, days) => ({ url, title, typed: typedCount, visits, last: ago(days) });
+  const history = {
+    Default: [
+      typed("https://github.com/pocket-labs/pocket-planner/pulls", "Pull requests · pocket-planner", 31, 140, 0.1),
+      typed("https://github.com/", "GitHub", 2, 9, 4),
+      typed("https://calendar.google.com/calendar/r/week", "Week · Calendar", 18, 90, 0.3),
+      typed("http://localhost:3000/", "Pocket Planner (dev)", 44, 210, 0.05),
+      typed("https://dashboard.stripe.com/payments", "Payments · Stripe", 6, 20, 6),
+      typed("https://www.figma.com/files/team/recent", "Recent · Figma", 0, 12, 1),
+    ],
+    "Profile 1": [typed("https://mail.google.com/mail/u/0/#inbox", "Inbox", 12, 80, 0.2)],
+  };
+  for (const [profile, rows] of Object.entries(profiles)) {
+    mkdirSync(join(folder, profile), { recursive: true });
+    createShortcuts(join(folder, profile, "Shortcuts"), rows);
+    createHistory(join(folder, profile, "History"), history[profile] || []);
+  }
+  writeJson(join(folder, "Local State"), { profile: { last_used: "Default", info_cache: {
+    Default: { name: "Work", is_using_default_name: false, user_name: "alex@example.com" },
+    "Profile 1": { name: "Personal", is_using_default_name: false },
+  } } });
+  return folder;
+}
+
 /** Writes the whole demo into a workspace folder: the applets it has data for are installed, and `disabled` hides this computer's own. */
 export async function seedDemo(dir, { disabled = [], language } = {}) {
   const root = resolve(import.meta.dirname, "..");
@@ -290,13 +345,15 @@ export async function seedDemo(dir, { disabled = [], language } = {}) {
   const social = seedSocial(dir);
   seedHabits(dir);
   seedAppStores(dir);
+  const chrome = await seedAddressBar(dir, root);
   writeJson(join(dir, "settings.json"), {
-    _dashboard: { installed: [...LEGACY, "app-stores"], disabled, autoUpdateCheck: false, ...(language ? { language } : {}) },
+    _dashboard: { installed: [...LEGACY, "app-stores", "address-bar"], disabled, autoUpdateCheck: false, ...(language ? { language } : {}) },
     tasks: { projects },
     claude: { folders: [{ path: claude, label: "Claude" }], projectsRoot: join(dir, "projects") },
     yazim: { claudeFolders: [claude] },
     sosyal: { root: social },
     seo: { sites: [{ id: "studio", name: "My Studio", domain: "example.com", file: join(dir, "apps", "seo", "studio.json") }] },
+    "address-bar": { folder: chrome },
     "app-stores": { apps: [{ name: "Pocket Planner", android: "com.example.pocketplanner", ios: "com.example.pocketplanner" }] },
   });
 }

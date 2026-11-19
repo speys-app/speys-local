@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Address Bar</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+main{max-width:960px;margin:0 auto;padding:20px 26px 60px}
+section.kart{margin-bottom:14px}
+.ab-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.ab-top h1{font-size:20px;margin:0}
+.ab-top select,.ab-input,.ab-field,.ab-tools select{border:1px solid var(--cizgi);background:var(--yuzey);color:var(--metin);border-radius:8px;padding:6px 10px;font:inherit}
+.ab-state{margin-left:auto;font-size:12px;color:var(--soluk);display:flex;align-items:center;gap:6px}
+.ab-state i{width:8px;height:8px;border-radius:50%;background:var(--gri)}
+.ab-state.open i{background:var(--turuncu)}.ab-state.closed i{background:var(--yesil)}
+.ab-omni{display:flex;align-items:center;gap:10px;border:1px solid var(--cizgi);background:var(--yuzey2);border-radius:22px;padding:4px 16px}
+.ab-omni svg{width:18px;height:18px;flex:none;color:var(--soluk)}
+.ab-omni input{flex:1;min-width:0;border:0;background:none;color:var(--metin);font:inherit;font-size:16px;padding:8px 0;outline:0}
+.ab-ghost{font-size:16px;color:var(--soluk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.ab-ghost mark{background:color-mix(in srgb,var(--mavi) 30%,transparent);color:var(--metin);border-radius:2px}
+.ab-list{margin-top:8px}
+.ab-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 6px;border-top:1px solid var(--cizgi)}
+.ab-row:first-child{border-top:0}
+.ab-row svg{width:16px;height:16px;color:var(--soluk)}
+.ab-main{min-width:0}
+.ab-main b{font-weight:600}
+.ab-main .ab-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ab-main small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ab-tag{font-size:11px;border:1px solid var(--cizgi);border-radius:6px;padding:0 6px;margin-left:6px;color:var(--soluk);font-weight:500}
+.ab-tag.first{border-color:var(--mavi);color:var(--mavi)}
+.ab-meter{grid-column:2/3;height:3px;border-radius:2px;background:color-mix(in srgb,var(--metin) 8%,transparent);overflow:hidden}
+.ab-meter i{display:block;height:100%;background:var(--mavi)}
+.ab-acts{display:flex;gap:6px}
+.ab-acts button,.ab-btn{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:8px;padding:4px 10px;font-size:13px;white-space:nowrap}
+.ab-acts button:hover,.ab-btn:hover{background:var(--yuzey2)}
+.ab-btn.main{background:var(--metin);color:var(--bg);border-color:var(--metin)}
+.ab-btn:disabled{opacity:.4;cursor:default}
+.ab-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--cizgi)}
+.ab-add .ab-field{flex:1;min-width:200px}
+.ab-note{font-size:12px;color:var(--soluk);margin:8px 0 0}
+.ab-pending{border-color:color-mix(in srgb,var(--turuncu) 50%,var(--cizgi))}
+.ab-op{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--cizgi);font-size:13px}
+.ab-op:first-of-type{border-top:0}
+.ab-op span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ab-op button{border:0;background:none;color:var(--soluk);padding:0 4px}
+.ab-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.ab-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.ab-tools .ab-field{flex:1;min-width:160px}
+.ab-tabs{display:flex;gap:4px}
+.ab-tabs button{border:0;background:none;padding:5px 10px;border-radius:8px;color:var(--soluk);font-weight:600}
+.ab-tabs button.on{background:var(--yuzey2);color:var(--metin)}
+.ab-learned{display:grid;grid-template-columns:minmax(80px,.6fr) minmax(0,1.6fr) 56px 90px auto;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--cizgi);font-size:13px}
+.ab-learned>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ab-learned .num{text-align:right;font-variant-numeric:tabular-nums;color:var(--soluk)}
+.ab-learned.gone>*:not(.ab-acts){text-decoration:line-through;opacity:.5}
+.ab-learned.head{color:var(--soluk);font-size:11px;border-top:0}
+.ab-error{color:var(--kirmizi)}
+details summary{cursor:pointer;color:var(--soluk);font-size:13px}
+@media (max-width:720px){main{padding:14px 16px 40px}.ab-learned{grid-template-columns:minmax(0,1fr) auto}.ab-learned>:nth-child(3),.ab-learned>:nth-child(4),.ab-learned.head{display:none}.ab-row{grid-template-columns:22px minmax(0,1fr)}.ab-acts{grid-column:2}}
+</style>
+</head>
+<body>
+<main id="root"></main>
+<script src="/kit.js"></script>
+<script type="module">
+import { applyHistory, applyOps, bare, isSearch, putFirst, removeSuggestion, suggest } from "./rank.js";
+
+document.title = "Address Bar";
+const PAGE_SIZE = 200;
+const OLD_SEARCH_DAYS = 30;
+const ICON_PAGE = iconSvg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>');
+const ICON_SEARCH = iconSvg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>');
+
+let overview = null, data = null, profile = "", error = "";
+let typed = "", tab = "pages", filter = "", sort = "hits", shown = PAGE_SIZE, busy = false;
+
+function iconSvg(paths) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+const ago = (ms) => (ms > 0 ? timeAgo(ms / 1000) : "—");
+const display = (row) => (isSearch(row) ? row.contents || row.text : row.contents || bare(row.url));
+const opText = (op) => {
+  if (op.op === "put") return t("“{text}” fills {url}", { text: op.text, url: bare(op.url) });
+  if (op.op === "typed") {
+    return op.count ? t("{url} counts as typed {n} times", { url: bare(op.url), n: op.count }) : t("{url} no longer counts as typed", { url: bare(op.url) });
+  }
+  if (op.op === "restore") return t("Restore the backup from {name}", { name: op.backup.replace(/\.sqlite$/, "") });
+  const row = data.rows.find((r) => r.id === op.id);
+  return row ? t("Remove “{text}” → {url}", { text: row.text, url: display(row) }) : t("Remove a shortcut");
+};
+
+function highlight(text, prefix) {
+  const at = text.toLocaleLowerCase().indexOf(prefix.toLocaleLowerCase());
+  if (!prefix || at < 0) return esc(text);
+  return `${esc(text.slice(0, at))}<b>${esc(text.slice(at, at + prefix.length))}</b>${esc(text.slice(at + prefix.length))}`;
+}
+
+function drawTop() {
+  const options = overview.profiles.map((p) => `<option value="${esc(p.dir)}" ${p.dir === profile ? "selected" : ""} >${esc(p.name)}${p.account && p.account !== p.name ? ` (${esc(p.account)})` : ""}${p.pending ? ` · ${p.pending}` : ""}</option>`).join("");
+  const state = !data ? "" : data.open
+    ? `<span class="ab-state open"><i></i>${esc(t("Chrome is open: changes wait until it closes"))}</span>`
+    : `<span class="ab-state closed"><i></i>${esc(t("Chrome is closed: changes apply right away"))}</span>`;
+  return `<div class="ab-top"><h1>${esc(t("Address Bar"))}</h1>
+    ${overview.profiles.length > 1 ? `<select id="profile" aria-label="${esc(t("Profile"))}">${options}</select>` : ""}${state}</div>`;
+}
+
+function drawTry(rows, history) {
+  const list = suggest(rows, typed, Date.now(), history);
+  const top = list[0], best = top?.score || 1;
+  const ghost = top?.inline ? (() => {
+    const fill = top.row.fill.toLocaleLowerCase().startsWith(typed.toLocaleLowerCase()) ? top.row.fill : bare(top.row.fill);
+    return `<span class="ab-ghost">${esc(fill.slice(0, typed.length))}<mark>${esc(fill.slice(typed.length))}</mark></span>`;
+  })() : "";
+  const items = list.slice(0, 8).map((s, i) => {
+    const learned = [...new Set(s.rows.map((r) => r.text))].slice(0, 3).map((x) => `“${x}”`).join(", ");
+    const hits = s.rows.reduce((n, r) => n + r.hits, 0);
+    const why = [
+      s.rows.length ? t("learned from {texts} · picked {n} times", { texts: learned, n: hits }) : "",
+      s.history ? t("history: typed {n} times, {v} visits", { n: s.history.typed, v: s.history.visits }) : "",
+      ago(Math.max(s.row.last, s.history?.last || 0)),
+    ].filter(Boolean).join(" · ");
+    const tags = i === 0 ? `<span class="ab-tag first">${esc(s.inline ? t("fills in") : t("first"))}</span>` : "";
+    return `<div class="ab-row">${isSearch(s.row) ? ICON_SEARCH : ICON_PAGE}
+      <div class="ab-main"><div class="ab-line">${highlight(display(s.row), typed.trim())}${s.row.description && !isSearch(s.row) ? ` <span class="soluk">— ${esc(s.row.description)}</span>` : ""}${tags}</div>
+        <small>${esc(why)}</small></div>
+      <div class="ab-acts">${i > 0 ? `<button type="button" data-first="${esc(s.url)}">${esc(t("Put first"))}</button>` : ""}<button type="button" data-remove-url="${esc(s.url)}">${esc(t("Remove"))}</button></div>
+      <span class="ab-meter" title="${esc(t("Chrome's score, estimated: {n}", { n: s.score }))}"><i style="width:${Math.max(2, (s.score / best) * 100)}%"></i></span></div>`;
+  }).join("");
+  const empty = typed.trim() ? `<p class="bos">${esc(t("Chrome hasn't learned anything for this yet."))}</p>` : `<p class="bos">${esc(t("Type the way you would in the address bar to see what Chrome fills in."))}</p>`;
+  const add = typed.trim() ? `<form class="ab-add" id="add"><span>${esc(t("When I type “{text}”, fill", { text: typed.trim() }))}</span>
+      <input class="ab-field" name="url" type="url" required placeholder="https://" value="">
+      <button class="ab-btn main" type="submit">${esc(t("Add"))}</button></form>
+      <p class="ab-note">${esc(t("Only an address that starts with what you type is completed in place; any other one becomes the first suggestion."))}</p>` : "";
+  return `<section class="kart"><div class="ab-omni">${ICON_SEARCH}<input id="typed" value="${esc(typed)}" placeholder="${esc(t("Type here…"))}" autocomplete="off" spellcheck="false">${ghost}</div>
+    <div class="ab-list">${items || empty}</div>${add}</section>`;
+}
+
+function drawPending() {
+  const ops = data.pending;
+  const applied = data.applied && Date.now() - data.applied.at < 60_000
+    ? `<p class="ab-note">${esc(t("{n} changes were written to Chrome. They show up the next time it opens.", { n: data.applied.count }))}</p>` : "";
+  const err = data.error ? `<p class="ab-note ab-error">${esc(data.error)}</p>` : "";
+  if (!ops.length) return applied || err ? `<section class="kart">${applied}${err}</section>` : "";
+  const list = ops.map((op, i) => `<div class="ab-op"><span>${esc(opText(op))}</span><button type="button" data-undo="${i}" aria-label="${esc(t("Undo"))}">${ICON.close}</button></div>`).join("");
+  const restart = data.canRestart ? `<button type="button" class="ab-btn main" id="restart" ${busy ? "disabled" : ""}>${esc(t("Restart Chrome and apply"))}</button>` : "";
+  return `<section class="kart ab-pending"><h2>${esc(t("Waiting for Chrome to close ({n})", { n: ops.length }))}</h2>${list}
+    <p class="ab-note">${esc(t("Chrome keeps these in memory while it runs. Quit it (not just the window) and they are applied within seconds, after a backup."))}${data.canRestart ? " " + esc(t("Restarting brings your tabs back.")) : ""}</p>
+    <div class="ab-bar">${restart}<button type="button" class="ab-btn" id="discard">${esc(t("Discard all"))}</button></div>${err}</section>`;
+}
+
+function drawLearned() {
+  const removing = new Set(data.pending.filter((o) => o.op === "delete").map((o) => o.id));
+  const pages = data.rows.filter((r) => !isSearch(r)), searches = data.rows.filter(isSearch);
+  const q = filter.trim().toLocaleLowerCase();
+  const typedRows = data.history.filter((h) => h.typed > 0);
+  const tabs = `<div class="ab-tabs"><button type="button" data-tab="pages" class="${tab === "pages" ? "on" : ""}">${esc(t("Pages ({n})", { n: pages.length }))}</button><button type="button" data-tab="searches" class="${tab === "searches" ? "on" : ""}">${esc(t("Searches ({n})", { n: searches.length }))}</button><button type="button" data-tab="typed" class="${tab === "typed" ? "on" : ""}">${esc(t("Typed ({n})", { n: typedRows.length }))}</button></div>`;
+  const tools = `<div class="ab-tools">${tabs}
+      <input class="ab-field" id="filter" value="${esc(filter)}" placeholder="${esc(t("Filter"))}" autocomplete="off">
+      <select id="sort" aria-label="${esc(t("Sort"))}"><option value="hits" ${sort === "hits" ? "selected" : ""}>${esc(t("Most picked"))}</option><option value="recent" ${sort === "recent" ? "selected" : ""}>${esc(t("Most recent"))}</option><option value="old" ${sort === "old" ? "selected" : ""}>${esc(t("Oldest"))}</option></select></div>`;
+  if (tab === "typed") return drawTyped(typedRows, q, tools);
+  let rows = (tab === "pages" ? pages : searches).filter((r) => !q || `${r.text} ${r.url} ${r.contents} ${r.description}`.toLocaleLowerCase().includes(q));
+  rows.sort(sort === "hits" ? (a, b) => b.hits - a.hits || b.last - a.last : sort === "recent" ? (a, b) => b.last - a.last : (a, b) => a.last - b.last);
+  const cutoff = Date.now() - OLD_SEARCH_DAYS * 86400_000;
+  const oneOff = searches.filter((r) => r.hits <= 1 && r.last < cutoff && !removing.has(r.id));
+  const list = rows.slice(0, shown).map((r) => `<div class="ab-learned${removing.has(r.id) ? " gone" : ""}">
+      <span title="${esc(r.text)}">${esc(r.text)}</span><span title="${esc(r.url)}">${esc(display(r))}</span>
+      <span class="num">${formatNumber(r.hits)}</span><span class="num">${esc(ago(r.last))}</span>
+      <span class="ab-acts">${removing.has(r.id) ? `<button type="button" data-keep="${esc(r.id)}">${esc(t("Keep"))}</button>` : `<button type="button" data-remove="${esc(r.id)}">${esc(t("Remove"))}</button>`}</span></div>`).join("");
+  const more = rows.length > shown ? `<button type="button" class="ab-btn" id="more">${esc(t("Show {n} more", { n: Math.min(PAGE_SIZE, rows.length - shown) }))}</button>` : "";
+  return `<section class="kart"><h2>${esc(t("Everything Chrome learned"))}</h2>
+    ${tools}
+    ${tab === "searches" && oneOff.length ? `<div class="ab-bar" style="margin:0 0 8px"><button type="button" class="ab-btn" id="clean">${esc(t("Remove {n} searches used once, over {d} days ago", { n: oneOff.length, d: OLD_SEARCH_DAYS }))}</button></div>` : ""}
+    <div class="ab-learned head"><span>${esc(t("You typed"))}</span><span>${esc(t("Chrome filled"))}</span><span class="num">${esc(t("Picks"))}</span><span class="num">${esc(t("Last"))}</span><span></span></div>
+    ${list || `<p class="bos">${esc(t("Nothing here."))}</p>`}${more ? `<div class="ab-bar">${more}</div>` : ""}</section>`;
+}
+
+/** Addresses history counts as typed in by hand: the ones Chrome completes in place before any shortcut. */
+function drawTyped(rows, q, tools) {
+  const queued = new Map(data.pending.filter((o) => o.op === "typed").map((o) => [o.url, o.count]));
+  const list = rows.filter((h) => !q || `${h.url} ${h.title}`.toLocaleLowerCase().includes(q))
+    .sort(sort === "hits" ? (a, b) => b.typed - a.typed || b.last - a.last : sort === "recent" ? (a, b) => b.last - a.last : (a, b) => a.last - b.last);
+  const html = list.slice(0, shown).map((h) => {
+    const gone = queued.get(h.url) === 0, count = queued.has(h.url) ? queued.get(h.url) : h.typed;
+    return `<div class="ab-learned${gone ? " gone" : ""}"><span title="${esc(h.title)}">${esc(h.title || "—")}</span><span title="${esc(h.url)}">${esc(bare(h.url))}</span>
+      <span class="num">${formatNumber(count)}</span><span class="num">${esc(ago(h.last))}</span>
+      <span class="ab-acts">${queued.has(h.url) ? `<button type="button" data-keep-typed="${esc(h.url)}">${esc(t("Keep"))}</button>` : `<button type="button" data-forget="${esc(h.url)}">${esc(t("Forget typing"))}</button>`}</span></div>`;
+  }).join("");
+  const more = list.length > shown ? `<div class="ab-bar"><button type="button" class="ab-btn" id="more">${esc(t("Show {n} more", { n: Math.min(PAGE_SIZE, list.length - shown) }))}</button></div>` : "";
+  return `<section class="kart"><h2>${esc(t("Everything Chrome learned"))}</h2>${tools}
+    <p class="ab-note" style="margin:0 0 8px">${esc(t("Addresses you typed in by hand. Chrome completes these in place before any shortcut. Forgetting the typing keeps the page in your history."))}</p>
+    <div class="ab-learned head"><span>${esc(t("Page"))}</span><span>${esc(t("Address"))}</span><span class="num">${esc(t("Typed"))}</span><span class="num">${esc(t("Last"))}</span><span></span></div>
+    ${html || `<p class="bos">${esc(t("Nothing here."))}</p>`}${more}</section>`;
+}
+
+function drawBackups() {
+  if (!data.backups.length) return "";
+  const what = (b) => (b.shortcuts && b.history ? t("shortcuts and history") : b.history ? t("history") : t("shortcuts"));
+  const rows = data.backups.map((b) => `<div class="ab-op"><span>${esc(b.name.replace(/\.sqlite$/, ""))} <small>${esc(what(b))}</small></span><button type="button" class="ab-btn" data-restore="${esc(b.name)}">${esc(t("Restore"))}</button></div>`).join("");
+  return `<section class="kart"><details><summary>${esc(t("Backups ({n}): the files as they were before each change", { n: data.backups.length }))}</summary>${rows}</details></section>`;
+}
+
+function draw() {
+  const root = $("#root");
+  if (error && !overview) { root.innerHTML = `<p class="ab-error">${esc(error)}</p>`; return; }
+  if (!overview) { root.innerHTML = `<p class="bos">${esc(t("Loading…"))}</p>`; return; }
+  if (!overview.profiles.length) {
+    root.innerHTML = `${drawTop()}<section class="kart"><p class="bos">${esc(t("No Chrome profile found in {folder}. If you use another Chromium browser, set its folder in Settings.", { folder: overview.folder }))}</p></section>`;
+    return;
+  }
+  if (!data) { root.innerHTML = `${drawTop()}<p class="${error ? "ab-error" : "bos"}">${esc(error || t("Loading…"))}</p>`; return; }
+  const focused = document.activeElement?.id, caret = document.activeElement?.selectionStart;
+  root.innerHTML = drawTop() + drawPending() + drawTry(applyOps(data.rows, data.pending), applyHistory(data.history, data.pending)) + drawLearned() + drawBackups();
+  if (focused) {
+    const el = document.getElementById(focused);
+    el?.focus();
+    if (el && caret != null && "setSelectionRange" in el) try { el.setSelectionRange(caret, caret); } catch {}
+  }
+}
+
+async function loadRows() {
+  try {
+    data = await getJson(`./api/rows?profile=${encodeURIComponent(profile)}`);
+    error = "";
+  } catch (e) {
+    error = String(e.message || e);
+  }
+  draw();
+}
+
+async function load() {
+  try {
+    overview = await getJson("./api/profiles");
+    const dirs = overview.profiles.map((p) => p.dir);
+    if (!dirs.includes(profile)) profile = overview.profiles.find((p) => p.lastUsed)?.dir || dirs[0] || "";
+    error = "";
+  } catch (e) {
+    error = String(e.message || e);
+  }
+  if (profile) await loadRows();
+  else draw();
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Panel": "1" }, body: JSON.stringify({ profile, ...body }) });
+  const answer = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(answer.error || `${path}: ${r.status}`);
+  data = answer;
+  overview.profiles = overview.profiles.map((p) => (p.dir === profile ? { ...p, pending: data.pending.length } : p));
+  draw();
+}
+
+const queue = (ops) => post("./api/pending", { ops }).catch((e) => notify(e.message));
+const add = (...ops) => queue([...data.pending.filter((o) => o.op !== "restore"), ...ops]);
+
+document.addEventListener("input", (e) => {
+  if (e.target.id === "typed") { typed = e.target.value; draw(); }
+  if (e.target.id === "filter") { filter = e.target.value; shown = PAGE_SIZE; draw(); }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id === "profile") { profile = e.target.value; data = null; shown = PAGE_SIZE; draw(); loadRows(); }
+  if (e.target.id === "sort") { sort = e.target.value; draw(); }
+});
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "add") return;
+  e.preventDefault();
+  let url = String(new FormData(e.target).get("url"));
+  try { url = new URL(url).href; } catch {}
+  add(...putFirst(data.rows, applyHistory(data.history, data.pending), data.pending, typed, url, ""));
+});
+document.addEventListener("click", async (e) => {
+  const el = e.target.closest("button");
+  if (!el || !data) return;
+  const rows = applyOps(data.rows, data.pending), history = applyHistory(data.history, data.pending);
+  if (el.dataset.first) {
+    const row = rows.find((r) => r.url === el.dataset.first) || history.find((h) => h.url === el.dataset.first);
+    add(...putFirst(data.rows, history, data.pending, typed, el.dataset.first, row && !isSearch(row) ? row.description || row.title || "" : ""));
+  } else if (el.dataset.removeUrl) {
+    const group = suggest(rows, typed, Date.now(), history).find((s) => s.url === el.dataset.removeUrl);
+    // New rows only exist in the queue: dropping their "put" is how they are removed.
+    const fresh = new Set(group.rows.filter((r) => r.id.startsWith("new-")).map((r) => r.text.toLocaleLowerCase()));
+    const kept = data.pending.filter((o) => !(o.op === "put" && o.url === el.dataset.removeUrl && fresh.has(o.text.toLocaleLowerCase())));
+    queue([...kept, ...removeSuggestion(group)]);
+  } else if (el.dataset.remove) add({ op: "delete", id: el.dataset.remove });
+  else if (el.dataset.forget) add({ op: "typed", url: el.dataset.forget, count: 0 });
+  else if (el.dataset.keepTyped) queue(data.pending.filter((o) => !(o.op === "typed" && o.url === el.dataset.keepTyped)));
+  else if (el.dataset.keep) queue(data.pending.filter((o) => !(o.op === "delete" && o.id === el.dataset.keep)));
+  else if (el.dataset.undo) queue(data.pending.filter((_, i) => i !== +el.dataset.undo));
+  else if (el.dataset.tab) { tab = el.dataset.tab; shown = PAGE_SIZE; draw(); }
+  else if (el.dataset.restore) {
+    if (confirm(t("Put back the shortcuts as they were at {name}? What changed since is replaced.", { name: el.dataset.restore.replace(/\.sqlite$/, "") }))) queue([{ op: "restore", backup: el.dataset.restore }]);
+  } else if (el.id === "clean") {
+    const cutoff = Date.now() - OLD_SEARCH_DAYS * 86400_000;
+    const removing = new Set(data.pending.filter((o) => o.op === "delete").map((o) => o.id));
+    add(...data.rows.filter((r) => isSearch(r) && r.hits <= 1 && r.last < cutoff && !removing.has(r.id)).map((r) => ({ op: "delete", id: r.id })));
+  } else if (el.id === "discard") queue([]);
+  else if (el.id === "more") { shown += PAGE_SIZE; draw(); }
+  else if (el.id === "restart") {
+    busy = true; draw();
+    try { await post("./api/restart", {}); } catch (err) { notify(err.message); }
+    busy = false; draw();
+  }
+});
+// A refresh redraws the page, so not while an address is being typed into the add form.
+window.addEventListener("focus", () => { if (!isHidden() && overview && document.activeElement?.name !== "url") loadRows(); });
+
+draw();
+load();
+</script>
+</body>
+</html>
