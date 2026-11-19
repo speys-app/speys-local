@@ -1,0 +1,1086 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meal Planner</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+/* Speys's Meal Planner on the desktop: the week as one bordered grid, meals and recipes as picture cards, the recipe
+   page with a big picture, ingredients and steps. Pictures: backend.js (dishes.js). */
+:root{--mp-yumusak:color-mix(in srgb,var(--vurgu) 12%,transparent)}
+.mp-ust{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:6px}
+.mp-ust h1{font-size:20px;margin:0;font-weight:800}
+.mp-sekme{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:var(--yuzey2);border:1px solid var(--cizgi)}
+.mp-sekme button{border:0;background:none;padding:5px 16px;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:var(--soluk)}
+.mp-sekme button.secili{background:var(--yuzey);color:var(--metin);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.mp-hafta{margin-left:auto;display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--cizgi);background:var(--yuzey);border-radius:12px}
+.mp-hafta button{width:30px;height:30px;border:0;background:none;border-radius:8px;font-size:16px;color:var(--soluk)}
+.mp-hafta button:hover{background:var(--yuzey2);color:var(--metin)}
+.mp-hafta span{min-width:140px;text-align:center;font-weight:700;font-size:13px}
+.mp-hafta .mp-bugun-d{width:auto;padding:0 10px;font-size:12px;font-weight:600}
+.mp-senkron{font-size:12px;color:var(--soluk);margin:0 0 16px;display:flex;flex-wrap:wrap;align-items:center;gap:2px}
+.mp-kucuk{border:0;background:none;padding:2px 6px;font:inherit;font-size:12px;color:var(--soluk);border-radius:6px;text-decoration:underline;text-underline-offset:2px}
+.mp-kucuk:hover{color:var(--metin)}
+.mp-dugme{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:10px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;color:var(--metin)}
+.mp-dugme:hover{border-color:var(--soluk)}
+.mp-kaydet{background:var(--vurgu);border-color:var(--vurgu);color:#fff}
+.mp-kaydet:hover{border-color:var(--vurgu);filter:brightness(1.06)}
+.mp-sil{color:var(--kirmizi)}
+.mp-girdi{width:100%;min-width:0;border:1px solid var(--cizgi);background:var(--bg);color:var(--metin);border-radius:10px;padding:8px 10px;font:inherit;font-size:13px}
+.mp-girdi:focus{outline:none;border-color:color-mix(in srgb,var(--vurgu) 55%,transparent)}
+
+/* pictures */
+.mp-resim{display:block;object-fit:contain}
+.mp-emoji{display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--mp-yumusak);user-select:none}
+.mp-yer{display:flex;align-items:center;justify-content:center;flex:none}
+.mp-harf{display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--yuzey2);border:1px solid var(--cizgi);color:var(--soluk);font-weight:800}
+
+/* week */
+.mp-duzen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.mp-izgara-kap{border:1px solid var(--cizgi);border-radius:18px;background:var(--yuzey);overflow-x:auto}
+.mp-izgara{display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));grid-template-rows:auto repeat(3,minmax(150px,auto))}
+.mp-izgara>*{min-width:0}
+.mp-izgara>.sag{border-left:1px solid var(--cizgi)}
+.mp-izgara>.bugun{background:color-mix(in srgb,var(--vurgu) 4%,transparent)}
+.mp-sutun-bas{text-align:center;padding:10px 4px 9px;border-bottom:1px solid var(--cizgi)}
+.mp-sutun-bas small{display:block;font-size:11px;font-weight:600;color:var(--soluk)}
+.mp-sutun-bas b{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;margin-top:2px;border-radius:99px;font-size:17px;font-variant-numeric:tabular-nums}
+.mp-sutun-bas.bugun small{color:var(--vurgu)}
+.mp-sutun-bas.bugun b{background:var(--vurgu);color:#fff}
+.mp-slot{padding:8px 6px 10px;display:flex;flex-direction:column;gap:6px}
+.mp-slot.alt{border-top:1px solid var(--cizgi)}
+.mp-slot-bas{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:0 2px;min-height:22px;white-space:nowrap}
+.mp-slot-bas>span:last-child{display:flex;align-items:center}
+.mp-slot-bas span{font-size:11px;font-weight:600;color:var(--soluk)}
+.mp-arti{width:22px;height:22px;border:0;background:none;border-radius:7px;color:var(--soluk);font-size:16px;line-height:1}
+.mp-arti:hover{background:var(--mp-yumusak);color:var(--vurgu)}
+.mp-bos-slot{flex:1;min-height:60px;border:1px dashed transparent;background:none;border-radius:12px;color:transparent;font-size:20px}
+.mp-slot:hover .mp-bos-slot{border-color:var(--cizgi);color:var(--soluk)}
+.mp-bos-slot:hover{border-color:var(--vurgu)!important;color:var(--vurgu)!important}
+.mp-yemek{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;padding:8px 5px 7px;border:1px solid var(--cizgi);background:var(--yuzey);border-radius:12px;font:inherit;color:var(--metin);text-align:center;transition:border-color .12s,transform .12s}
+.mp-yemek:hover{border-color:color-mix(in srgb,var(--vurgu) 55%,transparent)}
+.mp-yemek:active{transform:scale(.97)}
+.mp-yemek .mp-ad{font-size:12px;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.mp-yemek.tarifsiz{border-style:dashed}
+.mp-alis h2{display:flex;justify-content:space-between;align-items:baseline}
+.mp-alis h2 small{font-size:12px;font-weight:500;color:var(--soluk)}
+.mp-alis ul{list-style:none;margin:0;padding:0}
+.mp-alis li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--cizgi);font-size:13px}
+.mp-alis li:last-child{border-bottom:0}
+.mp-evde-izgara{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:1000px){.mp-evde-izgara{grid-template-columns:1fr}}
+.mp-evde{font-style:normal;font-size:11px;font-weight:600;color:var(--yesil);margin-left:6px}
+.mp-evde-dug{display:flex;gap:2px;white-space:nowrap}
+.mp-alis li.mp-elle span:first-child{font-weight:600}
+.mp-alis li small{display:block;color:var(--soluk);font-size:11px;margin-top:1px}
+.mp-alis li .mp-miktar{white-space:nowrap;font-weight:700;color:var(--vurgu)}
+
+/* recipes */
+.mp-arac{display:flex;gap:8px;margin-bottom:18px;max-width:520px}
+.mp-grup{margin-bottom:22px}
+.mp-grup h3{font-size:13px;font-weight:700;color:var(--soluk);margin:0 0 8px 2px}
+.mp-grup h3 span{font-weight:500}
+.mp-kartlar{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mp-tarif-kart{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 10px 14px;border:1px solid var(--cizgi);background:var(--yuzey);border-radius:16px;font:inherit;color:var(--metin);text-align:center;transition:border-color .12s,box-shadow .12s,transform .12s}
+.mp-tarif-kart:hover{border-color:color-mix(in srgb,var(--vurgu) 50%,transparent);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.mp-tarif-kart:active{transform:scale(.97)}
+.mp-tarif-kart b{font-size:13px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mp-tarif-kart small{font-size:11px;color:var(--soluk);margin-top:-4px}
+
+/* one recipe */
+.mp-geri{border:1px solid var(--cizgi);background:var(--yuzey);border-radius:10px;padding:6px 12px 6px 9px;font:inherit;font-size:13px;font-weight:600;color:var(--metin);margin-bottom:14px}
+.mp-geri::before{content:"‹";color:var(--vurgu);font-size:16px;margin-right:6px}
+.mp-tarif{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start;max-width:1100px}
+.mp-tarif-bas{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.mp-tarif-ad{margin-right:auto}
+.mp-tarif-ad h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.01em;text-transform:none;color:var(--metin)}
+.mp-etiket{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--mp-yumusak);color:var(--vurgu);font-size:12px;font-weight:600;margin-top:4px}
+.mp-sahne{display:flex;align-items:center;justify-content:center;min-height:260px;border-radius:20px;border:1px solid var(--cizgi);background:radial-gradient(circle at 50% 45%,var(--mp-yumusak),transparent 70%),var(--yuzey);overflow:hidden}
+.mp-sahne.kapak{padding:0;aspect-ratio:16/10;min-height:0}
+.mp-sahne.kapak img{width:100%;height:100%;object-fit:cover}
+.mp-malzeme ul{list-style:none;margin:0;padding:0;border:1px solid var(--cizgi);border-radius:14px;overflow:hidden}
+.mp-malzeme li{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:14px;border-bottom:1px solid var(--cizgi)}
+.mp-malzeme li.vurgu{background:var(--mp-yumusak)}
+.mp-kucuk-resim{width:36px;height:36px;flex:none;object-fit:contain;border-radius:8px}
+.mp-kucuk-harf{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--yuzey2);border:1px solid var(--cizgi);color:var(--soluk);font-size:13px;font-weight:800}
+.mp-m{position:relative;display:inline}
+.mp-m>button{border:0;background:none;padding:0;font:inherit;color:inherit;text-decoration:underline dotted;text-decoration-thickness:1px;text-decoration-color:color-mix(in srgb,var(--soluk) 60%,transparent);text-underline-offset:4px;cursor:pointer}
+.mp-m>button:hover,.mp-m.acik>button{color:var(--vurgu);text-decoration-color:var(--vurgu)}
+.mp-ipucu{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:8px;white-space:nowrap;padding:6px 12px 6px 6px;border:1px solid var(--cizgi);border-radius:12px;background:var(--yuzey);box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:13px;font-weight:700;line-height:1.2;pointer-events:none}
+.mp-ipucu small{color:var(--vurgu);font-size:13px;font-weight:700}
+.mp-m:hover .mp-ipucu,.mp-m.acik .mp-ipucu{display:flex}
+.mp-malzeme li:last-child{border-bottom:0}
+.mp-malzeme li b{min-width:124px;color:var(--vurgu);font-weight:700}
+.mp-adimlar ol{list-style:none;margin:0;padding:0}
+.mp-adimlar li{display:grid;grid-template-columns:30px 1fr;gap:14px;padding:16px 0}
+.mp-adimlar li+li{border-top:1px solid var(--cizgi)}
+.mp-adimlar li:first-child{padding-top:6px}
+.mp-no{width:30px;height:30px;border-radius:99px;border:1px solid color-mix(in srgb,var(--vurgu) 40%,transparent);background:var(--mp-yumusak);color:var(--vurgu);font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.mp-no:hover{border-color:var(--vurgu)}
+.mp-adim-metin{font-size:15px;line-height:1.7;max-width:68ch;color:color-mix(in srgb,var(--metin) 88%,transparent)}
+.mp-sure{font-weight:700;color:var(--vurgu);white-space:nowrap}
+.mp-adimlar li.bitti .mp-adim-metin{opacity:.4}
+.mp-adimlar li.bitti .mp-no{background:var(--vurgu);color:#fff;border-color:var(--vurgu)}
+.mp-adim-ipucu{font-size:12px;color:var(--soluk);margin:-4px 0 8px}
+.mp-sol{display:grid;gap:16px}
+
+/* forms and the add-a-meal window */
+.mp-form{display:grid;gap:10px}
+.mp-form label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--soluk)}
+.mp-form textarea{min-height:140px;resize:vertical}
+.mp-satirlar{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.mp-satirlar .mp-sil{margin-right:auto}
+.mp-perde{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px 16px;overflow:auto}
+.mp-pencere{width:min(760px,100%);background:var(--yuzey);border:1px solid var(--cizgi);border-radius:22px;padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.mp-pencere-bas{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.mp-pencere-bas h2{font-size:17px;font-weight:800;margin:0;margin-right:auto;text-transform:none;letter-spacing:0;color:var(--metin)}
+.mp-plandan{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px 10px 16px;border:1px solid color-mix(in srgb,var(--vurgu) 35%,var(--cizgi));background:var(--mp-yumusak);border-radius:14px;font-size:14px}
+.mp-plandan b{margin-right:auto}
+.mp-kapat{width:32px;height:32px;border:1px solid var(--cizgi);background:var(--yuzey);border-radius:10px;font-size:18px;color:var(--soluk)}
+.mp-pencere .mp-kartlar{grid-template-columns:repeat(auto-fill,minmax(122px,1fr));max-height:52vh;overflow:auto;padding:2px;margin:12px 0}
+.mp-pencere .mp-tarif-kart{padding:12px 8px 10px;gap:6px}
+.mp-tarifsiz{display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--cizgi)}
+.mp-secili-yemek{display:flex;align-items:center;gap:14px;padding:4px 0 14px}
+.mp-secili-yemek b{font-size:16px}
+.mp-iki{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* cooking mode: the whole frame, one step at a time, big type; several recipes side by side as tabs */
+.mp-pisir{position:fixed;inset:0;z-index:30;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
+.mp-pisir-ust{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--cizgi);background:var(--yuzey)}
+.mp-pisir-sekmeler{display:flex;gap:6px;overflow-x:auto;margin-right:auto;min-width:0}
+.mp-pisir-sekme{display:inline-flex;align-items:center;gap:8px;padding:4px 6px 4px 4px;border:1px solid var(--cizgi);border-radius:12px;background:var(--yuzey);font:inherit;font-size:14px;font-weight:600;color:var(--soluk);white-space:nowrap}
+.mp-pisir-sekme.secili{border-color:var(--vurgu);color:var(--metin);background:var(--mp-yumusak)}
+.mp-pisir-sekme small{font-size:12px;font-weight:600;color:var(--soluk)}
+.mp-pisir-sekme.bitti small{color:var(--yesil)}
+.mp-pisir-sekme .mp-cikar{width:22px;height:22px;border-radius:7px;color:var(--soluk);display:inline-flex;align-items:center;justify-content:center}
+.mp-pisir-sekme .mp-cikar:hover{background:var(--yuzey2);color:var(--metin)}
+.mp-pisir-ekle{flex:none;width:40px;height:40px;border:1px dashed var(--cizgi);border-radius:12px;background:none;color:var(--soluk);font-size:22px;line-height:1}
+.mp-pisir-ekle:hover{border-color:var(--vurgu);color:var(--vurgu)}
+.mp-perde.ust{z-index:40}
+.mp-saat{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--metin);white-space:nowrap;padding:0 6px}
+.mp-saat small{font-size:12px;font-weight:600;color:var(--soluk);margin-right:6px}
+.mp-sure-not{display:block;font-size:13px;color:var(--soluk);margin-top:6px}
+.mp-birlikte-sekme{font-weight:700}
+.mp-tarif-cip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px 2px 3px;border-radius:99px;background:var(--yuzey2);border:1px solid var(--cizgi);color:var(--metin);font-size:13px;font-weight:600;vertical-align:middle;margin-left:6px}
+.mp-tarif-cip .mp-resim,.mp-tarif-cip .mp-yer{width:22px!important;height:22px!important}
+.mp-bekle{margin-top:18px;padding:10px 14px;border-left:3px solid var(--vurgu);background:var(--mp-yumusak);border-radius:0 10px 10px 0;font-size:16px;color:var(--metin);max-width:40em}
+.mp-bekle b{color:var(--vurgu);margin-right:6px}
+.mp-grup-ad{font-size:15px;font-weight:700;margin:22px 0 -10px;display:flex;align-items:center;gap:8px}
+.mp-istem{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+.mp-uyanik{font-size:12px;color:var(--soluk);white-space:nowrap}
+.mp-uyanik::before{content:"";display:inline-block;width:7px;height:7px;border-radius:99px;background:var(--yesil);margin-right:6px;vertical-align:1px}
+.mp-pisir-govde{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:0}
+.mp-pisir-adim{display:flex;flex-direction:column;justify-content:center;padding:32px 6vw;cursor:pointer;user-select:none;min-height:0;overflow:auto}
+.mp-pisir-no{font-size:15px;font-weight:700;color:var(--vurgu);margin-bottom:14px}
+.mp-pisir-metin{font-size:clamp(24px,2.6vw,36px);line-height:1.5;font-weight:500;max-width:30em;color:var(--metin)}
+.mp-pisir-metin .mp-ipucu{font-size:15px}
+.mp-pisir-malz{border-left:1px solid var(--cizgi);background:var(--yuzey);padding:18px 16px;overflow:auto}
+.mp-pisir-malz h3{font-size:13px;font-weight:700;color:var(--soluk);margin:0 0 10px}
+.mp-pisir-malz ul{list-style:none;margin:0;padding:0}
+.mp-pisir-malz li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:10px;font-size:14px;color:var(--soluk)}
+.mp-pisir-malz li b{color:var(--soluk);font-weight:600;white-space:nowrap}
+.mp-pisir-malz li.vurgu{background:var(--mp-yumusak);color:var(--metin)}
+.mp-pisir-malz li.vurgu b{color:var(--vurgu)}
+.mp-pisir-alt{display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--cizgi);background:var(--yuzey)}
+.mp-pisir-alt .mp-dugme{padding:12px 22px;font-size:15px}
+.mp-ilerleme{flex:1;display:flex;gap:4px;min-width:0}
+.mp-ilerleme button{flex:1;height:8px;border:0;border-radius:99px;background:var(--yuzey2);padding:0;cursor:pointer}
+.mp-ilerleme button.gecti{background:color-mix(in srgb,var(--vurgu) 45%,transparent)}
+.mp-ilerleme button.simdi{background:var(--vurgu)}
+.mp-pisir-govde.tek{grid-template-columns:1fr}
+.mp-onizleme{margin:22px 0 0;padding-left:1.4em;max-width:44em;display:grid;gap:12px;font-size:18px;line-height:1.55;color:var(--metin)}
+.mp-onizleme li::marker{color:var(--vurgu);font-weight:700}
+.mp-onizleme .mp-tarif-cip{margin:0 8px 0 0}
+.mp-onizleme .mp-bekle{margin-top:6px;font-size:15px}
+.mp-pisir-alt-yazi{font-size:17px;color:var(--soluk);margin-top:10px;max-width:40em}
+.mp-topla{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-top:24px;max-width:1100px}
+.mp-tik{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--cizgi);border-radius:14px;background:var(--yuzey);font:inherit;font-size:15px;color:var(--metin);text-align:left;cursor:pointer}
+.mp-tik:hover{border-color:color-mix(in srgb,var(--vurgu) 50%,transparent)}
+.mp-tik>span:not(.mp-kucuk-harf){min-width:0;flex:1;line-height:1.3}
+.mp-tik small{display:block;margin-top:2px;color:var(--vurgu);font-size:13px;font-weight:700}
+.mp-tik::after{content:"";margin-left:auto;flex:none;width:22px;height:22px;border-radius:99px;border:2px solid var(--cizgi);box-sizing:border-box}
+.mp-tik.alindi{opacity:.5}
+.mp-tik.alindi::after{content:"✓";display:flex;align-items:center;justify-content:center;background:var(--vurgu);border-color:var(--vurgu);color:#fff;font-size:13px;font-weight:800}
+.mp-sayac{font-size:15px;font-weight:700;color:var(--soluk);margin-top:16px}
+.mp-pisir-ipucu{font-size:12px;color:var(--soluk);text-align:center;padding:0 16px 10px;background:var(--yuzey)}
+.mp-devam{position:fixed;right:18px;bottom:18px;z-index:15;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 14px;border-radius:14px;border:1px solid var(--vurgu);background:var(--yuzey);box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:13px}
+.mp-devam b{margin-right:6px}
+.mp-pisir-d{border:0;background:none;padding:2px 4px;border-radius:7px;font:inherit;font-size:11px;font-weight:700;color:var(--vurgu)}
+.mp-pisir-d:hover{background:var(--mp-yumusak)}
+@media (max-width:900px){.mp-pisir-govde{grid-template-columns:1fr}.mp-pisir-malz{display:none}}
+
+/* sync conflicts */
+.mp-cakisma{border-top:1px solid var(--cizgi);padding:8px 0}
+.mp-cakisma table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+.mp-cakisma td,.mp-cakisma th{padding:4px 6px;text-align:left;font-weight:400}
+.mp-cakisma th{font-size:11px;color:var(--soluk)}
+.mp-cakisma label{display:flex;gap:6px;align-items:center}
+
+@media (max-width:1180px){.mp-duzen{grid-template-columns:1fr}}
+@media (max-width:860px){.mp-tarif{grid-template-columns:1fr}.mp-hafta{margin-left:0}}
+</style>
+</head>
+<body>
+<main id="icerik"></main>
+<script src="/kit.js"></script>
+<script>
+"use strict";
+
+document.title = "Meal Planner";
+const MEALS = { breakfast: t("Breakfast"), lunch: t("Lunch"), dinner: t("Dinner") };
+const DAY_NAMES = [t("Mon"), t("Tue"), t("Wed"), t("Thu"), t("Fri"), t("Sat"), t("Sun")];
+// Speys's categories, in its order (they're data: stored in Turkish); any other category comes after them
+const CATEGORY_ORDER = ["Kahvaltı", "Tatlı", "Ana Yemek", "Yan Yemek", "Atıştırmalık", "Diğer"];
+const OTHER = "Diğer";
+
+// ?week=2026-07-20 opens that week (a link from elsewhere, or a screenshot of a past week)
+// #meals/tarifler/<id> is a recipe's own page, so the browser's back button returns to the list
+const state = { week: new URLSearchParams(location.search).get("week"), form: null, recipe: decodeURIComponent(location.hash.slice(1)).split("/")[2] || null, editing: false, filter: "", pick: "", fromMeal: null, done: new Set(), cookPick: false, cookFilter: "" };
+// done: "recipeId:step" ticked off while cooking; not saved, a reload starts over
+// fromMeal: the planned meal a recipe page was opened from in the week (its strip on top, back goes to the week)
+// form: { day, mealType, record } — the add-a-meal window; record is the meal being changed, or null to add one
+let data = null, error = "", speys = null, syncing = false;
+// home: what's at home, from Finances' receipt lines (../kasa/api/evde); null when Finances isn't installed or has none
+// buy: things to buy written by hand (a product that ran out), this applet's own list
+let home = null, buy = [];
+
+const hashParts = () => decodeURIComponent(location.hash.slice(1)).split("/");
+const tab = () => (hashParts()[1] === "tarifler" ? "recipes" : hashParts()[1] === "evde" ? "home" : "week");
+const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
+const dayLong = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE, { weekday: "long", day: "numeric", month: "long" });
+const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const fold = (s) => String(s ?? "").toLocaleLowerCase(LOCALE);
+
+/** A dish's picture: its image, else its emoji, else its first letter. A picture that can't load falls back too. */
+function picture(x, size) {
+  const letter = `<span class="mp-harf" style="width:${size * 0.7}px;height:${size * 0.7}px;font-size:${size * 0.28}px">${esc((x.title || "?").trim().charAt(0).toLocaleUpperCase(LOCALE))}</span>`;
+  const mark = x.emoji ? `<span class="mp-emoji" style="width:${size * 0.7}px;height:${size * 0.7}px;font-size:${size * 0.36}px">${esc(x.emoji)}</span>` : letter;
+  // the same room as a picture, so the name under it lines up with the cards that have one
+  const emoji = `<span class="mp-yer" style="width:${size}px;height:${size}px">${mark}</span>`;
+  if (!x.image) return emoji;
+  return `<img class="mp-resim" src="${esc(x.image)}" alt="" loading="lazy" width="${size}" height="${size}" data-yedek="${esc(emoji)}" onerror="this.outerHTML=this.dataset.yedek">`;
+}
+
+/** An ingredient's small picture (the Ingredient Atlas, as in Speys), else its first letter. */
+function ingredientThumb(i) {
+  const letter = `<span class="mp-kucuk-harf">${esc((i.name || "?").trim().charAt(0).toLocaleUpperCase(LOCALE))}</span>`;
+  return i.image ? `<img class="mp-kucuk-resim" src="${esc(i.image)}" alt="" loading="lazy" data-yedek="${esc(letter)}" onerror="this.outerHTML=this.dataset.yedek">` : letter;
+}
+const amountText = (i) => [i.amount, i.unit].filter(Boolean).join(" ");
+const escapeRegex = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** A step's text cut where the recipe's ingredients are named (as Speys does it): the whole name or one of its words of
+    three letters or more, at the start of a word, with whatever ending follows ("soğanı", "salçayla"); the longest
+    match wins where two overlap. */
+function stepSegments(text, ingredients) {
+  const found = [];
+  ingredients.forEach((ing, index) => {
+    const name = baseName(ing.name);
+    if (!name) return;
+    const words = name.split(/\s+/).filter((w) => w.length >= 3);
+    // Turkish endings: "sarımsak" → "sarımsağı" (the last k/p/t/ç softens), "salçası" → "salçayı" (the -sı goes)
+    const soft = { k: "ğ", p: "b", t: "d", ç: "c" };
+    const stems = words.flatMap((w) => [
+      soft[w.at(-1)] && w.length >= 4 ? w.slice(0, -1) + soft[w.at(-1)] : null,
+      /[aeıioöuü]s[ıiuü]$/i.test(w) && w.length >= 6 ? w.slice(0, -2) : null,
+    ]).filter(Boolean);
+    const terms = [...new Set([name, ...words, ...stems])];
+    for (const term of terms) {
+      const re = new RegExp(`(?<![\\p{L}])(${escapeRegex(term.toLocaleLowerCase("tr-TR"))}[\\p{L}]*)`, "giu");
+      for (const m of text.matchAll(re)) found.push({ start: m.index, end: m.index + m[0].length, index });
+    }
+  });
+  const used = new Array(text.length).fill(false), chosen = [];
+  for (const c of found.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start)) {
+    let free = true;
+    for (let k = c.start; k < c.end; k++) if (used[k]) { free = false; break; }
+    if (!free) continue;
+    chosen.push(c);
+    for (let k = c.start; k < c.end; k++) used[k] = true;
+  }
+  chosen.sort((a, b) => a.start - b.start);
+  const out = [];
+  let at = 0;
+  for (const c of chosen) {
+    if (c.start > at) out.push({ text: text.slice(at, c.start) });
+    out.push({ text: text.slice(c.start, c.end), index: c.index });
+    at = c.end;
+  }
+  if (at < text.length) out.push({ text: text.slice(at) });
+  return out;
+}
+/** Cooking times in a step ("3-4 dakika", "30 saniye", "1 saat") stand out: they're what you look up while cooking. */
+const TIME = /(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*(?:dakika|dk\.?|saniye|sn\.?|saat|minutes?|mins?|seconds?|hours?))(?![\p{L}])/giu;
+const withTimes = (html) => html.replace(TIME, '<span class="mp-sure">$1</span>');
+/** An ingredient's name without a note in brackets ("tuz (makarna suyuna)" → "tuz"). */
+const baseName = (n) => String(n ?? "").replace(/\s*\([^)]*\)\s*/g, " ").trim();
+/** Two ingredients by the same name (salt for the water, salt for the sauce): the one whose amount the step says. */
+function resolveIngredient(index, ingredients, lower) {
+  const base = baseName(ingredients[index].name).toLocaleLowerCase("tr-TR");
+  const same = ingredients.map((x, k) => [x, k]).filter(([x]) => baseName(x.name).toLocaleLowerCase("tr-TR") === base);
+  if (same.length < 2) return index;
+  return same.find(([x]) => amountText(x) && lower.includes(amountText(x).toLocaleLowerCase("tr-TR")))?.[1] ?? index;
+}
+/** The ingredients a step names, each once, the right one of two by the same name. */
+const stepIngredientSet = (text, ingredients) => {
+  const lower = text.toLocaleLowerCase("tr-TR");
+  return new Set(stepSegments(text, ingredients).filter((x) => x.index !== undefined).map((x) => resolveIngredient(x.index, ingredients, lower)));
+};
+/** A step's text with its ingredients marked; hovering or tapping a name opens its picture and amount. */
+function stepHtml(text, ingredients) {
+  const lower = text.toLocaleLowerCase("tr-TR");
+  return stepSegments(text, ingredients).map((seg) => {
+    if (seg.index === undefined) return withTimes(esc(seg.text));
+    const idx = resolveIngredient(seg.index, ingredients, lower), i = ingredients[idx], how = amountText(i);
+    return `<span class="mp-m"><button type="button" data-is="ing-tip" data-i="${idx}">${esc(seg.text)}</button><span class="mp-ipucu" role="tooltip">${ingredientThumb(i)}<span>${how ? `<small>${esc(how)}</small> · ` : ""}${esc(i.name)}</span></span></span>`;
+  }).join("");
+}
+/** Closes an open ingredient box and clears the marked line. */
+function closeTips() {
+  document.querySelectorAll(".mp-m.acik").forEach((x) => x.classList.remove("acik"));
+  document.querySelectorAll(".mp-malzeme li.vurgu").forEach((x) => x.classList.remove("vurgu"));
+}
+
+// —— Cooking mode. state.cook = { ids, active, steps: { id: n }, done: { id: true }, open }; kept in this browser
+// (localStorage) so a reload or another applet in between doesn't lose the place.
+const COOK_KEY = "meals-cooking";
+try { const saved = JSON.parse(localStorage.getItem(COOK_KEY) || "null"); if (saved?.ids?.length) state.cook = { ...saved, open: false }; } catch {}
+const saveCook = () => { try { localStorage.setItem(COOK_KEY, JSON.stringify(state.cook)); } catch {} };
+let wake = null;
+/** Keeps the screen on while cooking (the Screen Wake Lock); the browser lets it go when the page is hidden. */
+async function wakeOn() {
+  if (wake || !("wakeLock" in navigator) || document.hidden) return;
+  try {
+    wake = await navigator.wakeLock.request("screen");
+    wake.addEventListener("release", () => { wake = null; if (state.cook?.open) render(); });
+    render();
+  } catch {}
+}
+function wakeOff() { wake?.release().catch(() => {}); wake = null; }
+
+/** Opens cooking with these recipes: added to the ones already on, the first one in front. */
+function cookOpen(ids) {
+  ids = ids.filter((id) => data.recipes.some((r) => r.id === id));
+  if (!ids.length) return;
+  const c = state.cook ?? { ids: [], steps: {}, done: {}, startedAt: Date.now() };
+  for (const id of ids) if (!c.ids.includes(id)) c.ids.push(id);
+  c.active = ids[0];
+  c.open = true;
+  state.cook = c;
+  if (c.ids.length > 1 && togetherPlan()) c.active = TOGETHER;
+  state.cook = c;
+  state.form = null;
+  saveCook();
+  render();
+  wakeOn();
+}
+/** How long it took, from "start" to "finish": kept in this browser per recipe, shown on the recipe's page. */
+const TIMES_KEY = "meals-times";
+const readTimes = () => { try { return JSON.parse(localStorage.getItem(TIMES_KEY) || "[]"); } catch { return []; } };
+const clock = (ms) => { const m = Math.floor(ms / 60000), sec = Math.floor(ms / 1000) % 60, h = Math.floor(m / 60); return h ? `${h}:${String(m % 60).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`; };
+const minutes = (ms) => Math.max(1, Math.round(ms / 60000));
+function cookFinish() {
+  const c = state.cook;
+  if (c?.startedAt) {
+    const took = Date.now() - c.startedAt, titles = c.ids.map((id) => data.recipes.find((r) => r.id === id)?.title).filter(Boolean);
+    try { localStorage.setItem(TIMES_KEY, JSON.stringify([{ ids: c.ids, titles, startedAt: c.startedAt, ms: took }, ...readTimes()].slice(0, 100))); } catch {}
+    notify(t("Done in {n} minutes. Enjoy your meal!", { n: minutes(took) }));
+  }
+  cookEnd();
+}
+/** The last time this recipe was prepared, and how long it took ("with Tavada Baharatlı Tavuk" when it wasn't alone). */
+function lastTime(r) {
+  const last = readTimes().find((x) => x.ids.includes(r.id));
+  if (!last) return "";
+  const others = last.titles.filter((x) => x !== r.title);
+  return t("Last made {date}: {n} minutes from the start to the tidy kitchen", { date: new Date(last.startedAt).toLocaleDateString(LOCALE, { day: "numeric", month: "long" }), n: minutes(last.ms) })
+    + (others.length ? ` · ${t("with {titles}", { titles: others.join(", ") })}` : "");
+}
+// the clock ticks without redrawing the page
+setInterval(() => {
+  const el = document.getElementById("mp-saat");
+  if (el && state.cook?.startedAt) el.textContent = clock(Date.now() - state.cook.startedAt);
+}, 1000);
+
+function cookEnd() {
+  state.cook = null;
+  try { localStorage.removeItem(COOK_KEY); } catch {}
+  wakeOff();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  render();
+}
+const TOGETHER = "together";
+let together = [];   // orders for several recipes at once, written by Claude (backend.js → /api/together)
+/** The order that fits what's on: every recipe in it is being prepared; the one covering the most wins. */
+function togetherPlan() {
+  const ids = state.cook?.ids ?? [];
+  return together.filter((x) => x.ids.every((id) => ids.includes(id))).sort((a, b) => b.ids.length - a.ids.length)[0] ?? null;
+}
+const togetherUnit = () => ({ id: TOGETHER, title: t("Together"), together: true, plan: togetherPlan() });
+const cookTabIds = () => [...(state.cook.ids.length > 1 ? [TOGETHER] : []), ...state.cook.ids];
+const cookRecipe = () => (state.cook.active === TOGETHER ? togetherUnit() : data.recipes.find((r) => r.id === state.cook.active));
+/** What to paste to Claude so it writes the order for these recipes (any Local user can, with their own Claude). */
+function togetherPrompt() {
+  const base = location.origin + location.pathname.replace(/\/$/, "");
+  const recipes = state.cook.ids.map((id) => data.recipes.find((r) => r.id === id)).filter(Boolean);
+  return t("In Speys Local's Meal Planner I'm preparing these recipes together: {titles}. Read them from {base}/api/plan (their ids are there). Make one order for all of them: fill each one's waits (water coming to the boil, marinating, resting) with the other's work, and say in each step which recipe it belongs to. Write it with POST {base}/api/together, header \"x-panel: 1\", body {\"ids\": {ids}, \"minutes\": total minutes, \"steps\": [{\"recipeId\": \"…\" or null for both, \"text\": \"what to do\", \"wait\": \"what's going on meanwhile (optional)\"}]}. Leave out getting the kitchen ready, gathering the ingredients and tidying up: the applet adds those.",
+    { titles: recipes.map((r) => r.title).join(", "), base, ids: JSON.stringify(recipes.map((r) => r.id)) });
+}
+/** Tidying the kitchen up: the last step of the last recipe; not in any recipe, only here. */
+const TIDY = [
+  t("Put the pots, pans and plates in the sink or the dishwasher"),
+  t("Soak the pan and the pot while they're still warm"),
+  t("Wipe the counter and the hob"),
+  t("Close what's left of the ingredients and put it away"),
+  t("Put the leftover food in a container"),
+  t("Sort the rubbish and the recycling"),
+];
+/** Getting the kitchen ready: the very first step, once, before any recipe's ingredients. */
+const SETUP = [
+  t("Clear the counter and wipe it"),
+  t("Empty the sink and the dishwasher, so the dirty things have somewhere to go"),
+  t("Get out the pots, the pans, the chopping board and the knife you'll need"),
+  t("Set a bowl beside you for peels and scraps"),
+  t("Wash your hands"),
+];
+/** A recipe's steps while preparing: gathering the ingredients first, the recipe's own steps, and tidying up last, but
+    only on the last recipe still going (preparing two together, the kitchen is tidied once). */
+function cookSeq(r) {
+  const c = state.cook;
+  if (r.together) {
+    if (!r.plan) return [{ kind: "noplan" }];
+    return [{ kind: "preview" }, { kind: "setup" }, { kind: "gather" }, ...r.plan.steps.map((s, k) => ({ kind: "step", k, text: s.text, recipeId: s.recipeId, wait: s.wait })), { kind: "tidy" }];
+  }
+  const lastOne = c.ids.every((id) => id === r.id || c.done[id]);
+  // an overview first, to see what's coming; the kitchen is got ready once, at the start of the first recipe
+  return [{ kind: "preview" }, ...(c.ids[0] === r.id ? [{ kind: "setup" }] : []), { kind: "gather" }, ...(r.instructions ?? []).map((s, k) => ({ kind: "step", k, text: s.text })), ...(lastOne ? [{ kind: "tidy" }] : [])];
+}
+const cookAt = (r) => Math.min(state.cook.steps[r.id] ?? 0, cookSeq(r).length - 1);
+function cookMove(by) {
+  const c = state.cook, r = cookRecipe();
+  if (!r) return;
+  const last = cookSeq(r).length - 1, n = cookAt(r);
+  if (by > 0 && n >= last && r.together) return;
+  if (by > 0 && n >= last) {
+    // the last step: this recipe is done, the next one not done comes to the front
+    c.done[r.id] = true;
+    const next = c.ids.find((id) => !c.done[id]);
+    if (next) c.active = next;
+  } else c.steps[r.id] = Math.max(0, Math.min(last, n + by));
+  saveCook();
+  render();
+}
+/** A list to tick while preparing (the ingredients gathered, the kitchen tidied); kept with the rest. */
+function tickList(list, items) {
+  const got = new Set(state.cook.ticks?.[list] ?? []);
+  return `<div class="mp-topla">${items.map((html, k) => `<button class="mp-tik ${got.has(k) ? "alindi" : ""}" data-is="cook-tick" data-list="${esc(list)}" data-k="${k}">${html}</button>`).join("")}</div>
+    <div class="mp-sayac">${esc(t("{n} of {total} done", { n: got.size, total: items.length }))}</div>`;
+}
+/** Adding a recipe while preparing: the recipes not already on, searchable, as cards. */
+function cookPicker() {
+  const q = fold(state.cookFilter);
+  const list = data.recipes.filter((r) => !state.cook.ids.includes(r.id) && (!q || fold(r.title).includes(q) || fold(r.category).includes(q)));
+  return `<div class="mp-perde ust" data-is="cook-pick-backdrop"><div class="mp-pencere" role="dialog" aria-label="${esc(t("Add a recipe"))}">
+    <div class="mp-pencere-bas"><h2>${esc(t("Add a recipe to what you're preparing"))}</h2><button class="mp-kapat" data-is="cook-pick-close" aria-label="${esc(t("Close"))}">×</button></div>
+    <input class="mp-girdi" id="cook-filter" placeholder="${esc(t("Search recipes"))}" value="${esc(state.cookFilter)}" autofocus>
+    ${list.length ? recipeCards(list, "cook-add", true) : `<p class="bos" style="margin:16px 0">${esc(t("No recipe matches."))}</p>`}
+  </div></div>`;
+}
+function cookHtml() {
+  const c = state.cook;
+  if (!c || !data) return "";
+  const recipes = c.ids.map((id) => data.recipes.find((r) => r.id === id)).filter(Boolean);
+  if (!recipes.length) return "";
+  if (c.active !== TOGETHER && !recipes.some((r) => r.id === c.active)) c.active = recipes[0].id;
+  if (c.open && !c.startedAt) { c.startedAt = Date.now(); saveCook(); }
+  if (!c.open) {
+    return `<div class="mp-devam"><b>${esc(t("Preparing"))}</b>${esc(recipes.map((x) => x.title).join(", "))}
+      <button class="mp-dugme mp-kaydet" data-is="cook-resume">${esc(t("Go on"))}</button><button class="mp-kapat" data-is="cook-end" aria-label="${esc(t("Stop preparing"))}">×</button></div>`;
+  }
+  if (c.active === TOGETHER && c.ids.length < 2) c.active = c.ids[0];
+  const r = cookRecipe(), seq = cookSeq(r), n = cookAt(r), here = seq[n];
+  // a together step names its recipe; its ingredients are that recipe's, or all of them for a step of both
+  const stepRecipe = r.together && here.recipeId ? data.recipes.find((x) => x.id === here.recipeId) : null;
+  const ings = r.together ? (stepRecipe ? stepRecipe.ingredients ?? [] : recipes.flatMap((x) => x.ingredients ?? [])) : r.ingredients ?? [];
+  const total = r.together ? r.plan?.steps.length ?? 0 : r.instructions?.length ?? 0;
+  const label = (x, at) => (at.kind === "noplan" ? t("no order yet") : at.kind === "preview" ? t("overview") : at.kind === "setup" ? t("kitchen") : at.kind === "gather" ? t("getting ready") : at.kind === "tidy" ? t("tidying up") : `${at.k + 1}/${x.together ? x.plan.steps.length : x.instructions.length}`);
+  const tu = recipes.length > 1 ? togetherUnit() : null;
+  const togetherTab = tu ? `<button class="mp-pisir-sekme mp-birlikte-sekme ${r.together ? "secili" : ""} ${c.done[TOGETHER] ? "bitti" : ""}" data-is="cook-tab" data-id="${TOGETHER}" title="${esc(t("Key {n}", { n: 1 }))}">${esc(t("Together"))}<small>${esc(label(tu, cookSeq(tu)[cookAt(tu)]))}</small></button>` : "";
+  const shift = tu ? 1 : 0;
+  const tabs = togetherTab + recipes.map((x, k) => `<button class="mp-pisir-sekme ${x.id === r.id ? "secili" : ""} ${c.done[x.id] ? "bitti" : ""}" data-is="cook-tab" data-id="${esc(x.id)}" title="${k + shift < 9 ? esc(t("Key {n}", { n: k + shift + 1 })) : ""}">${picture(x, 32)}${esc(x.title)}
+      <small>${c.done[x.id] ? "✓" : esc(label(x, cookSeq(x)[cookAt(x)]))}</small>${recipes.length > 1 ? `<span class="mp-cikar" data-is="cook-remove" data-id="${esc(x.id)}" aria-label="${esc(t("Take out"))}">×</span>` : ""}</button>`).join("");
+  let main, side = true;
+  if (here.kind === "noplan") {
+    side = false;
+    main = `<div class="mp-pisir-no">${esc(t("Together"))}</div>
+      <div class="mp-pisir-metin">${esc(t("No order for these recipes yet"))}</div>
+      <div class="mp-pisir-alt-yazi">${esc(t("Claude can make one: it reads the recipes and fills one's waits with the other's work. Copy the request, paste it to Claude; the order shows here when it's written."))}</div>
+      <div class="mp-istem"><button class="mp-dugme mp-kaydet" data-is="together-copy">${esc(t("Copy the request for Claude"))}</button><button class="mp-dugme" data-is="together-reload">${esc(t("Look again"))}</button></div>`;
+  } else if (here.kind === "preview") {
+    // the whole recipe at a glance before anything: every step in order, the ingredients beside it
+    const all = r.together ? r.plan.steps : r.instructions ?? [];
+    const who = (st) => {
+      if (!r.together) return "";
+      const x = st.recipeId ? data.recipes.find((y) => y.id === st.recipeId) : null;
+      return x ? `<span class="mp-tarif-cip">${picture(x, 22)}${esc(x.title)}</span>` : `<span class="mp-tarif-cip">${esc(t("both"))}</span>`;
+    };
+    main = `<div class="mp-pisir-no">${esc(t("Before you start"))}</div>
+      <div class="mp-pisir-metin">${esc(t("What you'll do"))}</div>
+      <div class="mp-pisir-alt-yazi">${esc(all.length ? t("{n} steps. Read them through once, then start.", { n: all.length }) : t("{title} has no steps yet. Add them with Edit on the recipe's page.", { title: r.title }))}</div>
+      ${all.length ? `<ol class="mp-onizleme">${all.map((st) => `<li>${who(st)}${stepHtml(st.text, ings)}${st.wait ? `<div class="mp-bekle"><b>${esc(t("Meanwhile"))}</b>${esc(st.wait)}</div>` : ""}</li>`).join("")}</ol>` : ""}`;
+  } else if (here.kind === "setup") {
+    side = false;
+    main = `<div class="mp-pisir-no">${esc(t("Before you start"))}</div>
+      <div class="mp-pisir-metin">${esc(t("Get the kitchen ready"))}</div>
+      <div class="mp-pisir-alt-yazi">${esc(t("Five minutes now saves the rush in the middle of cooking."))}</div>
+      ${tickList("setup", SETUP.map((x) => `<span>${esc(x)}</span>`))}`;
+  } else if (here.kind === "gather" && r.together) {
+    side = false;
+    main = `<div class="mp-pisir-no">${esc(t("Getting ready"))}</div>
+      <div class="mp-pisir-metin">${esc(t("Gather the ingredients"))}</div>
+      <div class="mp-pisir-alt-yazi">${esc(t("Put them all on the counter before you start; tick each one as you do."))}</div>
+      ${recipes.map((x) => `<div class="mp-grup-ad">${picture(x, 28)}${esc(x.title)}</div>${(x.ingredients ?? []).length ? tickList(x.id, x.ingredients.map((i) => `${ingredientThumb(i)}<span>${esc(i.name)}${amountText(i) ? `<small>${esc(amountText(i))}</small>` : ""}</span>`)) : `<p class="bos">${esc(t("No ingredients yet."))}</p>`}`).join("")}`;
+  } else if (here.kind === "gather") {
+    side = false;
+    main = `<div class="mp-pisir-no">${esc(t("Getting ready"))}</div>
+      <div class="mp-pisir-metin">${esc(t("Gather the ingredients"))}</div>
+      <div class="mp-pisir-alt-yazi">${esc(ings.length ? t("Put them all on the counter before you start; tick each one as you do.") : t("{title} has no ingredients yet. Add them with Edit on the recipe's page.", { title: r.title }))}</div>
+      ${ings.length ? tickList(r.id, ings.map((i) => `${ingredientThumb(i)}<span>${esc(i.name)}${amountText(i) ? `<small>${esc(amountText(i))}</small>` : ""}</span>`)) : ""}`;
+  } else if (here.kind === "tidy") {
+    side = false;
+    main = `<div class="mp-pisir-no">${esc(t("Last thing"))}</div>
+      <div class="mp-pisir-metin">${esc(t("Tidy up the kitchen"))}</div>
+      <div class="mp-pisir-alt-yazi">${esc(t("While you eat or right after: the next meal starts in a clean kitchen."))}</div>
+      ${tickList("tidy", TIDY.map((x) => `<span>${esc(x)}</span>`))}`;
+  } else {
+    const whose = r.together ? (stepRecipe ? `<span class="mp-tarif-cip">${picture(stepRecipe, 22)}${esc(stepRecipe.title)}</span>` : `<span class="mp-tarif-cip">${esc(t("both"))}</span>`) : "";
+    main = `<div class="mp-pisir-no">${esc(t("Step {n} of {total}", { n: here.k + 1, total }))}${whose}${c.done[r.id] ? ` · ${esc(t("done"))}` : ""}</div>
+      <div class="mp-pisir-metin">${stepHtml(here.text, ings)}</div>
+      ${here.wait ? `<div class="mp-bekle"><b>${esc(t("Meanwhile"))}</b>${esc(here.wait)}</div>` : ""}`;
+  }
+  if (!total && here.kind === "gather" && seq.filter((x) => x.kind === "step").length === 0 && n === seq.length - 1) main += `<div class="mp-pisir-alt-yazi">${esc(t("{title} has no steps yet. Add them with Edit on the recipe's page.", { title: r.title }))}</div>`;
+  const used = here.kind === "step" ? stepIngredientSet(here.text, ings) : new Set();
+  const last = n >= seq.length - 1, nextUp = r.together ? null : c.ids.find((id) => id !== r.id && !c.done[id]);
+  const finish = last && !nextUp;
+  const nextButton = here.kind === "noplan" ? ""
+    : finish
+    ? `<button class="mp-dugme mp-kaydet" data-is="cook-finish">${esc(t("Finish"))}</button>`
+    : `<button class="mp-dugme mp-kaydet" data-is="cook-move" data-by="1">${esc(!last ? `${t("Next")} ›` : t("Done · next: {title}", { title: data.recipes.find((x) => x.id === nextUp)?.title ?? "" }))}</button>`;
+  const segName = (at) => (at.kind === "preview" ? t("What you'll do") : at.kind === "setup" ? t("Get the kitchen ready") : at.kind === "gather" ? t("Gather the ingredients") : at.kind === "tidy" ? t("Tidy up the kitchen") : t("Step {n} of {total}", { n: at.k + 1, total }));
+  return `<div class="mp-pisir" role="dialog" aria-label="${esc(t("Preparing"))}">
+    <div class="mp-pisir-ust">
+      <div class="mp-pisir-sekmeler">${tabs}<button class="mp-pisir-ekle" data-is="cook-pick" title="${esc(t("Add a recipe"))}" aria-label="${esc(t("Add a recipe"))}">+</button></div>
+      ${c.startedAt ? `<span class="mp-saat" title="${esc(t("Since you started"))}"><small>${esc(t("time"))}</small><span id="mp-saat">${clock(Date.now() - c.startedAt)}</span></span>` : ""}
+      ${wake ? `<span class="mp-uyanik">${esc(t("The screen stays on"))}</span>` : ""}
+      ${document.fullscreenEnabled ? `<button class="mp-dugme" data-is="cook-full">${esc(document.fullscreenElement ? t("Leave full screen") : t("Full screen"))}</button>` : ""}
+      <button class="mp-kapat" data-is="cook-close" aria-label="${esc(t("Close"))}">×</button>
+    </div>
+    <div class="mp-pisir-govde ${side ? "" : "tek"}">
+      <div class="mp-pisir-adim" data-is="cook-tap">${main}</div>
+      ${side ? `<aside class="mp-pisir-malz"><h3>${esc(t("Ingredients"))}</h3>${ings.length ? `<ul>${ings.map((i, k) => `<li class="${used.has(k) ? "vurgu" : ""}">${ingredientThumb(i)}${amountText(i) ? `<b>${esc(amountText(i))}</b>` : ""}<span>${esc(i.name)}</span></li>`).join("")}</ul>` : `<p class="bos">${esc(t("No ingredients yet."))}</p>`}</aside>` : ""}
+    </div>
+    <div class="mp-pisir-alt">
+      <button class="mp-dugme" data-is="cook-move" data-by="-1" ${n === 0 ? "disabled" : ""}>‹ ${esc(t("Previous"))}</button>
+      <div class="mp-ilerleme">${seq.map((at, k) => `<button class="${k < n ? "gecti" : k === n ? "simdi" : ""}" data-is="cook-go" data-n="${k}" title="${esc(segName(at))}" aria-label="${esc(segName(at))}"></button>`).join("")}</div>
+      ${nextButton}
+    </div>
+    <div class="mp-pisir-ipucu">${esc(t("→ or space: next · ←: back · 1–9: switch recipe · touch the right of the step to go on, the left to go back"))}</div>
+  </div>${state.cookPick ? cookPicker() : ""}`;
+}
+
+async function loadTogether() {
+  try { const r = await fetch("./api/together", { cache: "no-store" }); if (r.ok) together = await r.json(); } catch {}
+}
+async function loadHome() {
+  // another applet's API, read from the page (applets don't import each other); missing Finances: no card
+  try { const r = await fetch("../kasa/api/evde", { cache: "no-store" }); home = r.ok ? (await r.json()).items : null; } catch { home = null; }
+  try { const r = await fetch("./api/alinacak", { cache: "no-store" }); if (r.ok) buy = await r.json(); } catch {}
+}
+const words = (s) => String(s ?? "").toLocaleLowerCase("tr").split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1);
+/**
+ * The food at home an ingredient matches: every word of the ingredient is a word of the receipt line, or starts one
+ * when it's long enough ("peynir" → "peynirli"; "su" isn't "Sunar").
+ */
+function atHomeFor(name) {
+  const want = words(name);
+  if (!want.length || !home) return null;
+  const food = home.filter((i) => i.kind === "food").map((i) => [i, words(i.name)]);
+  const pick = (has) => food.find(([, line]) => want.every((w) => has(line, w)))?.[0];
+  // a whole word first ("peynir" → "süzme peynir", not "peynirli kraker"), then the start of one
+  return pick((line, w) => line.includes(w)) ?? pick((line, w) => w.length >= 4 && line.some((x) => x.startsWith(w))) ?? null;
+}
+async function postTo(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || t("Could not save ({status})", { status: r.status }));
+}
+async function load() {
+  await Promise.all([loadTogether(), loadHome()]);
+  try {
+    const q = state.week ? `?week=${state.week}` : "";
+    const r = await fetch(`./api/plan${q}`, { cache: "no-store" });
+    const d = await r.json();
+    if (r.ok) { data = d; state.week = d.monday; error = ""; } else error = d.error || String(r.status);
+  } catch (e) { error = e.message; }
+  render();
+}
+
+async function write(path, body, done) {
+  try {
+    const r = await fetch(`./api/${path}`, { method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return notify(d.error || t("Could not save ({status})", { status: r.status }));
+    if (done) notify(done);
+    state.form = null;
+    await load();
+    syncNow();
+    return true;
+  } catch (e) { notify(e.message); }
+}
+
+// —— Speys (the same connection as Finances: one per workspace)
+async function speysPost(path, body = {}) {
+  const r = await fetch(`./api/speys/${path}`, { method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || t("Speys returned {status}.", { status: r.status }));
+  return d;
+}
+async function loadSpeys() {
+  try { const r = await fetch("./api/speys", { cache: "no-store" }); if (r.ok) speys = await r.json(); } catch {}
+  render();
+}
+async function syncNow(force = false) {
+  if (!speys?.connected || syncing) return;
+  syncing = true; render();
+  try {
+    const d = await speysPost("sync", { force });
+    speys = d;
+    if (d.report && (d.report.pulled || d.report.pushed)) await load();
+  } catch (e) { notify(e.message); await loadSpeys(); }
+  finally { syncing = false; render(); }
+}
+function syncText() {
+  if (!speys) return esc(t("Only on this computer"));
+  if (!speys.connected) return `${esc(speys.closed ? t("The Speys connection was closed") : t("Only on this computer"))}<button class="mp-kucuk" data-is="speys-connect">${esc(t("Connect to Speys"))}</button>`;
+  const when = speys.lastSync ? t("synced {time}", { time: new Date(speys.lastSync).toLocaleString(LOCALE, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) }) : t("not synced yet");
+  return `<span title="${esc(t("Your household's recipes and meal plan in Speys, kept in step both ways."))}">${esc(t("Speys: your household"))} · ${esc(syncing ? t("syncing…") : when)}</span>${speys.lastError ? `<span style="color:var(--kirmizi)">&nbsp;· ${esc(speys.lastError)}</span>` : ""}<button class="mp-kucuk" data-is="speys-sync" ${syncing ? "disabled" : ""}>${esc(t("Sync now"))}</button><button class="mp-kucuk" data-is="speys-disconnect">${esc(t("Disconnect"))}</button>`;
+}
+const FIELD = { title: t("Title"), category: t("Category"), ingredients: t("Ingredients"), instructions: t("Steps"), day: t("Day"), mealType: t("Meal"), recipeId: t("Recipe"), deletedAt: t("Deleted") };
+function fieldValue(field, v) {
+  if (field === "deletedAt") return v ? t("deleted") : t("kept");
+  if (v === null || v === undefined || v === "") return "–";
+  if (field === "mealType") return MEALS[v] ?? v;
+  if (field === "day") return dayLabel(v);
+  if (field === "recipeId") return data?.recipes.find((r) => r.id === v)?.title ?? "…";
+  if (field === "ingredients") return v.map((i) => [i.amount, i.unit, i.name].filter(Boolean).join(" ")).join(", ");
+  if (field === "instructions") return t("{n} steps", { n: v.length });
+  return String(typeof v === "object" ? JSON.stringify(v) : v);
+}
+function syncCard() {
+  const conflicts = speys?.conflicts ?? [], failed = speys?.failed ?? [];
+  if (!conflicts.length && !failed.length) return "";
+  return `<section class="kart" style="margin-bottom:16px"><h2>${esc(t("Syncing with Speys"))}</h2>
+    ${conflicts.map((c) => `<form class="mp-cakisma" data-conflict="${esc(c.id)}" data-key="${esc(c.key)}">
+      <b>${esc(c.local?.title || c.remote?.title || "")}</b>
+      <p class="soluk" style="font-size:12px;margin:2px 0">${esc(t("Changed here and in Speys. Nothing is sent until you choose."))}</p>
+      <table><tr><th></th><th>${esc(t("On this computer"))}</th><th>${esc(t("In Speys"))}</th></tr>
+      ${c.fields.map((f) => `<tr><td class="soluk">${esc(FIELD[f.field] ?? f.field)}</td>
+        <td><label><input type="radio" name="${esc(f.field)}" value="local" checked> ${esc(fieldValue(f.field, f.local))}</label></td>
+        <td><label><input type="radio" name="${esc(f.field)}" value="remote"> ${esc(fieldValue(f.field, f.remote))}</label></td></tr>`).join("")}
+      </table><button class="mp-dugme mp-kaydet">${esc(t("Keep the chosen ones"))}</button></form>`).join("")}
+    ${failed.map((f) => `<p style="font-size:13px;margin:6px 0">${esc(f.title || f.id)} <small class="soluk">· ${esc(t("not taken by Speys"))}: ${esc(f.reason)}</small></p>`).join("")}
+  </section>`;
+}
+
+/** The recipes planned for one meal of a day (yeşil fasulye and bulgur pilavı at dinner), in their order. */
+const slotRecipes = (day, type) => data.meals.filter((m) => m.day === day && m.mealType === type && m.recipeId).map((m) => m.recipeId);
+
+// —— Week: one grid, a column a day, a row a meal
+function weekScreen() {
+  const byDay = (day, type) => data.meals.filter((m) => m.day === day && m.mealType === type);
+  // one grid: the day headers on the first row, a row per meal, so a meal lines up across the days
+  const cell = (i, row, day, cls) => `class="${cls}${i ? " sag" : ""}${day === data.today ? " bugun" : ""}" style="grid-column:${i + 1};grid-row:${row}"`;
+  const days = data.days.map((day, i) => `<div ${cell(i, 1, day, "mp-sutun-bas")}><small>${esc(DAY_NAMES[i])}</small><b>${esc(String(+day.slice(8)))}</b></div>
+    ${Object.entries(MEALS).map(([type, label], k) => {
+      const meals = byDay(day, type);
+      return `<div ${cell(i, k + 2, day, `mp-slot${k ? " alt" : ""}`)}>
+        <div class="mp-slot-bas"><span>${esc(label)}</span><span>${meals.some((m) => m.recipeId) ? `<button class="mp-pisir-d" data-is="cook-slot" data-day="${day}" data-type="${type}" title="${esc(t("Prepare this meal"))}">${esc(t("Prepare"))}</button>` : ""}${meals.length ? `<button class="mp-arti" data-is="meal-add" data-day="${day}" data-type="${type}" title="${esc(t("Add a meal"))}">+</button>` : ""}</span></div>
+        ${meals.map((m) => `<button class="mp-yemek ${m.recipeId ? "" : "tarifsiz"}" data-is="meal-open" data-id="${esc(m.id)}">${picture(m, 56)}<span class="mp-ad">${esc(m.title)}</span></button>`).join("")}
+        ${meals.length ? "" : `<button class="mp-bos-slot" data-is="meal-add" data-day="${day}" data-type="${type}" aria-label="${esc(t("Add a meal"))}">+</button>`}
+      </div>`;
+    }).join("")}`).join("");
+  const homeTag = (s) => { const h = atHomeFor(s.name); return h ? `<em class="mp-evde" title="${esc(h.name)}">${esc(t("at home"))}</em>` : ""; };
+  const handBuy = buy.map((b) => `<li class="mp-elle"><span>${esc(b.name)}<small>${esc(t("ran out"))}</small></span><button class="mp-kucuk" data-is="buy-done" data-id="${esc(b.id)}">${esc(t("Bought"))}</button></li>`).join("");
+  const shopping = data.shopping.length || buy.length
+    ? `<ul>${handBuy}${data.shopping.map((s) => `<li><span>${esc(s.name)}${homeTag(s)}<small>${esc(s.meals.join(", "))}</small></span><span class="mp-miktar">${esc([s.amount != null ? `${formatDecimal(s.amount, 0)} ${s.unit}`.trim() : "", ...s.other].filter(Boolean).join(" + "))}</span></li>`).join("")}</ul>`
+    : `<p class="bos">${esc(t("Plan meals from recipes and their ingredients add up here."))}</p>`;
+  return `<div class="mp-duzen">
+    <div class="mp-izgara-kap"><div class="mp-izgara">${days}</div></div>
+    <section class="kart mp-alis"><h2>${esc(t("This week's ingredients"))}${data.shopping.length ? `<small>${esc(t("{n} items", { n: data.shopping.length }))}</small>` : ""}</h2>${shopping}</section>
+  </div>`;
+}
+
+/**
+ * At home: what the receipts in Finances say was bought and isn't finished yet, food beside cleaning and care, and
+ * what ran out (this applet's own list). Finished takes a line off; "+ list" also puts it on the list.
+ */
+function homeScreen() {
+  if (!home) return `<p class="bos">${esc(t("Nothing yet: the lines of the receipts you add in Finances show here."))}</p>`;
+  const when = (d) => new Date(`${d}T00:00:00`).toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
+  const card = (title, list, empty) => `<section class="kart mp-alis"><h2>${esc(title)}${list.length ? `<small>${esc(t("{n} items", { n: list.length }))}</small>` : ""}</h2>
+    ${list.length ? `<ul>${list.map((i) => `<li><span>${esc(i.name)}<small>${esc(when(i.boughtOn))} · ${esc(i.from)}</small></span>
+      <span class="mp-evde-dug"><button class="mp-kucuk" data-is="home-done" data-entry="${esc(i.entryId)}" data-id="${esc(i.id)}">${esc(t("Finished"))}</button><button class="mp-kucuk" data-is="home-done" data-entry="${esc(i.entryId)}" data-id="${esc(i.id)}" data-name="${esc(i.name)}" title="${esc(t("Finished, and add it to the list"))}">${esc(t("+ list"))}</button></span></li>`).join("")}</ul>` : `<p class="bos">${esc(empty)}</p>`}
+  </section>`;
+  const ranOut = `<section class="kart mp-alis"><h2>${esc(t("Ran out"))}${buy.length ? `<small>${esc(t("{n} items", { n: buy.length }))}</small>` : ""}</h2>
+    ${buy.length ? `<ul>${buy.map((b) => `<li class="mp-elle"><span>${esc(b.name)}</span><button class="mp-kucuk" data-is="buy-done" data-id="${esc(b.id)}">${esc(t("Bought"))}</button></li>`).join("")}</ul>` : `<p class="bos">${esc(t("Mark something finished with \"+ list\" and it waits here until you buy it."))}</p>`}
+  </section>`;
+  return `<p class="mp-senkron" style="margin-top:-6px">${esc(t("From your receipts in Finances: what was bought and isn't finished yet."))}</p>
+    <div class="mp-evde-izgara">
+      ${card(t("Food"), home.filter((i) => i.kind === "food"), t("No food from the receipts."))}
+      ${card(t("Cleaning and care"), home.filter((i) => i.kind !== "food"), t("Nothing from the receipts."))}
+      ${ranOut}
+    </div>`;
+}
+
+/** The recipe cards, grouped by category in Speys's order. */
+function recipeCards(list, action, small = false) {
+  const groups = new Map();
+  for (const r of list) {
+    const c = r.category || OTHER;
+    if (!groups.has(c)) groups.set(c, []);
+    groups.get(c).push(r);
+  }
+  const rank = (c) => { const i = CATEGORY_ORDER.indexOf(c); return i < 0 ? CATEGORY_ORDER.length - 1 : i; };
+  const card = (r) => `<button class="mp-tarif-kart" data-is="${action}" data-id="${esc(r.id)}">${picture(r, small ? 64 : 84)}<b>${esc(r.title)}</b>${small || !r.ingredients?.length ? "" : `<small>${esc(t("{n} ingredients", { n: r.ingredients.length }))}</small>`}</button>`;
+  if (small) return `<div class="mp-kartlar">${list.map(card).join("")}</div>`;
+  return [...groups].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, LOCALE))
+    .map(([c, rs]) => `<div class="mp-grup"><h3>${esc(c)} <span>· ${rs.length}</span></h3><div class="mp-kartlar">${rs.map(card).join("")}</div></div>`).join("");
+}
+
+/** The window for adding a meal to a day (pick a recipe, or just a name) or changing one. */
+function mealWindow() {
+  const f = state.form, m = f.record;
+  const head = `${dayLong(f.day)} · ${MEALS[f.mealType]}`;
+  if (!m) {
+    const q = fold(state.pick);
+    const list = data.recipes.filter((r) => !q || fold(r.title).includes(q) || fold(r.category).includes(q));
+    return `<div class="mp-perde" data-is="close-backdrop"><div class="mp-pencere" role="dialog" aria-label="${esc(head)}">
+      <div class="mp-pencere-bas"><h2>${esc(head)}</h2><button class="mp-kapat" data-is="cancel" aria-label="${esc(t("Close"))}">×</button></div>
+      <input class="mp-girdi" id="pick-filter" placeholder="${esc(t("Search recipes"))}" value="${esc(state.pick)}" autofocus>
+      ${list.length ? recipeCards(list, "meal-pick", true) : `<p class="bos" style="margin:16px 0">${esc(data.recipes.length ? t("No recipe matches.") : t("No recipes yet."))}</p>`}
+      <form class="mp-tarifsiz" id="meal-form"><input class="mp-girdi" name="title" maxlength="200" placeholder="${esc(t("Or just a name, without a recipe"))}" value="${esc(state.pick)}"><button class="mp-dugme mp-kaydet">${esc(t("Add"))}</button></form>
+    </div></div>`;
+  }
+  const recipeOptions = data.recipes.map((r) => `<option value="${esc(r.id)}" ${m.recipeId === r.id ? "selected" : ""}>${esc(r.title)}</option>`).join("");
+  return `<div class="mp-perde" data-is="close-backdrop"><div class="mp-pencere" role="dialog" style="width:min(520px,100%)">
+    <div class="mp-pencere-bas"><h2>${esc(head)}</h2><button class="mp-kapat" data-is="cancel" aria-label="${esc(t("Close"))}">×</button></div>
+    <div class="mp-secili-yemek">${picture(m, 72)}<div><b>${esc(m.title)}</b>${m.recipeId ? `<br><button class="mp-kucuk" style="padding-left:0" data-is="meal-recipe">${esc(t("Open the recipe"))}</button>` : ""}</div></div>
+    <form class="mp-form" id="meal-form">
+      <label>${esc(t("Recipe"))}<select class="mp-girdi" name="recipeId"><option value="">${esc(t("no recipe, just a name"))}</option>${recipeOptions}</select></label>
+      <label>${esc(t("Name"))}<input class="mp-girdi" name="title" maxlength="200" value="${esc(m.title)}" placeholder="${esc(t("filled from the recipe if empty"))}"></label>
+      <div class="mp-iki">
+        <label>${esc(t("Day"))}<input class="mp-girdi" name="day" type="date" value="${esc(m.day)}"></label>
+        <label>${esc(t("Meal"))}<select class="mp-girdi" name="mealType">${Object.entries(MEALS).map(([k, v]) => `<option value="${k}" ${m.mealType === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+      </div>
+      <div class="mp-satirlar">
+        <button type="button" class="mp-dugme mp-sil" data-is="meal-delete">${esc(t("Remove"))}</button>
+        <button type="button" class="mp-dugme" data-is="cancel">${esc(t("Cancel"))}</button>
+        <button class="mp-dugme mp-kaydet">${esc(t("Save"))}</button>
+      </div></form>
+  </div></div>`;
+}
+
+// —— Recipes
+function recipeEditor(r) {
+  const ingredients = (r?.ingredients ?? []).map((i) => [i.amount, i.unit, i.name].filter(Boolean).join(" | ")).join("\n");
+  const steps = (r?.instructions ?? []).map((s) => s.text).join("\n");
+  return `<form class="mp-form" id="recipe-form">
+    <div class="mp-iki">
+      <label>${esc(t("Title"))}<input class="mp-girdi" name="title" required maxlength="200" value="${esc(r?.title ?? "")}" autofocus></label>
+      <label>${esc(t("Category"))}<input class="mp-girdi" name="category" maxlength="60" list="mp-kategoriler" value="${esc(r?.category ?? "")}" placeholder="${esc(t("e.g. Soup, Main course, Breakfast"))}"></label>
+    </div>
+    <datalist id="mp-kategoriler">${[...new Set([...CATEGORY_ORDER, ...data.recipes.map((x) => x.category).filter(Boolean)])].map((c) => `<option value="${esc(c)}">`).join("")}</datalist>
+    <label>${esc(t("Ingredients, one per line: amount | unit | name"))}<textarea class="mp-girdi" name="ingredients" placeholder="1 | su bardağı | Mercimek&#10;bir tutam | | Tuz">${esc(ingredients)}</textarea></label>
+    <label>${esc(t("Steps, one per line"))}<textarea class="mp-girdi" name="instructions">${esc(steps)}</textarea></label>
+    <div class="mp-satirlar">
+      ${r ? `<button type="button" class="mp-dugme mp-sil" data-is="recipe-delete">${esc(t("Delete"))}</button>` : ""}
+      <button type="button" class="mp-dugme" data-is="recipe-cancel">${esc(t("Cancel"))}</button>
+      <button class="mp-dugme mp-kaydet">${esc(t("Save"))}</button>
+    </div></form>`;
+}
+/** "1 | su bardağı | Mercimek" → { amount, unit, name }; a line without bars is just a name. */
+function parseIngredient(line) {
+  const parts = line.split("|").map((s) => s.trim());
+  if (parts.length === 1) return { name: parts[0] };
+  if (parts.length === 2) return { amount: parts[0], name: parts[1] };
+  return { amount: parts[0], unit: parts[1], name: parts.slice(2).join(" ") };
+}
+function recipePage(r) {
+  const planned = state.fromMeal && r ? data.meals.find((m) => m.id === state.fromMeal && m.recipeId === r.id) : null;
+  const back = `<button class="mp-geri" data-is="recipe-back">${esc(planned ? t("Week") : t("Recipes"))}</button>`;
+  if (state.editing || !r) return `${back}<section class="kart" style="max-width:860px"><h2>${esc(r ? r.title : t("New recipe"))}</h2>${recipeEditor(r)}</section>`;
+  const own = /^https:\/\//.test(r.image ?? "") && !r.image.startsWith("./");
+  const stage = `<div class="mp-sahne ${own ? "kapak" : ""}">${own ? `<img src="${esc(r.image)}" alt="">` : picture(r, 220)}</div>`;
+  const ingredients = r.ingredients?.length
+    ? `<ul>${r.ingredients.map((i, n) => `<li data-i="${n}">${ingredientThumb(i)}<b>${esc(amountText(i) || "–")}</b><span>${esc(i.name)}</span></li>`).join("")}</ul>`
+    : `<p class="bos">${esc(t("No ingredients yet."))}</p>`;
+  const steps = r.instructions?.length
+    ? `<p class="mp-adim-ipucu">${esc(t("Tap a step's number when it's done."))}</p><ol>${r.instructions.map((s, n) => {
+        return `<li class="${state.done.has(`${r.id}:${n}`) ? "bitti" : ""}"><button class="mp-no" data-is="step-done" data-step="${r.id}:${n}" aria-label="${esc(t("Step {n} done", { n: n + 1 }))}">${state.done.has(`${r.id}:${n}`) ? "✓" : n + 1}</button>
+          <div class="mp-adim-metin">${stepHtml(s.text, r.ingredients ?? [])}</div></li>`;
+      }).join("")}</ol>`
+    : `<p class="bos">${esc(t("No steps yet."))}</p>`;
+  const strip = planned ? `<div class="mp-plandan"><b>${esc(t("Planned for {when}", { when: `${dayLong(planned.day)} · ${MEALS[planned.mealType]}` }))}</b>
+      <button class="mp-dugme" data-is="meal-edit">${esc(t("Change the meal"))}</button>
+      ${slotRecipes(planned.day, planned.mealType).length > 1 ? `<button class="mp-dugme mp-kaydet" data-is="cook-slot" data-day="${planned.day}" data-type="${planned.mealType}">${esc(t("Prepare this meal"))}</button>` : ""}</div>` : "";
+  return `${back}<div class="mp-tarif">${strip}
+    <div class="mp-tarif-bas"><div class="mp-tarif-ad"><h1>${esc(r.title)}</h1>${r.category ? `<span class="mp-etiket">${esc(r.category)}</span>` : ""}${lastTime(r) ? `<span class="mp-sure-not">${esc(lastTime(r))}</span>` : ""}</div>
+      <button class="mp-dugme" data-is="recipe-edit">${esc(t("Edit"))}</button>
+      <button class="mp-dugme mp-kaydet" data-is="cook-start" data-id="${esc(r.id)}">${esc(state.cook?.ids.length && !state.cook.ids.includes(r.id) ? t("Add to preparing") : t("Start preparing"))}</button></div>
+    <div class="mp-sol">${stage}<section class="kart mp-malzeme"><h2>${esc(t("Ingredients"))} <small class="soluk">· ${r.ingredients?.length ?? 0}</small></h2>${ingredients}</section></div>
+    <section class="kart mp-adimlar"><h2>${esc(t("Steps"))} <small class="soluk">· ${r.instructions?.length ?? 0}</small></h2>${steps}</section>
+  </div>`;
+}
+function recipesScreen() {
+  if (state.recipe) return recipePage(state.recipe === "new" ? null : data.recipes.find((r) => r.id === state.recipe));
+  const q = fold(state.filter);
+  const list = data.recipes.filter((r) => !q || fold(r.title).includes(q) || fold(r.category).includes(q));
+  return `<div class="mp-arac"><input class="mp-girdi" id="recipe-filter" placeholder="${esc(t("Search"))}" value="${esc(state.filter)}"><button class="mp-dugme mp-kaydet" style="white-space:nowrap" data-is="recipe-new">${esc(t("New recipe"))}</button></div>
+    ${list.length ? recipeCards(list, "recipe-open") : `<p class="bos">${esc(data.recipes.length ? t("No recipe matches.") : t("No recipes yet."))}</p>`}`;
+}
+
+function render() {
+  const root = $("#icerik");
+  if (!data) { root.innerHTML = error ? `<section class="kart"><p>${esc(error)}</p></section>` : `<p class="bos">${esc(t("Loading…"))}</p>`; return; }
+  const sunday = data.days[6];
+  root.innerHTML = `
+    <div class="mp-ust">
+      <h1>${esc("Meal Planner")}</h1>
+      <div class="mp-sekme">
+        <button data-is="tab" data-tab="" class="${tab() === "week" ? "secili" : ""}">${esc(t("Week"))}</button>
+        <button data-is="tab" data-tab="tarifler" class="${tab() === "recipes" ? "secili" : ""}">${esc(t("Recipes"))}</button>
+        ${home ? `<button data-is="tab" data-tab="evde" class="${tab() === "home" ? "secili" : ""}">${esc(t("At home"))}</button>` : ""}
+      </div>
+      ${tab() === "week" ? `<div class="mp-hafta">
+        <button data-is="week-step" data-step="-7" aria-label="${esc(t("Previous week"))}">‹</button>
+        <span>${esc(dayLabel(data.monday))} – ${esc(dayLabel(sunday))}</span>
+        <button data-is="week-step" data-step="7" aria-label="${esc(t("Next week"))}">›</button>
+        ${data.days.includes(data.today) ? "" : `<button class="mp-bugun-d" data-is="week-today">${esc(t("This week"))}</button>`}
+      </div>` : ""}
+    </div>
+    <p class="mp-senkron">${syncText()}</p>
+    ${error ? `<section class="kart" style="margin-bottom:16px"><p>${esc(error)}</p></section>` : ""}
+    ${syncCard()}
+    ${tab() === "week" ? weekScreen() : tab() === "home" ? homeScreen() : recipesScreen()}
+    ${state.form ? mealWindow() : ""}
+    ${cookHtml()}`;
+  $("[autofocus]")?.focus();
+}
+
+const ACTIONS = {
+  async "home-done"(b) {
+    try {
+      await postTo("../kasa/api/kalem/bitti", { entry: b.dataset.entry, id: b.dataset.id, done: true });
+      if (b.dataset.name) await postTo("./api/alinacak", { name: b.dataset.name });
+    } catch (e) { notify(e.message); }
+    await loadHome(); render();
+  },
+  async "buy-done"(b) {
+    try { await postTo("./api/alinacak/sil", { id: b.dataset.id }); } catch (e) { notify(e.message); }
+    await loadHome(); render();
+  },
+  tab(b) { state.form = null; state.recipe = null; state.editing = false; state.fromMeal = null; goTo("meals", b.dataset.tab); },
+  "week-step"(b) { state.week = addDays(data.monday, +b.dataset.step); state.form = null; return load(); },
+  "week-today"() { state.week = null; state.form = null; return load(); },
+  "meal-add"(b) { state.form = { day: b.dataset.day, mealType: b.dataset.type, record: null }; state.pick = ""; render(); },
+  "meal-open"(b) {
+    const planned = data.meals.find((x) => x.id === b.dataset.id);
+    if (planned?.recipeId && data.recipes.some((r) => r.id === planned.recipeId)) {
+      state.fromMeal = planned.id;
+      return goTo("meals", "tarifler", planned.recipeId);
+    }
+    const m = data.meals.find((x) => x.id === b.dataset.id);
+    if (m) { state.form = { day: m.day, mealType: m.mealType, record: m }; render(); }
+  },
+  "meal-pick"(b) { const f = state.form; return write("ogun", { recipeId: b.dataset.id, day: f.day, mealType: f.mealType }, t("Added")); },
+  "meal-recipe"() {
+    const m = state.form.record;
+    state.form = null;
+    if (hashParts()[2] === m.recipeId) return render();
+    state.fromMeal = m.id;
+    goTo("meals", "tarifler", m.recipeId);
+  },
+  "meal-edit"() {
+    const m = data.meals.find((x) => x.id === state.fromMeal);
+    if (m) { state.form = { day: m.day, mealType: m.mealType, record: m }; render(); }
+  },
+  "meal-delete"() { const m = state.form.record; return write("ogun/sil", { id: m.id }, t("Removed")); },
+  /** A tap opens the ingredient's box (for touch; a mouse opens it on hover) and marks its line in the list. */
+  "ing-tip"(b) {
+    const box = b.parentElement, open = !box.classList.contains("acik");
+    closeTips();
+    if (open) { box.classList.add("acik"); document.querySelector(`.mp-malzeme li[data-i="${b.dataset.i}"]`)?.classList.add("vurgu"); }
+  },
+  "step-done"(b) {
+    const key = b.dataset.step;
+    if (state.done.has(key)) state.done.delete(key); else state.done.add(key);
+    render();
+  },
+  "cook-start"(b) { cookOpen([b.dataset.id]); },
+  "cook-slot"(b) { cookOpen(slotRecipes(b.dataset.day, b.dataset.type)); },
+  "cook-tab"(b, ev) { if (ev.target.closest(".mp-cikar")) return; state.cook.active = b.dataset.id; saveCook(); render(); },
+  "cook-remove"(b) {
+    const c = state.cook;
+    c.ids = c.ids.filter((id) => id !== b.dataset.id);
+    delete c.steps[b.dataset.id]; delete c.done[b.dataset.id];
+    if (!c.ids.length) return cookEnd();
+    if (c.active === b.dataset.id) c.active = c.ids[0];
+    saveCook(); render();
+  },
+  "cook-move"(b) { cookMove(+b.dataset.by); },
+  async "together-copy"() {
+    try { await navigator.clipboard.writeText(togetherPrompt()); notify(t("Copied. Paste it to Claude.")); }
+    catch { prompt(t("Copy this for Claude:"), togetherPrompt()); }
+  },
+  async "together-reload"() { await loadTogether(); render(); if (!togetherPlan()) notify(t("No order yet.")); },
+  "cook-pick"() { state.cookPick = true; state.cookFilter = ""; render(); },
+  "cook-pick-close"() { state.cookPick = false; render(); },
+  "cook-pick-backdrop"(b, ev) { if (ev.target === b) { state.cookPick = false; render(); } },
+  "cook-add"(b) { state.cookPick = false; cookOpen([b.dataset.id]); },
+  "cook-tick"(b) {
+    const c = state.cook, list = b.dataset.list, k = +b.dataset.k;
+    c.ticks ??= {};
+    const got = new Set(c.ticks[list] ?? []);
+    if (got.has(k)) got.delete(k); else got.add(k);
+    c.ticks[list] = [...got];
+    saveCook(); render();
+  },
+  "cook-go"(b) { state.cook.steps[state.cook.active] = +b.dataset.n; saveCook(); render(); },
+  /** The step area is one big button: its left third goes back, the rest goes on (a name in the step opens its box). */
+  "cook-tap"(b, ev) {
+    if (ev.target.closest(".mp-m")) return;
+    const box = b.getBoundingClientRect();
+    cookMove(ev.clientX - box.left < box.width / 3 ? -1 : 1);
+  },
+  "cook-close"() { state.cook.open = false; saveCook(); wakeOff(); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); render(); },
+  "cook-resume"() { state.cook.open = true; saveCook(); render(); wakeOn(); },
+  "cook-end"() { cookEnd(); },
+  "cook-finish"() { cookFinish(); },
+  "cook-full"() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen().catch((e) => notify(e.message));
+  },
+  cancel() { state.form = null; render(); },
+  "close-backdrop"(b, ev) { if (ev.target === b) { state.form = null; render(); } },
+  "recipe-new"() { state.recipe = "new"; state.editing = true; render(); },
+  "recipe-open"(b) { goTo("meals", "tarifler", b.dataset.id); scrollTo(0, 0); },
+  "recipe-back"() {
+    if (state.recipe === "new") { state.recipe = null; state.editing = false; return render(); }
+    const toWeek = !!state.fromMeal;
+    state.fromMeal = null;
+    goTo("meals", toWeek ? "" : "tarifler");
+  },
+  "recipe-edit"() { state.editing = true; render(); },
+  "recipe-cancel"() { if (state.recipe === "new") state.recipe = null; state.editing = false; render(); },
+  async "recipe-delete"() {
+    const r = data.recipes.find((x) => x.id === state.recipe);
+    if (r && confirm(t('Delete "{title}"? Meals planned with it stay, without the recipe.', { title: r.title }))) {
+      if (await write("tarif/sil", { id: r.id }, t("Deleted"))) goTo("meals", "tarifler");
+    }
+  },
+  async "speys-connect"() {
+    const tabWindow = window.open("about:blank", "_blank");
+    try { const { url } = await speysPost("connect"); if (tabWindow) tabWindow.location.href = url; else location.href = url; }
+    catch (e) { tabWindow?.close(); notify(e.message); }
+  },
+  "speys-sync"() { return syncNow(true); },
+  async "speys-disconnect"() {
+    if (!confirm(t("Disconnect from Speys? This also disconnects the other applets that sync (Finances); your data stays on this computer."))) return;
+    try { speys = await speysPost("disconnect"); render(); } catch (e) { notify(e.message); }
+  },
+};
+
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest(".mp-m")) closeTips();
+  const b = ev.target.closest("[data-is]");
+  if (b) ACTIONS[b.dataset.is]?.(b, ev);
+});
+document.addEventListener("mouseover", (ev) => {
+  const name = ev.target.closest?.(".mp-m > button");
+  if (name) document.querySelector(`.mp-malzeme li[data-i="${name.dataset.i}"]`)?.classList.add("vurgu");
+});
+document.addEventListener("mouseout", (ev) => {
+  const name = ev.target.closest?.(".mp-m > button");
+  if (name && !name.parentElement.classList.contains("acik")) document.querySelector(`.mp-malzeme li[data-i="${name.dataset.i}"]`)?.classList.remove("vurgu");
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && state.form) { state.form = null; render(); } });
+/** Search boxes re-render as you type; the cursor stays where it was. */
+document.addEventListener("input", (ev) => {
+  const key = { "recipe-filter": "filter", "pick-filter": "pick", "cook-filter": "cookFilter" }[ev.target.id];
+  if (!key) return;
+  state[key] = ev.target.value;
+  const at = ev.target.selectionStart, id = ev.target.id;
+  render();
+  const input = $(`#${id}`);
+  input.focus();
+  input.setSelectionRange(at, at);
+});
+document.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const f = new FormData(ev.target);
+  if (ev.target.id === "meal-form") {
+    const m = state.form.record;
+    if (!m && !String(f.get("title")).trim()) return;
+    write("ogun", m ? {
+      id: m.id, recipeId: f.get("recipeId") || null, title: f.get("title"), day: f.get("day") || m.day, mealType: f.get("mealType") || m.mealType,
+    } : { recipeId: null, title: f.get("title"), day: state.form.day, mealType: state.form.mealType }, m ? t("Saved") : t("Added"));
+  } else if (ev.target.id === "recipe-form") {
+    const id = state.recipe === "new" ? undefined : state.recipe;
+    const title = String(f.get("title")).trim();
+    write("tarif", {
+      id, title, category: f.get("category"),
+      ingredients: String(f.get("ingredients")).split("\n").map((l) => l.trim()).filter(Boolean).map(parseIngredient),
+      instructions: String(f.get("instructions")).split("\n").map((l) => l.trim()).filter(Boolean),
+    }, t("Saved")).then((ok) => {
+      if (!ok) return;
+      state.editing = false;
+      const created = !id && data.recipes.find((r) => r.title === title)?.id;
+      if (created) goTo("meals", "tarifler", created); else render();
+    });
+  } else if (ev.target.matches(".mp-cakisma")) {
+    speysPost("resolve", { key: ev.target.dataset.key, id: ev.target.dataset.conflict, picks: Object.fromEntries(f) })
+      .then(async (d) => { speys = d; notify(t("Saved")); await load(); })
+      .catch((e) => notify(e.message));
+  }
+});
+window.addEventListener("hashchange", () => {
+  state.form = null;
+  state.recipe = hashParts()[2] || null;
+  state.editing = false;
+  if (state.fromMeal && data?.meals.find((m) => m.id === state.fromMeal)?.recipeId !== state.recipe) state.fromMeal = null;
+  render();
+});
+window.addEventListener("message", (ev) => {
+  if (ev.origin === location.origin && typeof ev.data?.speys === "boolean") loadSpeys().then(() => syncNow(true));
+});
+window.addEventListener("focus", () => { if (!isHidden() && !state.form && !state.editing) load(); });
+setInterval(() => { if (!document.hidden) syncNow(); }, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadSpeys().then(() => syncNow()); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.cook?.open) wakeOn(); });
+document.addEventListener("fullscreenchange", () => { if (state.cook?.open) render(); });
+document.addEventListener("keydown", (ev) => {
+  if (state.cookPick) { if (ev.key === "Escape") { state.cookPick = false; render(); } return; }
+  if (!state.cook?.open || state.form || ev.target.matches?.("input, textarea, select")) return;
+  const k = ev.key;
+  if (k === "ArrowRight" || k === " " || k === "PageDown" || k === "Enter") { ev.preventDefault(); cookMove(1); }
+  else if (k === "ArrowLeft" || k === "PageUp" || k === "Backspace") { ev.preventDefault(); cookMove(-1); }
+  else if (k === "Escape" && !document.fullscreenElement) ACTIONS["cook-close"]();
+  else if (/^[1-9]$/.test(k) && cookTabIds()[+k - 1]) { state.cook.active = cookTabIds()[+k - 1]; saveCook(); render(); }
+});
+
+render();
+load();
+loadSpeys().then(() => syncNow());
+</script>
+</body>
+</html>

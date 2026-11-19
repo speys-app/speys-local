@@ -1,0 +1,26 @@
+{
+  "name": "Meal Planner",
+  "description": "The week's meals and your recipes; what to buy for them. With a Speys account, the same plan as your household's in Speys.",
+  "category": "Home",
+  "reads": "Its own data; when you connect a Speys account, your household's recipes and meal plan there",
+  "icon": "icon.svg",
+  "order": 38,
+  "backend": "backend.js",
+  "settings": [
+    {
+      "key": "speysApi",
+      "label": "Speys address",
+      "hint": "Only to try another Speys server. If empty, Speys's own",
+      "type": "text",
+      "placeholder": "https://staging-mini-apps-center-8u7i.encr.app"
+    }
+  ],
+  "sync": {
+    "version": 1,
+    "file": "plan.json",
+    "collections": {
+      "recipes": "recipe.recipes",
+      "meals": "recipe.meals"
+    }
+  }
+}
