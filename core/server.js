@@ -439,20 +439,24 @@ export async function startDashboard({ port = 3400 }) {
     // Keeps another site from reaching this server through DNS
     const host = (req.headers.host || "").split(":")[0];
     if (host !== "localhost" && host !== "127.0.0.1") return send(res, 403, { error: "host" });
-    // Keeps a site open in another tab from writing to applets
+    const url = new URL(req.url, "http://localhost");
+    // A browser extension an applet names in its `origins` may call that applet, and only that applet
     const origin = req.headers.origin;
-    if (req.method !== "GET" && origin && origin !== `http://${req.headers.host}`) {
+    const target = /^\/a\/([^/]+)\//.exec(url.pathname);
+    const trusted = !!(origin && target && origin.startsWith("chrome-extension://") &&
+      (applets.find((a) => a.id === target[1])?.origins || []).includes(origin));
+    // Keeps a site open in another tab from writing to applets
+    if (!trusted && req.method !== "GET" && origin && origin !== `http://${req.headers.host}`) {
       return send(res, 403, { error: "origin" });
     }
     // Keeps other sites from triggering anything here with an image or a form; only opening a page by link is allowed
     const site = req.headers["sec-fetch-site"];
     const opening = req.headers["sec-fetch-mode"] === "navigate" && req.headers["sec-fetch-dest"] === "document";
-    if (site && site !== "same-origin" && site !== "none" && !opening) return send(res, 403, { error: "cross-site" });
+    if (!trusted && site && site !== "same-origin" && site !== "none" && !opening) return send(res, 403, { error: "cross-site" });
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
     res.setHeader("X-Content-Type-Options", "nosniff");
 
-    const url = new URL(req.url, "http://localhost");
     activeLanguage = languageOf(req);
     if (url.pathname === "/") return sendFile(res, join(import.meta.dirname, "ui.html"));
     if (url.pathname === "/logo.svg") return sendFile(res, join(import.meta.dirname, "logo.svg"));

@@ -44,6 +44,7 @@ Personal data never goes in the repo. Paths, names and accounts belong in settin
 | `backend` | the backend file |
 | `dashboard` | `true` puts it in the Dashboards section at the top of the sidebar |
 | `settings` | fields on the Settings page: `key`, `label`, `hint`, `type` (path, text, json), `placeholder`, `section` |
+| `origins` | browser extensions allowed to call this applet's endpoints, such as `["chrome-extension://<id>"]`; other sites are still refused |
 | `sync` | what syncs with a Speys account, when the user connects one; see [Syncing with Speys](#syncing-with-speys) |
 
 ## Backend
