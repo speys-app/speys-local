@@ -44,6 +44,7 @@ Personal data never goes in the repo. Paths, names and accounts belong in settin
 | `backend` | the backend file |
 | `dashboard` | `true` puts it in the Dashboards section at the top of the sidebar |
 | `settings` | fields on the Settings page: `key`, `label`, `hint`, `type` (path, text, json), `placeholder`, `section` |
+| `sync` | what syncs with a Speys account, when the user connects one; see [Syncing with Speys](#syncing-with-speys) |
 
 ## Backend
 
@@ -65,6 +66,38 @@ An applet with missing settings does not fail: it returns `{ not_configured: tru
 
 Writes go through `handleWrite` in `lib/common.js`, which checks the `X-Panel: 1` header and answers
 `{ ok }` or `{ error }`.
+
+## Syncing with Speys
+
+An applet works fully without an account. When it has a counterpart in Speys (the first is Finances, `kasa`), the user
+can connect their account and the two are kept in step both ways. The sync works on the data, not on your code: a copy
+of an applet in `applets/custom/` that looks and behaves differently keeps syncing.
+
+```json
+"sync": {
+  "version": 1,
+  "file": "defter.json",
+  "collections": {
+    "rules": { "remote": "kasa.recurring", "own": ["lastGenerated"] },
+    "entries": { "remote": "kasa.entries", "map": { "kdv": "vatRate" } }
+  }
+}
+```
+
+- `file` is in the applet's data folder; `collections` are the arrays in it, sent in this order (a record that points
+  to another goes after it). `remote` is `<service>.<kind>` in Speys.
+- A record needs an `id` that is the same on both sides, an `updatedAt` that changes on edit, and `deletedAt` when
+  deleted (or it leaves the file). Everything else is free: fields Speys doesn't know are kept there and sent back.
+- A field missing from a record means "this applet doesn't know it", not "delete it"; write `null` to clear.
+- `map` renames a field between your name and Speys's; `own` lists fields that belong to this computer only and are
+  never sent; `"tombstones": false` removes deleted records from the file instead of keeping them marked.
+- A record two sides can create on their own (a repeat of a rule on a date) takes `stableId(...)` from `lib/sync.js`,
+  so it isn't made twice.
+
+`lib/sync.js` merges field by field against the last synced copy: a field changed on one side wins, the same field
+changed differently on both is asked, never dropped. `lib/speys.js` signs in (Speys's OAuth, back to this computer,
+a token that only works for Speys Local) and `lib/speys-sync.js` runs one sync. Nothing syncs at start-up; the page
+asks while it is open.
 
 ## Page
 
