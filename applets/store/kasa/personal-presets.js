@@ -1,0 +1,22 @@
+// Speys's subscription presets (frontend app/apps/budget/subcenter/data/presets.ts, 11 November 2026): name, plan,
+// price, category, brand colour and icon. Data; prices change, so a preset only fills the form.
+export const PRESETS = [
+  {"name":"Netflix","plan":"Temel","price":189.99,"currency":"TRY","category":"Entertainment","color":"#E50914","icon":"🎬"},
+  {"name":"Netflix","plan":"Standart","price":289.99,"currency":"TRY","category":"Entertainment","color":"#E50914","icon":"🎬"},
+  {"name":"Netflix","plan":"Premium","price":379.99,"currency":"TRY","category":"Entertainment","color":"#E50914","icon":"🎬"},
+  {"name":"Disney+","plan":"Aylık (Reklamsız)","price":449.9,"currency":"TRY","category":"Entertainment","color":"#006E99","icon":"🏰"},
+  {"name":"Amazon Prime","plan":"Prime Üyelik","price":69.9,"currency":"TRY","category":"Entertainment","color":"#00A8E1","icon":"📦"},
+  {"name":"BluTV","plan":"Aylık","price":139.9,"currency":"TRY","category":"Entertainment","color":"#00AEEF","icon":"📺"},
+  {"name":"Gain","plan":"Aylık","price":149,"currency":"TRY","category":"Entertainment","color":"#D9FD52","icon":"💎"},
+  {"name":"YouTube Premium","plan":"Bireysel","price":79.99,"currency":"TRY","category":"Music","color":"#FF0000","icon":"📺"},
+  {"name":"YouTube Premium","plan":"Aile","price":159.99,"currency":"TRY","category":"Music","color":"#FF0000","icon":"📺"},
+  {"name":"Spotify","plan":"Premium Bireysel","price":99,"currency":"TRY","category":"Music","color":"#1DB954","icon":"🎵"},
+  {"name":"Spotify","plan":"Premium Aile","price":165,"currency":"TRY","category":"Music","color":"#1DB954","icon":"🎵"},
+  {"name":"Apple Music","plan":"Bireysel","price":79.99,"currency":"TRY","category":"Music","color":"#FB233B","icon":"🍎"},
+  {"name":"ChatGPT Plus","plan":"Pro","price":20,"currency":"USD","category":"AI","color":"#10A37F","icon":"🤖"},
+  {"name":"Midjourney","plan":"Basic","price":10,"currency":"USD","category":"AI","color":"#FFFFFF","icon":"🎨"},
+  {"name":"Claude Pro","plan":"Pro","price":20,"currency":"USD","category":"AI","color":"#D97757","icon":"🧠"},
+  {"name":"Canva","plan":"Pro","price":199.99,"currency":"TRY","category":"Software","color":"#00C4CC","icon":"✨"},
+  {"name":"Medium","plan":"Member","price":5,"currency":"USD","category":"Other","color":"#000000","icon":"✍️"},
+  {"name":"X Premium","plan":"Individual","price":150,"currency":"TRY","category":"Other","color":"#000000","icon":"𝕏"},
+];

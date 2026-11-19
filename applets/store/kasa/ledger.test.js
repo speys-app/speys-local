@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deleteEntry, deletePlan, emptyLedger, forecast, materialize, monthExpected, overview, saveEntry, savePlan, saveRule, setRuleActive } from "./ledger.js";
+import { activeScenario, atHome, cash, deleteEntry, deletePlan, deleteScenario, emptyLedger, planAmount, saveScenario, forecast, isOperating, materialize, monthExpected, net, overview, saveEntry, savePlan, saveRule, setItemDone, setItems, setRuleActive, vat } from "./ledger.js";
+import { stableId } from "../../../lib/sync.js";
 
 const OCT = { from: "2026-10-01", to: "2026-10-31", year: 2026 };
 const entry = (extra = {}) => ({ direction: "out", title: "Figma", amount: 100, category: "yazilim", entryDate: "2026-10-10", ...extra });
@@ -33,17 +34,12 @@ test("the summary skips pending entries and non-operating categories", () => {
   saveEntry(l, entry({ direction: "in", category: "hizmet", amount: 500 }));
   saveEntry(l, entry({ entryDate: "2026-09-10", amount: 70 }));
   const o = overview(l, OCT, "2026-10-31");
-  assert.deepEqual(o.summary, { income: 500, expense: 100, profit: 400 });
+  assert.deepEqual([o.summary.income, o.summary.expense, o.summary.profit], [500, 100, 400]);
+  assert.equal(o.summary.ownerDraw, 900);
+  assert.equal(o.summary.cashOut, 1000, "the withdrawal left the till, it just isn't an expense");
   assert.equal(o.pending.length, 1);
   assert.equal(o.monthly[8].expense, 70);
   assert.equal(o.monthly[9].expense, 100);
-});
-
-test("the sync status is honest: not connected, and the time of an import if there was one", () => {
-  const l = emptyLedger();
-  assert.deepEqual(overview(l, OCT, "2026-10-31").sync, { connected: false, lastImport: null });
-  l.importedFrom = { source: "speys", at: "2026-10-31T00:30:00.000Z" };
-  assert.equal(overview(l, OCT, "2026-10-31").sync.lastImport.source, "speys");
 });
 
 test("an imported entry keeps its currency fields when edited", () => {
@@ -208,4 +204,146 @@ test("a wrong month or day does not make a rule", () => {
   assert.throws(() => saveRule(l, rule({ dayOfMonth: 32 }), "2026-10-01"), /Day/);
   assert.throws(() => saveRule(l, rule({ cycle: "yearly" }), "2026-10-01"), /month/);
   assert.throws(() => saveRule(l, rule({ cycle: "weekly" }), "2026-10-01"), /cycle/);
+});
+
+test("VAT, withholding and the till follow Speys's rules", () => {
+  // 1200 with 20% VAT inside: 1000 before VAT, 200 VAT
+  const inside = { amount: 1200, vatRate: 20 };
+  assert.equal(net(inside), 1000);
+  assert.equal(vat(inside), 200);
+  assert.equal(cash(inside), 1200);
+  // 1000 before VAT: 200 VAT on top, the till sees 1200
+  const outside = { amount: 1000, vatRate: 20, vatIncluded: false };
+  assert.equal(net(outside), 1000);
+  assert.equal(vat(outside), 200);
+  assert.equal(cash(outside), 1200);
+  // a service invoice of 1000 before VAT with 200 withheld: income stays 1000, 1000 reaches the till
+  assert.equal(cash({ amount: 1000, vatRate: 20, vatIncluded: false, withholding: 200 }), 1000);
+  // no rate: the amount as it is
+  assert.equal(net({ amount: 500 }), 500);
+  assert.equal(vat({ amount: 500, vatRate: null }), 0);
+});
+
+test("only capital in, a withdrawal and a tax payment stay out of profit, by direction like Speys", () => {
+  assert.equal(isOperating("in", "sermaye"), false);
+  assert.equal(isOperating("out", "ortak_cekis"), false);
+  assert.equal(isOperating("out", "vergi_odeme"), false);
+  assert.equal(isOperating("out", "sermaye"), true);
+  assert.equal(isOperating("out", "hukuk"), true);
+});
+
+test("the summary counts profit without VAT and shows VAT, withholding and cash apart", () => {
+  const l = emptyLedger();
+  saveEntry(l, entry({ amount: 1200, vatRate: 20 }));
+  saveEntry(l, entry({ direction: "in", category: "hizmet", amount: 10000, vatRate: 20, vatIncluded: false, withholding: 2000 }));
+  saveEntry(l, entry({ direction: "in", category: "sermaye", amount: 5000 }));
+  const s = overview(l, OCT, "2026-10-31").summary;
+  assert.deepEqual([s.income, s.expense, s.profit], [10000, 1000, 9000]);
+  assert.deepEqual([s.vatCollected, s.vatPaid, s.withholding], [2000, 200, 2000]);
+  assert.equal(s.capitalIn, 5000);
+  assert.deepEqual([s.cashIn, s.cashOut], [15000, 1200]);
+});
+
+test("the extra fields: only the ones sent change, null clears, bad values are refused", () => {
+  const l = emptyLedger();
+  const { id } = saveEntry(l, entry({ vatRate: 20, invoiceNo: " A-12 ", currency: "usd", originalAmount: 10, fxRate: 34.5, paidBy: "Selim" }));
+  const e = l.entries[0];
+  assert.deepEqual([e.vatRate, e.invoiceNo, e.currency, e.originalAmount, e.fxRate, e.paidBy], [20, "A-12", "USD", 10, 34.5, "Selim"]);
+  // a page that doesn't know these fields edits the title: they stay
+  saveEntry(l, entry({ id, title: "Figma Pro" }));
+  assert.equal(l.entries[0].vatRate, 20);
+  assert.equal(l.entries[0].invoiceNo, "A-12");
+  // a field Speys sent that this applet doesn't know stays too
+  l.entries[0].proje = "Site";
+  saveEntry(l, entry({ id, title: "Figma" }));
+  assert.equal(l.entries[0].proje, "Site");
+  saveEntry(l, entry({ id, vatRate: null, invoiceNo: "" }));
+  assert.equal(l.entries[0].vatRate, null);
+  assert.equal(l.entries[0].invoiceNo, null);
+  assert.throws(() => saveEntry(l, entry({ vatRate: 120 })), /number/);
+  assert.throws(() => saveEntry(l, entry({ withholding: -1 })), /number/);
+  assert.throws(() => saveEntry(l, entry({ currency: "BTC" })), /currency/);
+});
+
+test("a rule writes its VAT and currency into the entries it makes, with the id Speys gives them", () => {
+  const l = emptyLedger();
+  const r = saveRule(l, rule({ vatRate: 20, currency: "USD", originalAmount: 30 }), "2026-10-01");
+  materialize(l, "2026-10-06");
+  const e = l.entries[0];
+  assert.deepEqual([e.vatRate, e.currency, e.originalAmount], [20, "USD", 30]);
+  assert.equal(e.id, stableId(r.id, "2026-10-05"));
+  assert.equal(overview(l, OCT, "2026-10-31").summary.expense, round(1000 / 1.2));
+});
+
+const round = (n) => Math.round(n * 100) / 100;
+
+test("a plan item grows by its yearly increase from the year after it starts, as in Speys", () => {
+  const p = { amount: 1000, startMonth: "2026-06", annualIncreasePct: 50 };
+  assert.equal(planAmount(p, "2026-12"), 1000);
+  assert.equal(planAmount(p, "2027-01"), 1500);
+  assert.equal(planAmount(p, "2028-03"), 2250);
+  assert.equal(planAmount({ amount: 1000, startMonth: "2026-06" }, "2030-01"), 1000);
+});
+
+test("plan items: VAT counts without VAT, a one-time item has no end or increase, bad rates are refused", () => {
+  const l = emptyLedger();
+  const p = savePlan(l, { direction: "out", title: "Laptop", amount: 1200, category: "ekipman", cycle: "once", startMonth: "2026-12", endMonth: "2027-03", annualIncreasePct: 30, vatRate: 20 });
+  assert.equal(p.endMonth, null);
+  assert.equal(p.annualIncreasePct, null);
+  assert.equal(monthExpected(l, "2026-12", "2026-11-09").expense, 1000);
+  assert.throws(() => savePlan(l, { direction: "in", title: "X", amount: 1, cycle: "monthly", startMonth: "2026-12", withholdingRate: 100 }), /number/);
+  assert.throws(() => savePlan(l, { direction: "in", title: "X", amount: 1, cycle: "monthly", startMonth: "2026-12", scenarioId: "nope" }), /Scenario/);
+});
+
+test("scenarios: an item without one counts in all, one with a scenario only there; one default; deleting takes its items", () => {
+  const l = emptyLedger();
+  const bad = saveScenario(l, { name: "Bad" });
+  const good = saveScenario(l, { name: "Good" });
+  assert.equal(bad.isDefault, true, "the first one is the default");
+  assert.equal(activeScenario(l).id, bad.id);
+  saveScenario(l, { id: good.id, name: "Good", isDefault: true });
+  assert.deepEqual(l.scenarios.map((x) => x.isDefault), [false, true]);
+
+  const plan = (extra) => savePlan(l, { direction: "in", title: "Client", amount: 100, category: "hizmet", cycle: "monthly", startMonth: "2026-12", ...extra });
+  plan({});
+  plan({ title: "Big client", amount: 900, scenarioId: good.id });
+  assert.equal(monthExpected(l, "2026-12", "2026-11-09", bad.id).income, 100);
+  assert.equal(monthExpected(l, "2026-12", "2026-11-09", good.id).income, 1000);
+  assert.equal(overview(l, { from: "2026-12-01", to: "2026-12-31", year: 2026 }, "2026-11-09").scenario.id, good.id);
+
+  deleteScenario(l, good.id);
+  assert.equal(l.plans.filter((p) => !p.deletedAt).length, 1);
+  assert.equal(activeScenario(l).id, bad.id);
+  assert.throws(() => saveScenario(l, { name: " " }), /Name/);
+});
+
+test("a receipt's lines: kept on save, finished ones leave what's at home", () => {
+  const l = emptyLedger();
+  const e = saveEntry(l, entry({ title: "Market", category: "other", entryDate: "2026-11-11", note: "Gıda gideri" }));
+  setItems(l, e.id, [
+    { name: "Sucuk", qty: 0.666, unit: "kg", price: 729.27, vatRate: 1, kind: "food" },
+    { name: "Şampuan", price: 209.9, vatRate: 20, kind: "household" },
+    { name: "Bilinmeyen", kind: "x" },
+  ]);
+  assert.equal(l.entries[0].note, "Gıda gideri", "writing the lines leaves the rest of the record");
+  assert.equal(l.entries[0].items[2].kind, "other");
+  assert.deepEqual(atHome(l).map((i) => i.name), ["Sucuk", "Şampuan", "Bilinmeyen"]);
+  const sucuk = l.entries[0].items[0];
+  setItemDone(l, e.id, sucuk.id, true);
+  assert.deepEqual(atHome(l).map((i) => i.name), ["Şampuan", "Bilinmeyen"]);
+  assert.equal(atHome(l)[0].boughtOn, "2026-11-11");
+  // writing the list again (a fix to a price) keeps the id and that it's finished
+  setItems(l, e.id, [{ name: "Sucuk", qty: 0.666, unit: "kg", price: 730, kind: "food" }, { name: "Şampuan", kind: "household" }]);
+  assert.equal(l.entries[0].items[0].id, sucuk.id);
+  assert.ok(l.entries[0].items[0].doneAt);
+  setItemDone(l, e.id, sucuk.id, false);
+  assert.equal(atHome(l).length, 2);
+  // saving the record from the form (no `items` sent) doesn't drop the lines
+  saveEntry(l, entry({ id: e.id, title: "Market", category: "other", entryDate: "2026-11-11" }));
+  assert.equal(l.entries[0].items.length, 2);
+  assert.throws(() => setItems(l, e.id, [{ name: " " }]), /Item name/);
+  assert.throws(() => setItems(l, e.id, [{ name: "Su", price: -1 }]), /number/);
+  assert.throws(() => setItemDone(l, e.id, "yok", true), /not found/);
+  deleteEntry(l, e.id);
+  assert.equal(atHome(l).length, 0, "a deleted receipt's lines aren't at home");
 });

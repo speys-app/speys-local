@@ -1,8 +1,8 @@
 {
   "name": "Finances",
-  "description": "Income and expenses on this computer: spending, recurring payments, pending items.",
+  "description": "Your money, personal and business: spending, income, investments and statements beside the business ledger with recurring payments, VAT and tax.",
   "category": "Business",
-  "reads": "Only its own data",
+  "reads": "Its own data; when you connect a Speys account, that account's Ledger",
   "icon": "icon.svg",
   "order": 36,
   "backend": "backend.js",
@@ -19,6 +19,34 @@
       "hint": "Only the label: amounts aren't converted. If empty, TL in Turkish and USD in other languages",
       "type": "text",
       "placeholder": "USD"
+    },
+    {
+      "key": "speysApi",
+      "label": "Speys address",
+      "hint": "Only to try another Speys server. If empty, Speys's own",
+      "type": "text",
+      "placeholder": "https://staging-mini-apps-center-8u7i.encr.app"
     }
-  ]
+  ],
+  "sync": {
+    "version": 1,
+    "file": "defter.json",
+    "collections": {
+      "rules": {
+        "remote": "kasa.recurring",
+        "own": [
+          "lastGenerated"
+        ]
+      },
+      "entries": {
+        "remote": "kasa.entries",
+        "own": [
+          "localFiles",
+          "items"
+        ]
+      },
+      "scenarios": "kasa.scenarios",
+      "plans": "kasa.plan_items"
+    }
+  }
 }

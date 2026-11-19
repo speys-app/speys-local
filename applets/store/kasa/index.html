@@ -6,6 +6,60 @@
 <title>Ledger</title>
 <link rel="stylesheet" href="/kit.css">
 <style>
+/* —— Speys's design language for the whole page: its colours (frontend app/globals.css --app-*), accent #6366F1, its
+   typeface Geist (fonts/, OFL), one width for every section. kit.css's names point to Speys's values here, so the
+   Company side and the personal side look like one app. */
+@font-face{font-family:Geist;src:url(./fonts/geist-latin.woff2) format("woff2");font-weight:100 900;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+20BA,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Geist;src:url(./fonts/geist-latin-ext.woff2) format("woff2");font-weight:100 900;font-display:swap;unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+:root{--a-bg:#faf9f7;--a-surface:#fff;--a-muted-bg:#f3f4f6;--a-border:#f3f4f6;--a-text:#111827;--a-muted:#9ca3af;--a-track:#f3f4f6;--a-active:#fff;--accent:#6366F1;
+  --bg:var(--a-bg);--yuzey:var(--a-surface);--yuzey2:var(--a-muted-bg);--cizgi:var(--a-border);--metin:var(--a-text);--soluk:var(--a-muted);--yesil:#10B981;--kirmizi:#EF4444;--vurgu:#6366F1}
+@media (prefers-color-scheme:dark){:root{--a-bg:#09090b;--a-surface:#18181b;--a-muted-bg:#27272a;--a-border:#27272a;--a-text:#fafafa;--a-muted:#a1a1aa;--a-track:#27272a;--a-active:#3f3f46}}
+body{font-family:Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--a-bg);color:var(--a-text);-webkit-font-smoothing:antialiased}
+main{max-width:1080px;padding:12px 16px 32px}
+section.kart{border-radius:16px;border-color:var(--a-border);background:var(--a-surface);padding:16px}
+section.kart h2{font-size:11px;font-weight:900;letter-spacing:.08em;color:var(--a-muted)}
+/* a section's tabs: in the header row on the web (Speys's UstSekmeler), in a bar at the bottom on phones */
+.pk-baslik-serit,.pk-altbar{display:none}
+@media (max-width:767px){
+  .pk-altbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:color-mix(in srgb,var(--a-bg) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--a-border)}
+  .pk-altbar>div{max-width:576px;margin:0 auto;display:flex;padding:6px 8px}
+  .pk-altbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border-radius:12px;color:var(--a-muted);text-decoration:none;min-width:0}
+  .pk-altbar a span{padding:6px;border-radius:8px;display:grid}
+  .pk-altbar svg{width:20px;height:20px}
+  .pk-altbar b{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:-.01em;white-space:nowrap}
+  .pk-altbar a.on{color:var(--a-text)}
+  .pk-altbar a.on span{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent)}
+  .pk-altbar{display:block}
+  main{padding-bottom:104px}
+}
+@media (min-width:768px){
+  .pk-baslik-serit{display:flex;align-items:stretch;gap:16px;max-width:1080px;margin:-4px auto 18px;border-bottom:1px solid var(--a-border);min-height:46px}
+  .pk-baslik-serit>b{display:flex;align-items:center;font-size:17px;font-weight:900;letter-spacing:-.01em;padding-right:4px}
+  .pk-baslik-serit nav{display:flex;align-items:stretch;gap:4px}
+  .pk-baslik-serit a{position:relative;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:13px;font-weight:700;color:var(--a-muted);text-decoration:none}
+  .pk-baslik-serit a:hover{color:var(--a-text)}
+  .pk-baslik-serit a svg{width:16px;height:16px}
+  .pk-baslik-serit a.on{color:var(--a-text)}
+  .pk-baslik-serit a.on svg{color:var(--accent)}
+  .pk-baslik-serit a.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--accent)}
+  .pk-baslik-serit{display:flex}
+}
+/* a month, as Speys's Ledger: ‹ November 2026 › in the middle */
+.ks-rakamlar{gap:12px}
+.ks-rakamlar section.kart{display:flex;flex-direction:column;gap:2px}
+.ks-rakamlar .ks-etiket{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--a-muted)}
+.ks-rakamlar b{font-size:22px;font-weight:900;letter-spacing:-.02em}
+.ks-rakamlar small:last-child{font-size:12px;font-weight:600;color:var(--a-muted)}
+.pk-baslik-serit .ks-senkron{margin-left:auto;align-self:center;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--a-muted);margin-right:0}
+.ks-senkron-tel{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;margin:0 0 12px}
+@media (min-width:768px){.ks-senkron-tel{display:none}}
+.ks-dugme,.ks-ust button{border-radius:10px;border-color:var(--a-border);background:var(--a-surface)}
+.ks-kaydet{background:var(--accent);border-color:var(--accent)}
+.sp-ay{display:flex;align-items:center;justify-content:center;gap:12px;font-size:14px;font-weight:700;color:var(--a-muted);margin:0 0 14px}
+.sp-ay span{color:var(--a-text);text-transform:capitalize;min-width:120px;text-align:center}
+.sp-ay button{width:28px;height:28px;border:0;background:none;border-radius:8px;color:var(--a-muted);font-size:16px;font-weight:700;cursor:pointer}
+.sp-ay button:hover{background:var(--a-muted-bg);color:var(--a-text)}
+
 .ks-ust{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px}
 .ks-ust h1{font-size:18px;margin:0}
 .ks-senkron{margin-right:auto;font-size:12px;color:var(--soluk)}
@@ -26,6 +80,25 @@
 .ks-satir:last-child{border-bottom:0}
 .ks-satir small{display:block}
 .ks-satir.kapali{opacity:.55}
+/* the app strip at the top, as Speys's (frontend components/home/MisafirAlanSeridi.tsx): the wordmark, a line,
+   then the sections; the active one bright with a short bar under it */
+.ks-serit{display:flex;align-items:center;gap:8px;margin:-4px 0 16px;padding-bottom:6px;border-bottom:1px solid var(--cizgi)}
+.ks-logo img{height:26px;display:block}
+.ks-serit-cizgi{width:1px;height:32px;background:var(--cizgi);flex-shrink:0}
+.ks-serit nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.ks-serit nav::-webkit-scrollbar{display:none}
+.ks-serit nav button{width:64px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px 0;border:0;background:none;font:inherit;color:color-mix(in srgb,var(--soluk) 70%,transparent);cursor:pointer}
+.ks-serit nav button svg{width:22px;height:22px}
+.ks-serit nav button span{font-size:10px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ks-serit nav button i{width:20px;height:3px;border-radius:99px;background:transparent}
+.ks-serit nav button.aktif{color:var(--metin)}
+.ks-serit nav button.aktif i{background:var(--metin)}
+@media (min-width:900px){.ks-serit nav button{width:76px}.ks-serit nav button span{font-size:11px}}
+.ks-kalemler{margin-top:4px;max-height:360px;overflow:auto}
+.ks-kalem{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:4px 0;border-bottom:1px solid var(--cizgi);font-size:13px}
+.ks-kalem:last-child{border-bottom:0}
+.ks-kalem.bitti span:first-child{text-decoration:line-through;color:var(--soluk)}
+.ks-kalem small{color:var(--soluk);margin-left:6px}
 .ks-ac{border:0;background:none;padding:0;text-align:left;min-width:0;font-size:14px}
 .ks-gelir{color:var(--yesil)}
 .ks-kucuk{border:0;background:none;padding:2px 6px;font-size:12px;color:var(--soluk);border-radius:6px}
@@ -77,6 +150,24 @@
 .ks-tablo .eksi,.ks-tablo .net td.eksi{color:var(--kirmizi)}
 .ks-tablo th.bugun-ay,.ks-tablo th.bugun-ay button{color:var(--vurgu);font-weight:600}
 .ks-dipnot{margin:10px 0 0;font-size:12px;color:var(--soluk)}
+.ks-senkron button{margin-left:6px}
+.ks-senkron select{border:1px solid var(--cizgi);background:var(--bg);color:var(--metin);border-radius:8px;padding:4px 6px;font:inherit;font-size:12px}
+.ks-sorun{margin-bottom:16px}
+.ks-sorun h3{font-size:13px;margin:12px 0 6px}
+.ks-sorun h3:first-of-type{margin-top:4px}
+.ks-cakisma{border-top:1px solid var(--cizgi);padding:8px 0}
+.ks-cakisma table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+.ks-cakisma td,.ks-cakisma th{padding:4px 6px;text-align:left;font-weight:400}
+.ks-cakisma th{font-size:11px;color:var(--soluk)}
+.ks-cakisma label{display:flex;gap:6px;align-items:center}
+.ks-cift{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:center;border-top:1px solid var(--cizgi);padding:8px 0;font-size:13px}
+.ks-cift small{display:block}
+@media (max-width:760px){.ks-cift{grid-template-columns:1fr}}
+.ks-ek{grid-column:1/-1}
+.ks-ek summary{font-size:12px;color:var(--soluk);cursor:pointer;width:max-content}
+.ks-ek .ks-form{margin:8px 0 0}
+.ks-ek .ks-onay{display:flex;align-items:center;gap:5px;height:31px;font-size:13px;color:var(--metin)}
+.ks-ek .ks-onay input{width:auto}
 @media (max-width:760px){.ks-form{grid-template-columns:repeat(2,minmax(0,1fr))}.ks-kat{grid-template-columns:96px minmax(0,1fr) 84px}}
 </style>
 </head>
@@ -90,7 +181,7 @@
 document.title = "Finances";
 
 const MONTHS = [t("January"), t("February"), t("March"), t("April"), t("May"), t("June"), t("July"), t("August"), t("September"), t("October"), t("November"), t("December")];
-// The keys match Speys's Ledger so they line up once sync is connected; `hukuk` exists only here (`other` in Speys).
+// The keys match Speys's Ledger (`hukuk` too, since 9 November 2026), so they line up when synced.
 const CATEGORY = {
   malzeme: t("Materials"), kira: t("Rent"), personel: t("Staff"), fatura: t("Bills"), ekipman: t("Equipment"), pazarlama: t("Marketing"),
   yazilim: t("Software and subscriptions"), muhasebe: t("Accounting and financial advisor"), hukuk: t("Lawyer and legal"), sgk: t("Social security premium (Bağ-Kur / SGK)"),
@@ -101,7 +192,8 @@ const CATEGORIES = {
   out: ["yazilim", "pazarlama", "malzeme", "kira", "personel", "fatura", "ekipman", "muhasebe", "hukuk", "sgk", "vergi", "vergi_odeme", "ortak_cekis", "other"],
   in: ["hizmet", "satis", "sermaye", "other"],
 };
-const NON_OPERATING = new Set(["sermaye", "ortak_cekis", "vergi_odeme"]);
+const VAT_RATES = [0, 1, 10, 20];
+const FX = ["USD", "EUR", "GBP"];
 const CYCLES = { monthly: t("monthly"), quarterly: t("every three months"), yearly: t("yearly") };
 const MONTHLY_SHARE = { monthly: 1, quarterly: 1 / 3, yearly: 1 / 12 };
 const PLAN_CYCLES = { once: t("one time"), monthly: t("every month"), quarterly: t("every three months"), yearly: t("every year") };
@@ -111,9 +203,11 @@ const selectedMonth = () => `${state.year}-${pad2(state.month + 1)}`;
 const nextMonth = () => { const d = new Date(today.getFullYear(), today.getMonth() + 1, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
 
 const today = new Date();
-const state = { year: today.getFullYear(), month: today.getMonth(), category: "", direction: "out", form: null };
+const state = { year: today.getFullYear(), month: today.getMonth(), category: "", direction: "out", form: null, scenario: null, yearEnd: false, taxForm: false };
 // form: { kind: "entry" | "rule" | "plan", record: the one being edited or null }
 let data = null, error = "", loadSeq = 0;
+// Speys: the connection, the chosen ledger, what needs an answer. Null until asked; the page works without it.
+let speys = null, businesses = null, syncing = false;
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const monthStart = () => `${state.year}-${pad2(state.month + 1)}-01`;
@@ -121,26 +215,157 @@ const monthEnd = () => `${state.year}-${pad2(state.month + 1)}-${pad2(new Date(s
 const inCurrentMonth = () => state.year === today.getFullYear() && state.month === today.getMonth();
 const todayIso = () => `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
 const currency = () => data?.currency || "";
-const tl = (n) => (+n || 0).toLocaleString(LOCALE, { maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }) + " " + currency();
+const tl = (n) => /^(TL|TRY|₺)$/i.test(currency()) ? new Intl.NumberFormat(LOCALE, { style: "currency", currency: "TRY", maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }).format(+n || 0) : (+n || 0).toLocaleString(LOCALE, { maximumFractionDigits: Math.abs(n) >= 1000 ? 0 : 2 }) + " " + currency();
 const dayLabel = (s) => { const [y, m, d] = s.split("-"); return `${+d} ${MONTHS[+m - 1]}${+y === state.year ? "" : " " + y}`; };
 const categoryName = (k) => CATEGORY[k] || CATEGORY.other;
 const categoryOptions = (direction, selected) => [...CATEGORIES[direction], ...(selected && !CATEGORIES[direction].includes(selected) ? [selected] : [])]
   .map((k) => `<option value="${esc(k)}" ${k === (selected ?? CATEGORIES[direction][0]) ? "selected" : ""}>${esc(categoryName(k))}</option>`).join("");
 
-// "duzenli", "plan" and "finans" are the address after the hash: they stay as they are so existing links keep working.
+// The app's four sections, on a strip at the top as Speys's app strip (frontend components/home/MisafirAlanSeridi.tsx):
+// Home (the summary, the default), Spending (the personal Ledger; its menu: statement, accounts), Company (the business
+// ledger: sirket, finans, plan, duzenli, vergi; "finans", "plan", "duzenli", "vergi" stay as addresses so older links
+// keep working) and Investments. The personal parts are drawn by personal-page.js.
+const PERSONAL_TABS = ["home", "islemler", "harcamalar", "butce", "abonelik", "yatirim", "gecmis", "ekstre", "hesaplar"];
+const COMPANY_TABS = ["sirket", "finans", "plan", "duzenli", "vergi"];
 const activeTab = () => {
-  const sub = decodeURIComponent(location.hash.slice(1)).split("/")[1];
-  return ["duzenli", "plan", "finans"].includes(sub) ? sub : "monthly";
+  const sub = decodeURIComponent(location.hash.slice(1)).split("/")[1] || "home";
+  if (sub === "kisisel") return "harcamalar";
+  if (sub === "sirket") return "monthly";
+  return [...PERSONAL_TABS, ...COMPANY_TABS].includes(sub) ? sub : "home";
 };
-const syncText = (s) => {
-  if (!s?.lastImport) return esc(t("No sync · only on this computer"));
-  const time = new Date(s.lastImport.at).toLocaleString(LOCALE, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-  return esc(t("No sync · imported once from Speys: {time}", { time }));
+const sectionOf = (tab) => (["home", "islemler"].includes(tab) ? "home" : ["yatirim", "gecmis"].includes(tab) ? "yatirim" : ["harcamalar", "butce", "abonelik", "ekstre", "hesaplar"].includes(tab) ? "harcamalar" : "sirket");
+const ICONS = {
+  home: '<path d="M12 3.2 3 10.4V20a1 1 0 0 0 1 1h5.5v-6h5v6H20a1 1 0 0 0 1-1v-9.6L12 3.2Z"/>',
+  harcamalar: '<path d="M5 2.5h14a1 1 0 0 1 1 1V21l-2.7-1.6L14.6 21 12 19.4 9.4 21l-2.7-1.6L4 21V3.5a1 1 0 0 1 1-1Zm3 5.5v1.8h8V8H8Zm0 4v1.8h5.5V12H8Z"/>',
+  sirket: '<path d="M9 3h6a2 2 0 0 1 2 2v1.5h3a1.5 1.5 0 0 1 1.5 1.5v4.2H2.5V8A1.5 1.5 0 0 1 4 6.5h3V5a2 2 0 0 1 2-2Zm0 3.5h6V5H9v1.5ZM2.5 13.7h8V15h3v-1.3h8V19a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 19v-5.3Z"/>',
+  yatirim: '<path d="M3 20.5h18v-2H5V4H3v16.5Zm4-4.2 4.3-4.6 3 3 5.7-6.4V11h2V5h-6v2h2.7l-4.4 4.9-3-3L5.6 14.9 7 16.3Z"/>',
 };
+const COMPANY_ICONS = {
+  sirket: '<path d="M7 2.5h2v2h6v-2h2v2h2.5A1.5 1.5 0 0 1 21 6v13.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5V6a1.5 1.5 0 0 1 1.5-1.5H7v-2ZM5 10v9h14v-9H5Zm2 2h3v3H7v-3Z"/>',
+  finans: '<path d="M4.5 3h15A1.5 1.5 0 0 1 21 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-15A1.5 1.5 0 0 1 4.5 3ZM5 5v3h14V5H5Zm0 5v4h6v-4H5Zm8 0v4h6v-4h-6Zm-8 6v3h6v-3H5Zm8 0v3h6v-3h-6Z"/>',
+  plan: '<path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm0 1.8a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/>',
+  duzenli: '<path d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.3A10 10 0 0 0 2.1 10.6l2 .4A8 8 0 0 1 12 4Zm7.9 8.6A8 8 0 0 1 4.6 15H7v-2H1v6h2v-2.3a10 10 0 0 0 18.9-3.3l-2-.4Z"/>',
+  vergi: '<path d="M12 2 2.5 7v2h19V7L12 2ZM4 10.5v7H2.5v2h19v-2H20v-7h-2v7h-3v-7h-2v7h-2v-7H9v7H6v-7H4Z"/>',
+};
+function strip(tab) {
+  const now = sectionOf(tab);
+  return `<div class="ks-serit">
+    <picture class="ks-logo"><source srcset="./speys-logo-beyaz.svg" media="(prefers-color-scheme: dark)"><img src="./speys-logo-koyu.svg" alt="Speys"></picture>
+    <span class="ks-serit-cizgi" aria-hidden="true"></span>
+    <nav>${[["home", "", t("Overview")], ["harcamalar", "harcamalar", t("Expenses")], ["sirket", "sirket", t("Company")], ["yatirim", "yatirim", t("Investments")]].map(([id, to, label]) =>
+      `<button data-is="tab" data-tab="${to}" class="${now === id ? "aktif" : ""}" ${now === id ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${ICONS[id]}</svg><span>${esc(label)}</span><i aria-hidden="true"></i></button>`).join("")}</nav>
+  </div>`;
+}
+let personalPage = null;
+async function mountPersonal(tab) {
+  personalPage ??= await import("./personal-page.js");
+  const el = $("#kisisel");
+  if (el) personalPage.mount(el, { tab, month: `${state.year}-${String(state.month + 1).padStart(2, "0")}`, company: data, currency: currency(), categoryName });
+}
+const timeLabel = (iso) => new Date(iso).toLocaleString(LOCALE, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+function syncText() {
+  if (!speys) return esc(t("Only on this computer"));
+  if (!speys.connected) {
+    return `${esc(speys.closed ? t("The Speys connection was closed") : t("Only on this computer"))}<button class="ks-kucuk" data-is="speys-connect">${esc(t("Connect to Speys"))}</button>`;
+  }
+  if (!speys.business) {
+    if (!businesses) return `${esc(t("Connected to Speys"))} · ${esc(t("Loading…"))}`;
+    if (!businesses.length) return esc(t("Connected to Speys, but no business there has the Ledger turned on."));
+    return `${esc(t("Which Speys ledger?"))} <select id="speys-business">${businesses.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select><button class="ks-kucuk" data-is="speys-business">${esc(t("Sync with it"))}</button>`;
+  }
+  const when = speys.lastSync ? t("synced {time}", { time: timeLabel(speys.lastSync) }) : t("not synced yet");
+  return `<span title="${esc(t("This ledger and the one in Speys are kept in step: changes go both ways."))}">${esc(t("Speys: {name}", { name: speys.business.name }))} · ${esc(syncing ? t("syncing…") : when)}</span>${speys.lastError ? ` · <span style="color:var(--kirmizi)">${esc(speys.lastError)}</span>` : ""}<button class="ks-kucuk" data-is="speys-sync" ${syncing ? "disabled" : ""}>${esc(t("Sync now"))}</button><button class="ks-kucuk" data-is="speys-disconnect">${esc(t("Disconnect"))}</button>`;
+}
+
+// Field names in a conflict; a field this page doesn't know shows by its key.
+const FIELD = {
+  title: t("Title"), amount: t("Amount ({currency})", { currency: "" }).replace(/\s*\(\s*\)/, ""), category: t("Category"), entryDate: t("Date"),
+  counterparty: t("To / from"), status: t("Status"), note: t("Note"), vatRate: t("VAT"), vatIncluded: t("VAT included"),
+  withholding: t("Withholding ({currency})", { currency: "" }).replace(/\s*\(\s*\)/, ""), invoiceNo: t("Invoice no."), currency: t("Original currency"),
+  originalAmount: t("Original amount"), fxRate: t("Rate"), paidBy: t("Paid by"), deletedAt: t("Deleted"), cycle: t("Cycle"),
+  dayOfMonth: t("Day of the month"), monthOfYear: t("Month"), isActive: t("Active"), autoPaid: t("Paid automatically"),
+};
+function fieldValue(field, v) {
+  if (field === "deletedAt") return v ? t("deleted") : t("kept");
+  if (v === null || v === undefined || v === "") return "–";
+  if (typeof v === "boolean") return v ? t("yes") : t("no");
+  if (field === "category") return categoryName(v);
+  if (field === "amount" || field === "withholding") return tl(v);
+  if (field === "entryDate") return dayLabel(v);
+  if (field === "status") return v === "pending" ? t("Unpaid") : t("Paid");
+  return String(typeof v === "object" ? JSON.stringify(v) : v);
+}
+
+/** What syncing needs from the user: conflicts, possible copies, records Speys didn't take. Nothing when all is well. */
+function syncCard() {
+  if (!speys) return "";
+  const { conflicts = [], duplicates = [], failed = [] } = speys;
+  if (!conflicts.length && !duplicates.length && !failed.length) return "";
+  const what = (r) => `${esc(r.title ?? "")}<small class="soluk">${r.entryDate ? esc(dayLabel(r.entryDate)) + " · " : ""}${r.amount != null ? tl(r.amount) : ""}${r.counterparty ? " · " + esc(r.counterparty) : ""}</small>`;
+  return `<section class="kart ks-sorun">
+    <h2>${esc(t("Syncing with Speys"))}</h2>
+    ${conflicts.length ? `<h3>${esc(t("Changed in both places"))}</h3>
+      <p class="soluk" style="font-size:12px;margin:0 0 4px">${esc(t("The same field was changed here and in Speys. Nothing is sent until you choose; other changes went through."))}</p>
+      ${conflicts.map((c) => `<form class="ks-cakisma" data-conflict="${esc(c.id)}" data-key="${esc(c.key)}">
+        <b>${esc(c.local?.title || c.remote?.title || "")}</b>
+        <table><tr><th></th><th>${esc(t("On this computer"))}</th><th>${esc(t("In Speys"))}</th></tr>
+        ${c.fields.map((f) => `<tr><td class="soluk">${esc(FIELD[f.field] ?? f.field)}</td>
+          <td><label><input type="radio" name="${esc(f.field)}" value="local" checked> ${esc(fieldValue(f.field, f.local))}</label></td>
+          <td><label><input type="radio" name="${esc(f.field)}" value="remote"> ${esc(fieldValue(f.field, f.remote))}</label></td></tr>`).join("")}
+        </table><button class="ks-dugme ks-kaydet">${esc(t("Keep the chosen ones"))}</button></form>`).join("")}` : ""}
+    ${duplicates.length ? `<h3>${esc(t("Possible copies"))}</h3>
+      <p class="soluk" style="font-size:12px;margin:0 0 4px">${esc(t("Same amount, close dates, similar names: the same payment may have been entered twice."))}</p>
+      ${duplicates.map((d) => `<div class="ks-cift">
+        <span>${what(d.a)}<button class="ks-kucuk" data-is="dup-drop" data-id="${esc(d.a.id)}">${esc(t("Delete this one"))}</button></span>
+        <span>${what(d.b)}<button class="ks-kucuk" data-is="dup-drop" data-id="${esc(d.b.id)}">${esc(t("Delete this one"))}</button></span>
+        <button class="ks-kucuk" data-is="dup-keep" data-key="${esc(d.key)}">${esc(t("Not a copy"))}</button></div>`).join("")}` : ""}
+    ${failed.length ? `<h3>${esc(t("Not taken by Speys"))}</h3>
+      ${failed.map((f) => `<div class="ks-satir"><span>${esc(f.title || f.id)}<small class="soluk">${esc(f.reason)}</small></span><span></span><span></span></div>`).join("")}
+      <p class="soluk" style="font-size:12px;margin:6px 0 0">${esc(t("Fix the record here; it is sent again on the next sync."))}</p>` : ""}
+  </section>`;
+}
+
+async function speysPost(path, body = {}) {
+  const r = await fetch(`./api/speys/${path}`, { method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || t("Speys returned {status}.", { status: r.status }));
+  return d;
+}
+
+async function loadSpeys() {
+  try {
+    const r = await fetch("./api/speys", { cache: "no-store" });
+    if (r.ok) speys = await r.json();
+    if (speys?.connected && !speys.business && !businesses) {
+      businesses = (await speysPost("businesses")).businesses ?? [];
+    }
+  } catch (e) {
+    if (speys) speys.lastError = e.message;
+  }
+  render();
+}
+
+/** Runs a sync (the server skips it if one ran a moment ago and nothing changed here), then shows the result. */
+async function syncNow(force = false) {
+  if (!speys?.connected || !speys.business || syncing) return;
+  syncing = true;
+  render();
+  try {
+    const d = await speysPost("sync", { force });
+    speys = d;
+    if (d.report && (d.report.pulled || d.report.pushed)) await load();
+  } catch (e) {
+    notify(e.message);
+    await loadSpeys();
+  } finally {
+    syncing = false;
+    render();
+  }
+}
 
 async function load() {
   const seq = ++loadSeq;
-  const q = new URLSearchParams({ from: monthStart(), to: monthEnd(), year: state.year });
+  const q = new URLSearchParams({ from: monthStart(), to: monthEnd(), year: state.year, ...(state.scenario ? { scenario: state.scenario } : {}), ...(state.yearEnd ? { yearEnd: "1" } : {}) });
   try {
     const r = await fetch(`./api/kasa?${q}`, { cache: "no-store" });
     const d = await r.json();
@@ -163,6 +388,7 @@ async function write(path, body, doneMessage) {
     if (doneMessage) notify(doneMessage);
     state.form = null;
     await load();
+    syncNow();
   } catch (e) {
     notify(t("Could not save: {message}", { message: e.message }));
   }
@@ -183,6 +409,9 @@ function entryForm() {
     <label>${esc(t("Category"))}<select name="category">${categoryOptions(direction, e?.category)}</select></label>
     <label>${esc(t("Date"))}<input name="entryDate" type="date" required value="${esc(e?.entryDate ?? (inCurrentMonth() ? todayIso() : monthStart()))}"></label>
     <label>${esc(t("To / from"))}<input name="counterparty" value="${esc(e?.counterparty ?? "")}"></label>
+    ${moreFields(e, { entry: true })}
+    ${e ? filesBlock(e) : ""}
+    ${e?.items?.length ? itemsBlock(e) : ""}
     <div class="ks-tum">
       ${e ? "" : directionPicker(direction)}
       <label class="ks-onay"><input type="checkbox" name="pending" ${e?.status === "pending" ? "checked" : ""}> ${esc(t("Not paid yet"))}</label>
@@ -195,6 +424,64 @@ function entryForm() {
   </form>`;
 }
 
+/** VAT, currency, invoice: closed unless the record uses them. The same fields as Speys's Ledger. */
+function moreFields(x, { entry }) {
+  const rate = x?.vatRate ?? null, rates = rate != null && !VAT_RATES.includes(+rate) ? [...VAT_RATES, +rate] : VAT_RATES;
+  const used = rate != null || x?.withholding || x?.invoiceNo || x?.currency || x?.paidBy;
+  return `<details class="ks-ek" ${used ? "open" : ""}><summary>${esc(entry ? t("VAT, currency, invoice") : t("VAT and currency"))}</summary>
+    <div class="ks-form">
+      <label>${esc(t("VAT"))}<select name="vatRate"><option value="">${esc(t("none / unknown"))}</option>${rates.map((r) => `<option value="${r}" ${rate != null && +rate === r ? "selected" : ""}>%${r}</option>`).join("")}</select></label>
+      <label><span>&nbsp;</span><span class="ks-onay"><input type="checkbox" name="vatIncluded" ${x?.vatIncluded === false ? "" : "checked"}> ${esc(t("VAT included"))}</span></label>
+      ${entry ? `<label title="${esc(t("Withheld by the customer from income; inside the gross amount"))}">${esc(t("Withholding ({currency})", { currency: currency() }))}<input name="withholding" type="number" min="0" step="0.01" value="${x?.withholding ?? ""}"></label>
+      <label>${esc(t("Invoice no."))}<input name="invoiceNo" maxlength="100" value="${esc(x?.invoiceNo ?? "")}"></label>` : ""}
+      <label>${esc(t("Original currency"))}<select name="currency" data-is-fx><option value="">${esc(currency() || "—")}</option>${FX.map((c) => `<option ${x?.currency === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
+      <label>${esc(t("Original amount"))}<input name="originalAmount" type="number" min="0" step="0.01" value="${x?.originalAmount ?? ""}" data-is-fx></label>
+      ${entry ? `<label>${esc(t("Rate"))}<input name="fxRate" type="number" min="0" step="0.0001" value="${x?.fxRate ?? ""}" data-is-fx></label>
+      <label title="${esc(t("If an owner paid from their own pocket; empty means the business"))}">${esc(t("Paid by"))}<input name="paidBy" maxlength="100" value="${esc(x?.paidBy ?? "")}" placeholder="${esc(t("the business"))}"></label>` : ""}
+    </div></details>`;
+}
+
+/** Receipts and invoices of an entry: the ones in Speys and the ones on this computer, each once. */
+function filesBlock(e) {
+  const local = e.localFiles ?? [], uploaded = new Set(local.map((f) => f.key).filter(Boolean));
+  const remote = (e.attachments ?? []).filter((a) => !uploaded.has(a.key));
+  const size = (n) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+  const note = (f) => f.key ? t("also in Speys") : f.uploadError === "plus" ? t("only here: Speys keeps receipts on Plus") : speys?.business ? t("goes to Speys on the next sync") : t("only on this computer");
+  return `<div class="ks-tum" style="display:block">
+    <div class="soluk" style="font-size:12px;margin-bottom:4px">${esc(t("Receipts and invoices"))}</div>
+    ${local.map((f) => `<div class="ks-satir"><a href="./api/belge/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}<small class="soluk">${esc(size(f.size))} · ${esc(note(f))}</small></a><span></span><button type="button" class="ks-kucuk" data-is="file-remove" data-id="${esc(f.id)}">${esc(t("Remove"))}</button></div>`).join("")}
+    ${remote.map((a) => `<div class="ks-satir"><button type="button" class="ks-ac" data-is="file-open-remote" data-key="${esc(a.key)}">${esc(a.name)}<small class="soluk">${esc(size(a.size))} · ${esc(t("in Speys"))}</small></button><span></span><button type="button" class="ks-kucuk" data-is="file-remove-remote" data-key="${esc(a.key)}">${esc(t("Remove"))}</button></div>`).join("")}
+    <label class="ks-dugme" style="display:inline-block;margin-top:6px;cursor:pointer">${esc(t("Add a file"))}<input type="file" id="file-add" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label>
+  </div>`;
+}
+
+/** A receipt's lines, food first: each can be marked finished (gone from home). Only on this computer. */
+const ITEM_KIND = { food: t("Food items"), household: t("Household"), other: t("Other") };
+function itemsBlock(e) {
+  const order = ["food", "household", "other"];
+  const lines = [...e.items].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  const qty = (i) => (i.qty != null && !(i.qty === 1 && !i.unit) ? `${String(i.qty).replace(".", ",")}${i.unit ? " " + i.unit : ""}` : "");
+  return `<div class="ks-tum" style="display:block">
+    <div class="soluk" style="font-size:12px">${esc(t("What was bought ({n} lines)", { n: e.items.length }))} · ${esc(t("only on this computer"))}</div>
+    <div class="ks-kalemler">${lines.map((i) => `<div class="ks-kalem ${i.doneAt ? "bitti" : ""}">
+      <span>${esc(i.name)}<small>${esc([ITEM_KIND[i.kind], qty(i)].filter(Boolean).join(" · "))}</small></span>
+      <span class="ks-tutar">${i.price != null ? tl(i.price) : ""}</span>
+      <button type="button" class="ks-kucuk" data-is="item-done" data-id="${esc(i.id)}" data-done="${i.doneAt ? "" : "1"}">${esc(i.doneAt ? t("At home again") : t("Finished"))}</button>
+    </div>`).join("")}</div>
+  </div>`;
+}
+
+/** The form's extra fields as the ledger wants them: empty means cleared. */
+function moreValues(f) {
+  const num = (k) => (f.has(k) ? (f.get(k) === "" ? null : +f.get(k)) : undefined);
+  const text = (k) => (f.has(k) ? f.get(k) : undefined);
+  const out = {
+    vatRate: num("vatRate"), vatIncluded: !!f.get("vatIncluded"), withholding: num("withholding"), invoiceNo: text("invoiceNo"),
+    currency: text("currency"), originalAmount: num("originalAmount"), fxRate: num("fxRate"), paidBy: text("paidBy"),
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined));
+}
+
 function ruleForm() {
   const r = state.form.record, direction = r?.direction ?? state.direction, cycle = state.form.cycle ?? r?.cycle ?? "monthly";
   return `<form class="ks-form dar" id="rule-form">
@@ -204,6 +491,7 @@ function ruleForm() {
     <label>${esc(t("Cycle"))}<select name="cycle" id="rule-cycle">${Object.entries(CYCLES).map(([k, label]) => `<option value="${k}" ${k === cycle ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
     <label>${esc(t("Day of the month"))}<input name="dayOfMonth" type="number" min="1" max="31" required value="${r?.dayOfMonth ?? 1}"></label>
     ${cycle === "monthly" ? "" : `<label>${esc(cycle === "yearly" ? t("Month") : t("First month"))}<select name="monthOfYear">${MONTHS.map((label, i) => `<option value="${i + 1}" ${i + 1 === (r?.monthOfYear ?? today.getMonth() + 1) ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`}
+    ${moreFields(r, { entry: false })}
     <div class="ks-tum">
       ${r ? "" : directionPicker(direction)}
       <label class="ks-onay"><input type="checkbox" name="pending" ${r && !r.autoPaid ? "checked" : ""}> ${esc(t("Record as pending"))}</label>
@@ -225,6 +513,14 @@ function planForm() {
     <label>${esc(t("Cycle"))}<select name="cycle" id="plan-cycle">${Object.entries(PLAN_CYCLES).map(([k, label]) => `<option value="${k}" ${k === cycle ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
     <label>${esc(cycle === "once" ? t("Month") : t("Start month"))}<input name="startMonth" type="month" required value="${esc(p?.startMonth ?? nextMonth())}"></label>
     ${cycle === "once" ? "" : `<label class="ks-genis">${esc(t("End month (empty means no end)"))}<input name="endMonth" type="month" value="${esc(p?.endMonth ?? "")}"></label>`}
+    ${data.scenarios.length ? `<label>${esc(t("Scenario"))}<select name="scenarioId"><option value="">${esc(t("All scenarios"))}</option>${data.scenarios.map((x) => `<option value="${esc(x.id)}" ${(p ? p.scenarioId : state.form.scenarioId) === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>` : ""}
+    <details class="ks-ek" ${p?.vatRate != null || p?.withholdingRate || p?.annualIncreasePct ? "open" : ""}><summary>${esc(t("VAT, withholding, yearly increase"))}</summary>
+      <div class="ks-form dar">
+        <label>${esc(t("VAT"))}<select name="vatRate"><option value="">${esc(t("none / unknown"))}</option>${VAT_RATES.map((r) => `<option value="${r}" ${p?.vatRate != null && +p.vatRate === r ? "selected" : ""}>%${r}</option>`).join("")}</select></label>
+        <label><span>&nbsp;</span><span class="ks-onay"><input type="checkbox" name="vatIncluded" ${p?.vatIncluded === false ? "" : "checked"}> ${esc(t("VAT included"))}</span></label>
+        <label title="${esc(t("Withheld by the customer from income; inside the gross amount"))}">${esc(t("Withholding rate (%)"))}<input name="withholdingRate" type="number" min="0" max="99.99" step="0.01" value="${p?.withholdingRate ?? ""}"></label>
+        ${cycle === "once" ? "" : `<label title="${esc(t("Every January after the start year the amount grows by this much (e.g. inflation)"))}">${esc(t("Yearly increase (%)"))}<input name="annualIncreasePct" type="number" step="0.1" value="${p?.annualIncreasePct ?? ""}"></label>`}
+      </div></details>
     <div class="ks-tum">
       ${p ? "" : directionPicker(direction)}
       <span class="ks-sag">
@@ -236,7 +532,127 @@ function planForm() {
   </form>`;
 }
 
-const COLOR = { income: "var(--yesil)", expense: "var(--vurgu)" };
+function scenarioForm() {
+  const x = state.form.record;
+  return `<form class="ks-form dar" id="scenario-form">
+    <label class="ks-genis">${esc(t("Scenario name"))}<input name="name" required maxlength="100" value="${esc(x?.name ?? "")}" placeholder="${esc(t("e.g. Bad, Expected, Good"))}" autofocus></label>
+    <label>${esc(t("Opening balance ({currency})", { currency: currency() }))}<input name="openingBalance" type="number" step="0.01" value="${x?.openingBalance ?? ""}"></label>
+    <label><span>&nbsp;</span><span class="ks-onay"><input type="checkbox" name="isDefault" ${x?.isDefault ? "checked" : ""}> ${esc(t("Open the plan with this one"))}</span></label>
+    <div class="ks-tum"><span class="ks-sag">
+      ${x ? `<button type="button" class="ks-dugme" data-is="scenario-delete">${esc(t("Delete"))}</button>` : ""}
+      <button type="button" class="ks-dugme" data-is="cancel">${esc(t("Cancel"))}</button>
+      <button class="ks-dugme ks-kaydet">${esc(t("Save"))}</button></span></div>
+  </form>`;
+}
+
+/** The scenarios as a switch; the plan, the chart and the table follow the chosen one. */
+function scenarioBar() {
+  const list = data.scenarios, active = data.scenario;
+  return `<div class="ks-baslik" style="flex-wrap:wrap">
+    ${list.length ? `<span class="segment">${list.map((x) => `<button data-is="scenario-pick" data-id="${esc(x.id)}" class="${x.id === active?.id ? "secili" : ""}">${esc(x.name)}</button>`).join("")}</span>` : `<span class="soluk" style="font-size:12px">${esc(t("No scenarios: every plan item counts."))}</span>`}
+    ${active ? `<button class="ks-kucuk" data-is="scenario-open" data-id="${esc(active.id)}">${esc(t("Edit"))}</button>` : ""}
+    <button class="ks-kucuk" data-is="scenario-add">${esc(t("New scenario"))}</button>
+  </div>
+  ${state.form?.kind === "scenario" ? scenarioForm() : ""}`;
+}
+
+// —— Tax (tax.js, the same as Speys's Ledger)
+// The English text is the translation key; filled in when shown (the installment has its number).
+const FILING = {
+  vat: "VAT return and payment", withholding: "Withholding return", provisional: "Provisional tax",
+  annual: "Annual income tax return", annualInstallment: "Annual income tax, installment {n}", bagkur: "Bağ-Kur premium",
+};
+// Listed so the translation check sees them: t("VAT return and payment") t("Withholding return") t("Annual income tax return")
+// t("Annual income tax, installment {n}") t("Bağ-Kur premium")
+const pct = (n) => `%${(+n || 0).toLocaleString(LOCALE, { maximumFractionDigits: 1 })}`;
+
+function taxSettingsForm(st) {
+  return `<form class="ks-form dar" id="tax-form">
+    <label class="ks-genis">${esc(t("Kind of income"))}<select name="activity">
+      <option value="commercial" ${st.activity === "commercial" ? "selected" : ""}>${esc(t("Business income (sales, services; on accrual)"))}</option>
+      <option value="professional" ${st.activity === "professional" ? "selected" : ""}>${esc(t("Self-employed (freelance; on collection, with withholding)"))}</option></select></label>
+    <label class="ks-genis">${esc(t("Bağ-Kur"))}<select name="bagkur">
+      <option value="none" ${st.bagkur === "none" ? "selected" : ""}>${esc(t("Not paying (or employed elsewhere)"))}</option>
+      <option value="discounted" ${st.bagkur === "discounted" ? "selected" : ""}>${esc(t("Paying on time (5 points off)"))}</option>
+      <option value="full" ${st.bagkur === "full" ? "selected" : ""}>${esc(t("Paying in full"))}</option></select></label>
+    <label class="ks-genis"><span class="ks-onay"><input type="checkbox" name="youngEntrepreneur" ${st.youngEntrepreneur ? "checked" : ""}> ${esc(t("Young entrepreneur exemption"))}</span></label>
+    <div class="ks-tum"><span class="ks-sag">
+      ${st.configured ? `<button type="button" class="ks-dugme" data-is="tax-cancel">${esc(t("Cancel"))}</button>` : ""}
+      <button class="ks-dugme ks-kaydet">${esc(t("Save"))}</button></span></div>
+  </form>`;
+}
+
+function accountantCard(tax) {
+  const a = tax.accountant, added = new Set(tax.templatesAdded);
+  const nextMonth1 = `${nextMonth()}-01`;
+  return `<section class="kart">
+    <h2>${esc(t("Accountant's fees"))}</h2>
+    <p class="soluk" style="font-size:12px;margin:0 0 8px">${esc(t("Typical fees for {year}{note}; change the amounts to your accountant's. They are added as recurring payments that wait as unpaid when due.", { year: a.usedYear, note: a.estimated ? " " + t("(estimated)") : "" }))}</p>
+    <form id="accountant-form">
+      ${a.items.map((i) => `<div class="ks-satir">
+        <label class="ks-onay" style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="pick" value="${esc(i.key)}" ${added.has(i.templateKey) ? "disabled" : i.selected ? "checked" : ""}> ${esc(t(i.title))}
+          <small class="soluk">${esc(i.cycle === "once" ? t("one time") : CYCLES[i.cycle] ?? i.cycle)}${added.has(i.templateKey) ? " · " + esc(t("added")) : ""}</small></label>
+        <span></span>
+        <input name="amount-${esc(i.key)}" type="number" min="1" step="1" value="${i.amount}" style="width:110px;border:1px solid var(--cizgi);background:var(--bg);color:var(--metin);border-radius:8px;padding:4px 6px" ${added.has(i.templateKey) ? "disabled" : ""}>
+      </div>`).join("")}
+      <div class="ks-baslik" style="margin-top:10px"><label style="font-size:12px;color:var(--soluk)">${esc(t("Starting"))} <input type="date" name="startDate" value="${nextMonth1}" style="border:1px solid var(--cizgi);background:var(--bg);color:var(--metin);border-radius:8px;padding:4px 6px"></label>
+        <span class="ks-sag"><button class="ks-dugme ks-kaydet">${esc(t("Add the chosen ones"))}</button></span></div>
+    </form>
+  </section>`;
+}
+
+function taxScreen() {
+  const tax = data.tax, e = tax.estimate, st = tax.settings;
+  if (!st.configured || state.taxForm) {
+    return `<section class="kart" style="max-width:640px"><h2>${esc(t("Tax settings"))}</h2>
+      <p class="soluk" style="font-size:12px;margin:0 0 8px">${esc(t("For a sole proprietorship: the estimate and the filing dates are worked out from the ledger, as in Speys."))}</p>
+      ${taxSettingsForm(st)}</section>`;
+  }
+  const row = (label, value, strong) => `<div class="ks-satir"><span>${esc(label)}</span><span></span><span class="ks-tutar"${strong ? ' style="font-weight:600"' : ""}>${value}</span></div>`;
+  const next = e.nextProvisional;
+  return `
+    <div class="ks-ust" style="margin:0 0 12px">
+      <span class="soluk" style="font-size:12px;margin-right:auto">${esc(e.year)} · ${esc(st.activity === "professional" ? t("self-employed") : t("business income"))}${e.estimatedRates ? " · " + esc(t("rates of {year}, estimated", { year: e.usedYear })) : ""}</span>
+      ${e.canProject ? `<span class="segment"><button data-is="year-end" data-on="" class="${state.yearEnd ? "" : "secili"}">${esc(t("So far"))}</button><button data-is="year-end" data-on="1" class="${state.yearEnd ? "secili" : ""}">${esc(t("Projected to year end"))}</button></span>` : ""}
+      <button class="ks-kucuk" data-is="tax-settings">${esc(t("Tax settings"))}</button>
+    </div>
+    <div class="ks-rakamlar">
+      <section class="kart"><small class="soluk">${esc(t("Estimated income tax"))}</small><b>${tl(e.tax)}</b><small class="soluk">${esc(t("marginal {a} · effective {b}", { a: pct(e.marginalRate), b: pct(e.effectiveRate * 100) }))}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Left to pay"))}</small><b>${tl(e.payable)}</b><small class="soluk">${esc(e.withholding ? t("after {amount} withheld", { amount: tl(e.withholding) }) : "\u00a0")}</small></section>
+      <section class="kart"><small class="soluk">${esc(t("Put aside each month"))}</small><b>${tl(e.monthlyReserveLeft ?? e.monthlyReserve)}</b><small class="soluk">${esc(e.monthsLeft ? t("for the {n} months left", { n: e.monthsLeft }) : "\u00a0")}</small></section>
+      ${next ? `<section class="kart"><small class="soluk">${esc(t("Next provisional tax"))}</small><b>${tl(next.amount)}</b><small class="soluk">${esc(t("due {date}", { date: dayLabel(next.deadline) }))}</small></section>` : ""}
+    </div>
+    <div class="izgara" style="margin-bottom:16px">
+      <section class="kart">
+        <h2>${esc(t("How it's worked out"))}</h2>
+        ${row(t("Income (without VAT)"), tl(e.income))}
+        ${row(t("Expenses, Bağ-Kur included"), tl(e.expense))}
+        ${e.sgkAssumed ? row(t("of which Bağ-Kur assumed for {n} months", { n: e.sgkAssumedMonths }), tl(e.sgkAssumed)) : ""}
+        ${row(t("Profit"), tl(e.profit), true)}
+        ${e.exemption ? row(t("Young entrepreneur exemption"), "−" + tl(e.exemption)) : ""}
+        ${row(t("Tax base"), tl(e.base))}
+        ${row(t("Income tax"), tl(e.tax), true)}
+        ${e.withholding ? row(t("Withheld by customers"), "−" + tl(e.withholding)) : ""}
+        ${e.excessWithholding ? row(t("Withheld more than the tax (refund)"), tl(e.excessWithholding)) : ""}
+        <p class="ks-dipnot">${esc(t("An estimate, not a return: confirm with your accountant."))}</p>
+      </section>
+      <div class="sutun">
+        <section class="kart">
+          <h2>${esc(t("Provisional tax"))}</h2>
+          ${(e.provisional ?? []).map((p) => `<div class="ks-satir ${p.started ? "" : "kapali"}"><span>${esc(t("Period {n}", { n: p.period }))}<small class="soluk">${esc(MONTHS[p.firstMonth - 1])} – ${esc(MONTHS[p.lastMonth - 1])} · ${esc(t("due {date}", { date: dayLabel(p.deadline) }))}${p.complete ? "" : p.started ? " · " + esc(t("so far")) : ""}</small></span><span></span><span class="ks-tutar">${tl(p.amount)}</span></div>`).join("")}
+        </section>
+        <section class="kart">
+          <h2>${esc(t("Next 60 days"))}</h2>
+          ${tax.calendar.length ? tax.calendar.map((c) => `<div class="ks-satir"><span>${esc(FILING[c.type] ? t(FILING[c.type], { n: c.order }) : c.type)}
+            <small class="soluk">${esc(dayLabel(c.date))}${c.periodMonth ? " · " + esc(MONTHS[c.periodMonth - 1]) + " " + esc(c.periodYear) : c.periodYear ? " · " + esc(c.periodYear) : ""}${c.carried ? " · " + esc(t("VAT carried over")) : ""}${c.estimated ? " · " + esc(t("estimated")) : ""}${c.ongoing ? " · " + esc(t("the period isn't over")) : ""}</small></span><span></span>
+            <span class="ks-tutar">${c.amount == null ? "" : tl(c.amount)}</span></div>`).join("") : `<p class="bos">${esc(t("Nothing due in the next 60 days."))}</p>`}
+        </section>
+      </div>
+    </div>
+    ${accountantCard(tax)}`;
+}
+
+const COLOR = { income: "#10B981", expense: "#EF4444" };
 
 /** Four quarters from the start of this one, income and expense side by side each month: solid actual, dashed expected. Quarter starts are ruled. */
 function quarterChart(f) {
@@ -287,7 +703,7 @@ function financeTable(f) {
   // Cell by cell: a merged row would break the quarter lines and this month's highlight here.
   const groupRow = (label) => `<tr class="grup"><td>${esc(label)}</td>${f.map((m) => `<td class="${(+m.ym.slice(5, 7) - 1) % 3 === 0 ? "sinir " : ""}${m.ym === thisMonth() ? "bugun-ay" : ""}"></td>`).join("")}<td class="sinir"></td></tr>`;
   const income = (m) => m.income + m.expectedIncome, expense = (m) => m.expense + m.expectedExpense;
-  let running = 0;
+  let running = Number(data.scenario?.openingBalance) || 0; // the scenario's opening balance starts the running total
   const cumulative = f.map((m) => (running += income(m) - expense(m)));
   const quarters = [0, 3, 6, 9].map((i) => {
     const year = f[i].ym.slice(0, 4), month = +f[i].ym.slice(5, 7);
@@ -309,7 +725,7 @@ function financeTable(f) {
       <tr class="kumulatif"><td>${esc(t("Cumulative"))}</td>${cumulative.map((d, i) => cell(d, f[i].expectedIncome > 0 || f[i].expectedExpense > 0, i)).join("")}<td class="sinir"></td></tr>
     </tbody>
   </table></div>
-  <p class="ks-dipnot">${esc(t("Faded figures include expected amounts: an unpaid entry, a recurring payment or a plan. Document amounts; no tax, VAT, capital or owner withdrawals."))}</p>`;
+  <p class="ks-dipnot">${esc(t("Faded figures include expected amounts: an unpaid entry, a recurring payment or a plan. Amounts without VAT; capital put in, owner withdrawals and tax payments aren't counted."))}</p>`;
 }
 
 function render() {
@@ -329,27 +745,29 @@ function render() {
   const unpaidDebt = pending.filter((e) => e.direction === "out").reduce((sum, e) => sum + e.amount, 0);
   const receivable = pending.filter((e) => e.direction === "in").reduce((sum, e) => sum + e.amount, 0);
 
-  const expenses = entries.filter((e) => e.direction === "out" && e.status === "paid" && !NON_OPERATING.has(e.category));
-  const byCategory = Object.entries(expenses.reduce((sums, e) => (sums[e.category] = (sums[e.category] || 0) + e.amount, sums), {})).sort((a, b) => b[1] - a[1]);
+  const expenses = entries.filter((e) => e.direction === "out" && e.status === "paid" && e.operating);
+  const byCategory = Object.entries(expenses.reduce((sums, e) => (sums[e.category] = (sums[e.category] || 0) + e.net, sums), {})).sort((a, b) => b[1] - a[1]);
   const largest = byCategory[0]?.[1] || 1;
   const list = state.category ? entries.filter((e) => e.category === state.category) : entries;
-  const uncollected = entries.filter((e) => e.direction === "in" && e.status === "pending" && !NON_OPERATING.has(e.category)).reduce((sum, e) => sum + e.amount, 0);
+  const uncollected = entries.filter((e) => e.direction === "in" && e.status === "pending" && e.operating).reduce((sum, e) => sum + e.net, 0);
+  const vatNet = s.vatCollected - s.vatPaid;
   const monthlyShare = (r) => r.amount * MONTHLY_SHARE[r.cycle];
 
   const entryRow = (e) => `<div class="ks-satir">
       <button class="ks-ac" data-is="entry-open" data-id="${esc(e.id)}">${esc(e.title)}
-        <small class="soluk">${esc(dayLabel(e.entryDate))} · ${esc(categoryName(e.category))}${e.counterparty ? " · " + esc(e.counterparty) : ""}${e.currency && e.currency !== "TRY" ? ` · ${esc(e.currency)} ${esc(e.originalAmount ?? "")}` : ""}</small></button>
+        <small class="soluk">${esc(dayLabel(e.entryDate))} · ${esc(categoryName(e.category))}${e.counterparty ? " · " + esc(e.counterparty) : ""}${e.currency && e.currency !== "TRY" ? ` · ${esc(e.currency)} ${esc(e.originalAmount ?? "")}` : ""}${e.vatRate ? ` · ${esc(t("VAT {rate}%", { rate: e.vatRate }))}` : ""}${e.invoiceNo ? ` · ${esc(e.invoiceNo)}` : ""}${e.paidBy ? ` · ${esc(t("paid by {name}", { name: e.paidBy }))}` : ""}${e.items?.length ? ` · ${esc(t("{n} lines", { n: e.items.length }))}` : ""}</small></button>
       ${e.status === "pending" ? `<span style="display:flex;align-items:center;gap:6px"><span class="pil bugun" style="margin:0">${esc(t("Unpaid"))}</span><button class="ks-kucuk" data-is="mark-paid" data-id="${esc(e.id)}">${esc(t("Mark as paid"))}</button></span>` : "<span></span>"}
       <span class="ks-tutar ${e.direction === "in" ? "ks-gelir" : ""}">${e.direction === "in" ? "+" : "−"}${tl(e.amount)}</span>
     </div>`;
 
   const monthlyScreen = () => `
     <div class="ks-rakamlar">
-      <section class="kart"><small class="soluk">${esc(t("Expense"))}</small><b>${tl(s.expense)}</b>
+      <section class="kart"><small class="ks-etiket" style="color:#EF4444">${esc(t("Expense"))}</small><b>${tl(s.expense)}</b>
         <small class="soluk">${change === null ? "&nbsp;" : esc(t("{sign}{change}% vs last month", { sign: change > 0 ? "+" : "", change }))}</small></section>
-      <section class="kart"><small class="soluk">${esc(t("Income"))}</small><b>${tl(s.income)}</b><small class="soluk">${uncollected ? esc(t("{amount} not collected", { amount: tl(uncollected) })) : "&nbsp;"}</small></section>
-      <section class="kart"><small class="soluk">${esc(t("Profit"))}</small><b>${tl(s.profit)}</b><small class="soluk">&nbsp;</small></section>
-      ${expected.items.length ? `<section class="kart"><small class="soluk">${esc(t("Expected expenses"))}</small><b>${tl(expected.expense)}</b><small class="soluk">${esc(t("income {amount}", { amount: tl(expected.income) }))}</small></section>` : ""}
+      <section class="kart"><small class="ks-etiket" style="color:#10B981">${esc(t("Income"))}</small><b>${tl(s.income)}</b><small class="soluk">${uncollected ? esc(t("{amount} not collected", { amount: tl(uncollected) })) : "&nbsp;"}</small></section>
+      <section class="kart"><small class="ks-etiket">${esc(t("Profit"))}</small><b>${tl(s.profit)}</b><small class="soluk" title="${esc(t("Money that actually came in and went out, VAT and capital included"))}">${esc(t("till {in} in · {out} out", { in: tl(s.cashIn), out: tl(s.cashOut) }))}</small></section>
+      ${s.vatCollected || s.vatPaid ? `<section class="kart"><small class="ks-etiket" style="color:#0D9488">${esc(vatNet >= 0 ? t("VAT to pay") : t("VAT to carry over"))}</small><b>${tl(Math.abs(vatNet))}</b><small class="soluk">${esc(t("collected {a} · paid {b}", { a: tl(s.vatCollected), b: tl(s.vatPaid) }))}${s.withholding ? " · " + esc(t("withheld {amount}", { amount: tl(s.withholding) })) : ""}</small></section>` : ""}
+      ${expected.items.length ? `<section class="kart"><small class="ks-etiket" style="color:#6366F1">${esc(t("Expected expenses"))}</small><b>${tl(expected.expense)}</b><small class="soluk">${esc(t("income {amount}", { amount: tl(expected.income) }))}</small></section>` : ""}
     </div>
     <div class="izgara" style="margin-bottom:16px">
       <section class="kart">
@@ -420,11 +838,13 @@ function render() {
       <h2>${esc(t("Income and expenses"))}</h2>
       ${quarterChart(forecast)}
     </section>
+    ${data.scenarios.length ? `<section class="kart" style="margin-bottom:16px">${scenarioBar()}</section>` : ""}
     <section class="kart">
       <h2>${esc(t("Income statement"))}</h2>
       ${financeTable(forecast)}
     </section>`;
   const planScreen = () => `
+    <section class="kart" style="margin-bottom:16px">${scenarioBar()}</section>
     <section class="kart">
       <div class="ks-baslik">
         <h2>${esc(t("Plan items"))}</h2>
@@ -432,34 +852,98 @@ function render() {
       </div>
       ${state.form?.kind === "plan" ? planForm() : ""}
       ${plans.length ? plans.map((p) => `<div class="ks-satir">
-        <button class="ks-ac" data-is="plan-open" data-id="${esc(p.id)}">${esc(p.title)}<small class="soluk">${esc(PLAN_CYCLES[p.cycle])} · ${p.cycle === "once" ? esc(monthName(p.startMonth)) : p.endMonth ? esc(monthName(p.startMonth)) + " – " + esc(monthName(p.endMonth)) : esc(t("from {month}", { month: monthName(p.startMonth) }))} · ${esc(categoryName(p.category))}</small></button><span></span>
+        <button class="ks-ac" data-is="plan-open" data-id="${esc(p.id)}">${esc(p.title)}<small class="soluk">${p.scenarioId ? esc(data.scenarios.find((x) => x.id === p.scenarioId)?.name ?? "") + " · " : ""}${p.annualIncreasePct ? esc(t("+{pct}% a year", { pct: p.annualIncreasePct })) + " · " : ""}${esc(PLAN_CYCLES[p.cycle])} · ${p.cycle === "once" ? esc(monthName(p.startMonth)) : p.endMonth ? esc(monthName(p.startMonth)) + " – " + esc(monthName(p.endMonth)) : esc(t("from {month}", { month: monthName(p.startMonth) }))} · ${esc(categoryName(p.category))}</small></button><span></span>
         <span class="ks-tutar ${p.direction === "in" ? "ks-gelir" : ""}">${p.direction === "in" ? "+" : "−"}${tl(p.amount)}</span>
       </div>`).join("") : `<p class="bos">${esc(t("Add estimated income and expenses for future months. They are not written to the ledger; they show as dashed in the chart and italic in the table."))}</p>`}
     </section>`;
 
   const tab = activeTab();
+  if (PERSONAL_TABS.includes(tab)) {
+    root.innerHTML = `${strip(tab)}<div id="kisisel"></div>`;
+    mountPersonal(tab);
+    return;
+  }
+  // Company's tabs, the same as the other sections: in the header row on the web, in the bottom bar on phones
+  const companyTabs = [["sirket", "monthly", t("Monthly")], ["finans", "finans", t("Table")], ["plan", "plan", t("Plan")], ["duzenli", "duzenli", t("Recurring")], ["vergi", "vergi", t("Tax")]];
+  const tabIcon = (id) => `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${COMPANY_ICONS[id]}</svg>`;
   root.innerHTML = `
-    <div class="ks-ust">
-      <h1>${esc("Finances")}</h1>
-      <span class="ks-senkron" title="${esc(t("The ledger is on this computer. Changes here do not go to Speys, and changes in Speys do not come here."))}">${syncText(data.sync)}</span>
-      ${tab === "monthly" ? `<button data-is="month-step" data-step="-1" aria-label="${esc(t("Previous month"))}">‹</button>
-      <span class="ks-ay">${MONTHS[state.month]} ${state.year}</span>
-      <button data-is="month-step" data-step="1" aria-label="${esc(t("Next month"))}">›</button>` : ""}
+    ${strip(tab)}
+    <div class="pk-baslik-serit"><b>${esc(t("Company"))}</b>
+      <nav>${companyTabs.map(([to, id, label]) => `<a href="#kasa/${to}" class="${tab === id ? "on" : ""}" ${tab === id ? 'aria-current="page"' : ""}>${tabIcon(to)}${esc(label)}</a>`).join("")}</nav>
+      <span class="ks-senkron">${syncText()}</span>
     </div>
-    <div class="alt-sekmeler" style="margin-bottom:14px">
-      <button data-is="tab" data-tab="" class="${tab === "monthly" ? "secili" : ""}">${esc(t("Monthly"))}</button>
-      <button data-is="tab" data-tab="finans" class="${tab === "finans" ? "secili" : ""}">${esc(t("Financial table"))}</button>
-      <button data-is="tab" data-tab="plan" class="${tab === "plan" ? "secili" : ""}">${esc(t("Plan"))}</button>
-      <button data-is="tab" data-tab="duzenli" class="${tab === "duzenli" ? "secili" : ""}">${esc(t("Recurring and pending"))}</button>
-    </div>
+    <div class="ks-senkron ks-senkron-tel">${syncText()}</div>
+    ${tab === "monthly" ? `<div class="sp-ay"><button data-is="month-step" data-step="-1" aria-label="${esc(t("Previous month"))}">‹</button><span>${MONTHS[state.month]} ${state.year}</span><button data-is="month-step" data-step="1" aria-label="${esc(t("Next month"))}">›</button></div>` : ""}
+    <nav class="pk-altbar"><div>${companyTabs.map(([to, id, label]) => `<a href="#kasa/${to}" class="${tab === id ? "on" : ""}" ${tab === id ? 'aria-current="page"' : ""}><span>${tabIcon(to)}</span><b>${esc(label)}</b></a>`).join("")}</div></nav>
     ${error ? `<section class="kart" style="margin-bottom:16px"><p>${esc(error)}</p></section>` : ""}
-    ${tab === "monthly" ? monthlyScreen() : tab === "finans" ? financeScreen() : tab === "plan" ? planScreen() : recurringScreen()}`;
+    ${syncCard()}
+    ${tab === "monthly" ? monthlyScreen() : tab === "finans" ? financeScreen() : tab === "plan" ? planScreen() : tab === "vergi" ? taxScreen() : recurringScreen()}`;
   $("[autofocus]")?.focus();
 }
 
 const findEntry = (id) => [...data.entries, ...data.pending].find((e) => e.id === id);
 
 const ACTIONS = {
+  "tax-settings"() { state.taxForm = true; render(); },
+  "tax-cancel"() { state.taxForm = false; render(); },
+  "year-end"(b) { state.yearEnd = !!b.dataset.on; return load(); },
+  async "file-remove"(b) {
+    const e = state.form?.record;
+    if (!e || !confirm(t("Remove this file?"))) return;
+    try {
+      const r = await fetch("./api/belge/sil", { method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify({ entry: e.id, id: b.dataset.id }) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+      await reopenEntry(e.id);
+    } catch (err) { notify(err.message); }
+  },
+  async "file-open-remote"(b) {
+    const e = state.form?.record, tab = window.open("about:blank", "_blank");
+    try { const { url } = await speysPost("belge", { entryId: e.id, key: b.dataset.key }); tab.location.href = url; }
+    catch (err) { tab?.close(); notify(err.message); }
+  },
+  async "item-done"(b) {
+    const e = state.form?.record;
+    if (!e) return;
+    try {
+      const r = await fetch("./api/kalem/bitti", { method: "POST", headers: { "Content-Type": "application/json", "x-panel": "1" }, body: JSON.stringify({ entry: e.id, id: b.dataset.id, done: !!b.dataset.done }) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+      await reopenEntry(e.id);
+    } catch (err) { notify(err.message); }
+  },
+  async "file-remove-remote"(b) {
+    const e = state.form?.record;
+    if (!e || !confirm(t("Remove this file from Speys?"))) return;
+    try { await speysPost("belge/sil", { entryId: e.id, key: b.dataset.key }); await reopenEntry(e.id); } catch (err) { notify(err.message); }
+  },
+  async "speys-connect"() {
+    // The tab is opened right on the click (a tab opened after waiting is blocked), then sent to Speys.
+    const tab = window.open("about:blank", "_blank");
+    try {
+      const { url } = await speysPost("connect");
+      if (tab) tab.location.href = url; else location.href = url;
+    } catch (e) { tab?.close(); notify(e.message); }
+  },
+  async "speys-business"() {
+    const select = $("#speys-business"), b = businesses?.find((x) => x.id === select?.value);
+    if (!b || !confirm(t("The ledger on this computer and \"{name}\" in Speys become one: entries from both sides are kept in both places. Continue?", { name: b.name }))) return;
+    syncing = true; render();
+    try { speys = await speysPost("business", { id: b.id, name: b.name }); await load(); }
+    catch (e) { notify(e.message); }
+    finally { syncing = false; render(); }
+  },
+  "speys-sync"() { return syncNow(true); },
+  async "speys-disconnect"() {
+    if (!confirm(t("Disconnect from Speys? The ledger stays on this computer; to remove access fully, also remove it in Speys → Settings → Connections."))) return;
+    try { speys = await speysPost("disconnect"); businesses = null; render(); } catch (e) { notify(e.message); }
+  },
+  async "dup-drop"(b) {
+    const e = [...data.entries, ...data.pending, ...(speys?.duplicates ?? []).flatMap((d) => [d.a, d.b])].find((x) => x.id === b.dataset.id);
+    if (!e || !confirm(t('Delete "{title}"?', { title: e.title }))) return;
+    try { speys = await speysPost("duplicate", { drop: e.id }); await load(); syncNow(); } catch (err) { notify(err.message); }
+  },
+  async "dup-keep"(b) {
+    try { speys = await speysPost("duplicate", { key: b.dataset.key }); render(); } catch (err) { notify(err.message); }
+  },
   tab(b) { state.form = null; goTo("kasa", b.dataset.tab); },
   "month-step"(b) {
     const d = new Date(state.year, state.month + +b.dataset.step, 1);
@@ -468,10 +952,17 @@ const ACTIONS = {
   },
   "month-pick"(b) {
     state.year = +b.dataset.ym.slice(0, 4); state.month = +b.dataset.ym.slice(5, 7) - 1; state.category = ""; state.form = null;
-    if (activeTab() !== "monthly") goTo("kasa", "");
+    if (activeTab() !== "monthly") goTo("kasa", "sirket");
     return load();
   },
-  "plan-add"() { state.direction = "out"; state.form = { kind: "plan", record: null }; render(); },
+  "plan-add"() { state.direction = "out"; state.form = { kind: "plan", record: null, scenarioId: null }; render(); },
+  "scenario-pick"(b) { state.scenario = b.dataset.id; state.form = null; return load(); },
+  "scenario-add"() { state.form = { kind: "scenario", record: null }; render(); },
+  "scenario-open"(b) { const x = data.scenarios.find((s) => s.id === b.dataset.id); if (x) { state.form = { kind: "scenario", record: x }; render(); } },
+  "scenario-delete"() {
+    const x = state.form.record;
+    if (confirm(t('Delete the scenario "{name}" and the plan items only in it?', { name: x.name }))) { state.scenario = null; return write("senaryo/sil", { id: x.id }, t("Deleted")); }
+  },
   "plan-open"(b) { const p = data.plans.find((x) => x.id === b.dataset.id); if (p) { state.form = { kind: "plan", record: p }; render(); } },
   "plan-delete"() {
     const p = state.form.record;
@@ -499,6 +990,27 @@ const ACTIONS = {
   },
 };
 
+/** After a file change: reload and keep the same entry open. */
+async function reopenEntry(id) {
+  await load();
+  const e = findEntry(id);
+  state.form = e ? { kind: "entry", record: e } : null;
+  render();
+}
+document.addEventListener("change", async (ev) => {
+  if (ev.target.id !== "file-add" || !ev.target.files?.[0]) return;
+  const f = ev.target.files[0], e = state.form?.record;
+  if (!e) return;
+  if (f.size > 10 * 1024 * 1024) return notify(t("The file is larger than 10 MB"));
+  try {
+    const r = await fetch(`./api/belge?${new URLSearchParams({ entry: e.id, name: f.name })}`, { method: "POST", headers: { "Content-Type": f.type || "application/octet-stream", "x-panel": "1" }, body: f });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || r.status);
+    notify(t("Added"));
+    await reopenEntry(e.id);
+    syncNow();
+  } catch (err) { notify(err.message); }
+});
 window.addEventListener("hashchange", () => { state.form = null; render(); });
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-is]");
@@ -514,14 +1026,43 @@ document.addEventListener("change", (ev) => {
   for (const [k, v] of Object.entries(values)) if (fresh.elements[k] && k !== "cycle" && k !== "pending") fresh.elements[k].value = v;
   if (fresh.elements.pending) fresh.elements.pending.checked = !!values.pending;
 });
+// A foreign-currency document: the amount in the ledger's currency is the original × the rate, filled in as it's typed.
+document.addEventListener("input", (ev) => {
+  if (!ev.target.hasAttribute("data-is-fx")) return;
+  const form = ev.target.form, original = +form.elements.originalAmount?.value, rate = +form.elements.fxRate?.value;
+  if (form.elements.currency?.value && original > 0 && rate > 0) form.elements.amount.value = Math.round(original * rate * 100) / 100;
+});
 document.addEventListener("submit", (ev) => {
+  if (ev.target.id === "tax-form") {
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    state.taxForm = false;
+    write("vergi/ayar", { activity: f.get("activity"), bagkur: f.get("bagkur"), youngEntrepreneur: !!f.get("youngEntrepreneur") }, t("Saved"));
+    return;
+  }
+  if (ev.target.id === "accountant-form") {
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    const items = f.getAll("pick").map((key) => ({ key, amount: +f.get(`amount-${key}`) }));
+    if (!items.length) return notify(t("Choose at least one"));
+    write("musavir", { items, startDate: f.get("startDate") }, t("Added"));
+    return;
+  }
+  if (ev.target.matches(".ks-cakisma")) {
+    ev.preventDefault();
+    const form = ev.target, picks = Object.fromEntries(new FormData(form));
+    speysPost("resolve", { key: form.dataset.key, id: form.dataset.conflict, picks })
+      .then(async (d) => { speys = d; notify(t("Saved")); await load(); })
+      .catch((e) => notify(e.message));
+    return;
+  }
   const f = new FormData(ev.target), current = state.form?.record;
   if (ev.target.id === "entry-form") {
     ev.preventDefault();
     write("kayit", {
       id: current?.id, direction: current?.direction ?? state.direction, note: current?.note,
       title: f.get("title"), amount: +f.get("amount"), category: f.get("category"), entryDate: f.get("entryDate"),
-      counterparty: f.get("counterparty"), status: f.get("pending") ? "pending" : "paid",
+      counterparty: f.get("counterparty"), status: f.get("pending") ? "pending" : "paid", ...moreValues(f),
     }, t("Saved"));
   } else if (ev.target.id === "plan-form") {
     ev.preventDefault();
@@ -529,6 +1070,16 @@ document.addEventListener("submit", (ev) => {
       id: current?.id, direction: current?.direction ?? state.direction, note: current?.note,
       title: f.get("title"), amount: +f.get("amount"), category: f.get("category"), cycle: f.get("cycle"),
       startMonth: f.get("startMonth"), endMonth: f.get("endMonth") || null,
+      vatRate: f.get("vatRate") === "" ? null : +f.get("vatRate"), vatIncluded: !!f.get("vatIncluded"),
+      withholdingRate: f.get("withholdingRate") ? +f.get("withholdingRate") : null,
+      ...(f.has("annualIncreasePct") ? { annualIncreasePct: f.get("annualIncreasePct") === "" ? null : +f.get("annualIncreasePct") } : {}),
+      ...(f.has("scenarioId") ? { scenarioId: f.get("scenarioId") || null } : {}),
+    }, t("Saved"));
+  } else if (ev.target.id === "scenario-form") {
+    ev.preventDefault();
+    write("senaryo", {
+      id: current?.id, name: f.get("name"), note: current?.note,
+      openingBalance: f.get("openingBalance") === "" ? null : +f.get("openingBalance"), isDefault: !!f.get("isDefault"),
     }, t("Saved"));
   } else if (ev.target.id === "rule-form") {
     ev.preventDefault();
@@ -536,13 +1087,25 @@ document.addEventListener("submit", (ev) => {
       id: current?.id, direction: current?.direction ?? state.direction, isActive: current?.isActive ?? true,
       title: f.get("title"), amount: +f.get("amount"), category: f.get("category"), cycle: f.get("cycle"),
       dayOfMonth: +f.get("dayOfMonth"), monthOfYear: f.get("monthOfYear") ? +f.get("monthOfYear") : null,
-      counterparty: current?.counterparty, autoPaid: !f.get("pending"),
+      counterparty: current?.counterparty, autoPaid: !f.get("pending"), ...moreValues(f),
     }, t("Saved"));
   }
 });
 
+// The sign-in tab says when it's done.
+window.addEventListener("message", (ev) => {
+  if (ev.origin !== location.origin || !ev.data || typeof ev.data.speys !== "boolean") return;
+  businesses = null;
+  loadSpeys();
+});
+// Sync while the page is open: on opening, every five minutes, and when the tab comes back. Never in the background.
+const SYNC_EVERY = 5 * 60 * 1000;
+setInterval(() => { if (!document.hidden) syncNow(); }, SYNC_EVERY);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadSpeys().then(() => syncNow()); });
+
 render();
 load();
+loadSpeys().then(() => syncNow());
 </script>
 </body>
 </html>
