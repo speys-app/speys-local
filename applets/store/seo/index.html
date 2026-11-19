@@ -327,7 +327,7 @@ function shareCard() {
     `<button type="button" class="${shareMode === id ? "secili" : ""}" data-is="seo-paylasim-mod" data-mod="${id}">${esc(label)}</button>`).join("")}</div>`;
   if (local && !live.local) return `<section class="kart">${head}<div class="pa-ust">${modes}</div><p class="bos">${esc(t("Set a local address for this site to check your dev server: Settings → SEO → Sites → \"local\": \"http://localhost:5000\"."))}</p></section>`;
   const button = run
-    ? `<button type="button" disabled>${esc(run.total ? t("Checking… {done}/{total} pages", { done: run.done, total: run.total }) : t("Reading the sitemaps…"))}</button>`
+    ? `<button type="button" disabled>${esc(!run.total ? t("Reading the sitemaps…") : run.phase === "images" ? t("Opening share images… {done}/{total}", { done: run.done, total: run.total }) : t("Checking… {done}/{total} pages", { done: run.done, total: run.total }))}</button>`
     : `<button type="button" data-is="seo-paylasim-tara" data-yerel="${local ? "1" : ""}">${esc(d.at ? t("Check again") : t("Check now"))}</button>`;
   const note = `<span class="soluk">${esc(local
     ? t("Reads the same pages from your dev server, a few per sitemap; the dev server has to be running.")
@@ -357,16 +357,25 @@ function shareCard() {
     ${shown.length ? `<div class="pa-sablonlar">${shown.map((g) => templateHtml(g, others?.get(g.key), local)).join("")}</div>` : `<p class="bos">${esc(t("Every page has a working share image."))}</p>`}
     <p class="pa-alt">${toggle}</p></section>`;
 }
-/** Pages that share a path but its last part (every game, every place) are one template. The main site's own top-level
-    pages (speys.app/startups…) are separate landings and stay one by one; a "template" of one page is that page. */
+/** Pages whose path differs in one part are one template: every game (cardgames…/…), every post (yazi/…), every
+    campus (kampus/…/yemekhane). A page goes to the pattern it shares with the most pages; the main site's own
+    top-level pages (speys.app/startups…) are separate landings and stay one by one, as does a pattern of one page. */
 function templatesOf(pages, mainHost) {
-  const map = new Map();
-  for (const p of pages) {
+  const rows = pages.map((p) => {
     const u = new URL(p.url), parts = u.pathname.split("/").filter(Boolean);
     const main = u.host === mainHost || u.host === `www.${mainHost}`;
-    const key = !parts.length || (main && parts.length === 1) ? `${u.host}${u.pathname}` : `${u.host}/${[...parts.slice(0, -1), "…"].join("/")}`;
+    const patterns = main && parts.length === 1 ? [] : parts.map((_, i) => `${u.host}/${parts.map((x, j) => (j === i ? "…" : x)).join("/")}`);
+    return { p, own: `${u.host}${u.pathname}`, patterns };
+  });
+  const counts = new Map();
+  for (const r of rows) for (const k of r.patterns) counts.set(k, (counts.get(k) || 0) + 1);
+  const map = new Map();
+  for (const r of rows) {
+    // on a tie the later part varies: kampus/itu/… loses to kampus/…/yemekhane only when it has fewer pages
+    const best = r.patterns.reduce((a, k) => ((counts.get(k) || 0) >= 2 && (!a || counts.get(k) >= counts.get(a)) ? k : a), null);
+    const key = best || r.own;
     if (!map.has(key)) map.set(key, []);
-    map.get(key).push(p);
+    map.get(key).push(r.p);
   }
   return [...map].map(([key, list]) => {
     const name = list.length === 1 ? `${new URL(list[0].url).host}${decodeURIComponent(new URL(list[0].url).pathname)}` : key;

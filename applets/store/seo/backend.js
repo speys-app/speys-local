@@ -308,7 +308,7 @@ export default function create({ dataDir, settings, t, language }) {
     sharing.set(key, state);
     const file = shareFile(site, !!local);
     import("./previews.js")
-      .then((m) => m.scan({ domain: site.domain, extra: site.sitemaps, local, progress: (done, total) => Object.assign(state, { done, total }) }))
+      .then((m) => m.scan({ domain: site.domain, extra: site.sitemaps, local, progress: (done, total, phase) => Object.assign(state, { done, total, phase }) }))
       .then((result) => {
         mkdirSync(dataDir, { recursive: true });
         writeJson(file, result);

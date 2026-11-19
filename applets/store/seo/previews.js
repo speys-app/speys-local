@@ -242,22 +242,26 @@ async function imageOne(url, timeout = 15_000) {
   }
 }
 
-/** The whole check. `progress(done, total)` is called as pages come in. With `local` (a dev server address) the
+/** The whole check. `progress(done, total, phase)` is called as pages ("pages") and then share images ("images") come in. With `local` (a dev server address) the
     pages and their images are read from it instead: the same live addresses, mapped with toLocal. */
 export async function scan({ domain, extra, local = null, progress = () => {} }) {
   const { pages: urls, sitemaps } = await sitemapPages(domain, extra, local ? PER_SITEMAP_LOCAL : PER_SITEMAP);
   const pages = new Array(urls.length);
   const timeout = local ? 90_000 : 15_000;
   let done = 0;
-  progress(0, urls.length);
+  progress(0, urls.length, "pages");
   await pool(urls, local ? 2 : 6, async (url, i) => {
     pages[i] = await readOne(url, toLocal(url, domain, local), timeout);
-    progress(++done, urls.length);
+    progress(++done, urls.length, "pages");
   });
   const imageUrls = [...new Set(pages.map((p) => p.tags?.ogImage).filter(Boolean))];
   const images = {};
-  await pool(imageUrls, local ? 2 : 4, async (url) => {
+  // Every page has its own card now, many drawn on request: hundreds of images, eight at a time.
+  let opened = 0;
+  progress(0, imageUrls.length, "images");
+  await pool(imageUrls, local ? 2 : 8, async (url) => {
     images[url] = await imageOne(toLocal(url, domain, local), timeout);
+    progress(++opened, imageUrls.length, "images");
   });
   const uses = new Map();
   for (const p of pages) if (p.tags?.ogImage) uses.set(p.tags.ogImage, (uses.get(p.tags.ogImage) || 0) + 1);
